@@ -1,11 +1,11 @@
-status,path,sha256,bytes
-Modified,pom.xml,82dae67756355d2f721069ebf07ebddffcd6b0dc0f2de480ec8ba4306a45fb53,6148
-Modified,README.md,9fcc6d0346633b5750a52baf788b20f3c6230cb186659f24edfaffc2cd599023,3403
-Modified,docs/adr/0001-framework-selection.md,0301c916d2c77df4e458b7d07b4047850bea44b1de3cbe5ff36f4b7a0657bdac,6722
-Modified,docs/phase0/COMPATIBILITY-GATE.md,cca882a7ccb32507e37c957d790b5249e385d49501f5f718339c8d8eb7e48c01,2602
-Modified,docs/phase0/PHASE0-STATUS.md,5483917e503906cce0f5be17cb3801df093a1915c030fdbf029fb7045815395b,2919
-Modified,docs/phase0/SOURCE-REFERENCES.md,703b5385edbd7d84982f4f5d6759a20672520cd1dab0a101b02f1afa2eb40f2a,2837
-Added,docs/phase0/DEPENDENCY-RESOLUTION-2026-11-17.md,42ec7a69429fee7657e1ae4574b00ce3a9c302e09f890ef6531594b6f087ee99,2915
-Added,CHANGELOG_DEPENDENCY_FIX.md,b6185fd3018d79f69512faea7af06fd8396cb62f8b1e27ca794ef4b811a88cb1,1602
-Added,README_CHANGESET.md,fbeb992739408fa08afad234ac4850b11ab212bf2c8be259a883f25815e47881,584
-Added,CHANGE_MANIFEST.csv,see SHA-256 sidecar generated with ZIP,0
+status,path,description
+Modified,pom.xml,"Import official SLF4J BOM 2.0.20 to converge transitive logging API versions"
+Modified,README.md,"Document the SLF4J dependency baseline"
+Modified,docs/adr/0001-framework-selection.md,"Record the dependency conflict, version alignment decision and compatibility acceptance condition"
+Modified,docs/phase0/PHASE0-STATUS.md,"Record CI evidence and SLF4J alignment; Phase 0 remains open"
+Modified,docs/phase0/COMPATIBILITY-GATE.md,"Add SLF4J dependency-tree and Enforcer acceptance condition"
+Modified,docs/phase0/SOURCE-REFERENCES.md,"Add official SLF4J release and Maven Central BOM/API references"
+Added,docs/phase0/DEPENDENCY-CONVERGENCE-2026-11-17.md,"Explain cause, resolution and verification"
+Added,CHANGELOG_SLF4J_ALIGNMENT.md,"Human-readable change summary"
+Added,README_CHANGESET.md,"Application and verification instructions"
+Added,CHANGE_MANIFEST.csv,"File inventory"

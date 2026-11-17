@@ -40,6 +40,7 @@ Dependency inspection:
 - The PostgreSQL test can load a checkpoint using a newly created saver and compiled graph.
 - V1 PostgreSQL saver limitation is respected: V1 does not persist interruption metadata. Pending approvals and authorization decisions must therefore be authoritative application records, not inferred from the checkpoint saver alone. The production database design must persist approval status independently and revalidate it before resuming an action.
 - The resolved dependency tree contains LangGraph4j core and PostgreSQL saver 1.8.20 as managed by the official 1.8.20 BOM, plus LangChain4j 1.23.0, without unexpected duplicate/mismatched LangGraph4j artifacts.
+- The resolved SLF4J dependency family is aligned to 2.0.20 by the official SLF4J BOM; Maven Enforcer `dependencyConvergence` remains enabled and passes.
 - GitHub Actions succeeds from a clean checkout.
 
 No domain implementation or chapter prose begins until this gate is green.

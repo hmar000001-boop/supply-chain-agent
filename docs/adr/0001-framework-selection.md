@@ -2,7 +2,7 @@
 
 - Status: **Provisional selection; compatibility gate pending CI**
 - Original decision date: 2026-11-16
-- Dependency alignment correction: 2026-11-17
+- Dependency alignment corrections: 2026-11-17
 - Scope: Part III supply-chain application
 
 ## Decision
@@ -20,6 +20,10 @@ The original Phase 0 POM selected 1.8.28 because that release appears on the Lan
 We therefore select **1.8.20 as the latest common published 1.8.x artifact baseline for the core and PostgreSQL saver**. This is a deliberate compatibility choice, not a claim that 1.8.20 is the newest GitHub tag. It avoids mixing independently released core and saver versions without proof of binary compatibility.
 
 The root POM imports `org.bsc.langgraph4j:langgraph4j-bom:1.8.20`. Direct versions for LangGraph4j modules are intentionally omitted so the BOM controls the module set consistently. A future move to a later LTS artifact set requires confirming that the required core and saver artifacts are actually published, then rerunning the complete compatibility suite.
+
+## SLF4J dependency convergence
+
+The first CI build using the published LangGraph4j 1.8.20 artifacts reached Maven Enforcer and identified a transitive version conflict: LangGraph4j requested `slf4j-api:2.0.9`, while LangChain4j 1.23.0 requested `slf4j-api:2.0.18`. The root POM now imports the official `org.slf4j:slf4j-bom:2.0.20`, the current stable SLF4J 2.0 release as of 2026-11-17. This centrally manages the SLF4J family and resolves the conflicting transitive requests through Maven dependency management. The Enforcer `dependencyConvergence` rule remains enabled. The next clean CI build and dependency-tree inspection must verify that the resolved graph converges; the ADR does not treat the source change alone as proof.
 
 ## Why LangChain4j stable core
 
@@ -62,6 +66,7 @@ The decision becomes accepted only after CI demonstrates:
 - PostgreSQL checkpoint save, fresh saver/graph reload and resume.
 - Application-owned pending-approval persistence is kept separate from graph checkpoint storage. The selected PostgreSQL saver V1 limitation must be respected: pending approvals remain authoritative application records and are independently revalidated before resuming a state-changing action.
 - Dependency tree inspection confirms that the BOM resolves the intended core and PostgreSQL saver to 1.8.20 without duplicate/mismatched LangGraph4j versions.
+- Dependency tree inspection confirms that SLF4J modules are consistently managed at 2.0.20 and Maven Enforcer `dependencyConvergence` passes.
 
 ## Consequences
 

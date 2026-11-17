@@ -1,10 +1,14 @@
-# Apply this change-only package
+# Apply this change set
 
-1. Extract this ZIP at the root of the existing `supply-chain-agent` repository.
-2. Allow the six modified files to overwrite their existing counterparts.
-3. Keep all other repository files, including the Maven bootstrap fix already applied.
-4. Commit the changes and run the `Java CI` workflow.
+Extract this ZIP at the repository root, preserving relative paths. This is a change-only package, not a complete project archive.
 
-This archive deliberately excludes the complete repository and all unchanged files.
+The parent `pom.xml` imports the official SLF4J 2.0.20 BOM so transitive logging dependencies from LangGraph4j 1.8.20 and LangChain4j 1.23.0 converge on one managed version. Keep Maven Enforcer's `dependencyConvergence` rule enabled.
 
-The package does not claim a successful Maven build. Phase 0 remains open until CI passes the clean build, tests, PostgreSQL saver test and dependency-tree inspection.
+After applying, run:
+
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean verify
+./mvnw -B -ntp dependency:tree -Dincludes=org.slf4j -DoutputFile=target/slf4j-dependency-tree.txt
+```
+
+Do not treat dependency convergence as verified until CI passes and the dependency-tree artifact shows the aligned version.

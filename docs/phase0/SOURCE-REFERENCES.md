@@ -33,3 +33,11 @@ Research and implementation references are restricted to Java documentation, tag
 - LangChain4j stable core is 1.23.0; the Agentic module is on a separate experimental/beta line and is excluded from this project's runtime.
 
 These are dependency-selection inputs, not proof of compatibility. The Maven build, tests and dependency tree must prove the combination used here.
+
+## SLF4J alignment
+
+- Official release status: https://www.slf4j.org/download.html
+- Maven Central SLF4J BOM 2.0.20: https://central.sonatype.com/artifact/org.slf4j/slf4j-bom/2.0.20
+- Maven Central SLF4J API 2.0.20: https://central.sonatype.com/artifact/org.slf4j/slf4j-api/2.0.20
+
+The root POM imports `slf4j-bom:2.0.20` to align transitive SLF4J modules requested by LangGraph4j 1.8.20 and LangChain4j 1.23.0.

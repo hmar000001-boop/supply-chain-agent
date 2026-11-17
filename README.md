@@ -12,10 +12,11 @@ This is the beginning of the complete Part III reference application. The target
 | Maven Wrapper | Maven 3.9.16, Wrapper 3.3.4 |
 | LangGraph4j | 1.8.20 LTS (official BOM) — primary graph orchestration |
 | LangChain4j | 1.23.0 stable core — model integration and AI Services |
+| SLF4J | 2.0.20 BOM — aligns transitive logging API/provider modules |
 | PostgreSQL | 16.4 CI service for checkpoint integration test |
 | JUnit | 5.12.2 |
 
-`langchain4j-agentic` is intentionally **not** included. LangGraph4j is the sole workflow orchestrator. LangChain4j is used through its stable `ChatModel` and AI Services APIs. The project imports the official LangGraph4j 1.8.20 BOM so the core and PostgreSQL saver resolve to the same published release. The compatibility gate verifies this combination before domain features are added.
+`langchain4j-agentic` is intentionally **not** included. LangGraph4j is the sole workflow orchestrator. LangChain4j is used through its stable `ChatModel` and AI Services APIs. The project imports the official LangGraph4j 1.8.20 BOM so the core and PostgreSQL saver resolve to the same published release. It also imports the official SLF4J 2.0.20 BOM so transitive logging dependencies from LangGraph4j and LangChain4j converge without weakening Maven Enforcer. The compatibility gate verifies these combinations before domain features are added.
 
 ## Architecture boundary
 

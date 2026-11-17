@@ -28,6 +28,7 @@
 
         <langgraph4j.version>1.8.20</langgraph4j.version>
         <langchain4j.version>1.23.0</langchain4j.version>
+        <slf4j.version>2.0.20</slf4j.version>
         <junit.version>5.12.2</junit.version>
         <postgresql.version>42.7.8</postgresql.version>
 
@@ -50,6 +51,14 @@
             </dependency>
 
 
+            <!-- Align transitive SLF4J dependencies from LangGraph4j and LangChain4j. -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-bom</artifactId>
+                <version>${slf4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j</artifactId>
