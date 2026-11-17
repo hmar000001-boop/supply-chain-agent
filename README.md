@@ -9,7 +9,7 @@ This is the beginning of the complete Part III reference application. The target
 | Component | Version / role |
 |---|---|
 | Java | 21 |
-| Maven Wrapper | Maven 3.9.16, Wrapper 3.3.4 |
+| Maven bootstrap | Apache Maven 3.9.16, SHA-512 pinned |
 | LangGraph4j | 1.8.28 LTS — primary graph orchestration |
 | LangChain4j | 1.23.0 stable core — model integration and AI Services |
 | PostgreSQL | 16.4 CI service for checkpoint integration test |
@@ -53,7 +53,7 @@ It uses a fixed `ChatModel` response and does not require an API key or external
 
 ## Current status
 
-The project source and CI workflow are prepared. The authoring container has JDK 21 but does not have Maven installed and cannot resolve Maven Central DNS, so it cannot execute the Maven build here. **Phase 0 is not marked complete until the GitHub Actions workflow passes on a clean checkout.** The first CI run is the executable compatibility proof for the selected artifacts and APIs.
+The Maven bootstrap downloads the pinned Apache Maven 3.9.16 binary directly from Apache distribution infrastructure (archive.apache.org, with downloads.apache.org as fallback), verifies its SHA-512 checksum and caches it under the Maven user home. It no longer downloads the Maven Wrapper JAR or Maven distribution from Maven Central. Project dependencies and plugins are still resolved by Maven from the configured artifact repositories. GitHub Actions also caches the pinned Maven distribution separately from the Maven dependency cache. **Phase 0 remains open until the complete GitHub Actions workflow passes on a clean checkout.**
 
 See:
 

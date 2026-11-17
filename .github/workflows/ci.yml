@@ -44,14 +44,21 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Cache pinned Apache Maven distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper/dists/apache-maven-3.9.16
+          key: maven-dist-${{ runner.os }}-3.9.16-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
       - name: Make Maven Wrapper executable
         run: chmod +x ./mvnw
 
       - name: Build and run all tests, including PostgreSQL checkpoint recovery
+        id: build
         run: ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 
       - name: Capture resolved dependency tree
-        if: always()
+        if: always() && steps.build.outcome == 'success'
         run: ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt
 
       - name: Upload test reports and dependency tree

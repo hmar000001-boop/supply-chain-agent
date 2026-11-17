@@ -17,8 +17,8 @@
 ## Environment observed
 
 - OpenJDK 21.0.12.1 is available.
-- Maven is not installed globally; the Maven Wrapper is pinned to Maven 3.9.16 and Wrapper 3.3.4.
-- Maven Central DNS resolution fails in this authoring container, so the wrapper cannot download its bootstrap JAR or Maven distribution.
+- Maven is not installed globally. The custom wrapper now downloads Apache Maven 3.9.16 directly from Apache distribution infrastructure, verifies the pinned SHA-512 checksum, and caches the installation. It no longer needs a wrapper JAR from Maven Central.
+- The GitHub Actions failure on 2026-11-17 was HTTP 429 during the old Maven Central bootstrap. This source change addresses that exact bootstrap dependency; it does not prevent Maven Central rate limits while resolving project dependencies.
 
 ## Execution status
 

@@ -1,34 +1,12 @@
-Status,Path,Description,SHA256
-Added,.env.example,Initial Java 21 / LangGraph4j / LangChain4j application baseline,66e761ac5e0148c0223ff01eb54473a543420d3c66da56e4ec6d332c3c98835a
-Added,.gitattributes,Initial Java 21 / LangGraph4j / LangChain4j application baseline,04865e7da2073227de2e730fff6446fe83c24d45b930236b76572a1e40a29b69
-Added,.github/workflows/ci.yml,CI workflow,ab4ccdd806a87140c66acd750422e4e845f3a32efcfe450cafe3acc7e61caf99
-Added,.gitignore,Initial Java 21 / LangGraph4j / LangChain4j application baseline,f08921c249f04a8dbb1535213c54b6296bc5d6bd6d35165f0e249bce4385078f
-Added,.mvn/wrapper/maven-wrapper.properties,Initial Java 21 / LangGraph4j / LangChain4j application baseline,4e88d46d4734f4cf16183ef44d24f3a5921c1a392df78c85fe9a565caf6cd551
-Added,CHANGELOG_M0.md,Initial Java 21 / LangGraph4j / LangChain4j application baseline,4862e601d0de57337f81854d8723513549f2b4c4a1829d59d2db45f77c65b520
-Added,README.md,Initial Java 21 / LangGraph4j / LangChain4j application baseline,916d803d7b204e1b00b38b848ab0244a3e2d6cc68a068d59521af191fe43918b
-Added,README_CHANGESET.md,Initial Java 21 / LangGraph4j / LangChain4j application baseline,053bb8176d2c456f5279aedc54b495ab6659ab3ed2ec062d10574e078b3e9ee4
-Added,docs/adr/0001-framework-selection.md,"Architecture, compatibility or implementation documentation",034f0866ab48e85f9c32834c2eda6ed9e0e91ce6c050e328f18d2595afda89cc
-Added,docs/architecture/DECISION-BOUNDARIES.md,"Architecture, compatibility or implementation documentation",af156e092746c3d48f420b1c8c73070472d6906b6cca50bf6e0594fa55bc2460
-Added,docs/phase0/COMPATIBILITY-GATE.md,"Architecture, compatibility or implementation documentation",75070a68714cbcdd1cb160b9214fec3df676e157f8ac405c4b91fec0ce0b5c27
-Added,docs/phase0/PHASE0-STATUS.md,"Architecture, compatibility or implementation documentation",2460470c8ea8f68b9937bf539aac788df80b2212f0160accae9d6dff171065e6
-Added,docs/phase0/SOURCE-REFERENCES.md,"Architecture, compatibility or implementation documentation",8186e140cdf24f4ed9ad29a30939807b2923f9c96c1eeb2f87f1077871e4dafd
-Added,mvnw,Initial Java 21 / LangGraph4j / LangChain4j application baseline,8f7e6bb726ef2776a58815cea87b37a62bef416ce290f39dc921021dae3a088b
-Added,mvnw.cmd,Initial Java 21 / LangGraph4j / LangChain4j application baseline,03c61d94aa6e3f7c3d00265b70480ac77d1f9194359a3a83b32a616d924651ba
-Added,pom.xml,Initial Java 21 / LangGraph4j / LangChain4j application baseline,50eae82dc0d616e3f1d08e0ebaa05c21b846f5b9f061a5e25e3f258d0c1f5be0
-Added,scripts/run-smoke.sh,Installs the reactor and runs the deterministic smoke application,3587e325c0ccd12a08de0a59ad96561f073ce8efa0452c815573a57e55ac3b55
-Added,scripts/verify-local.sh,Initial Java 21 / LangGraph4j / LangChain4j application baseline,d6f63cb92f2c151d152e90ae08438089546181a12fb4a2b2dac2b9971a8b6175
-Added,supply-chain-agent-app/pom.xml,Initial Java 21 / LangGraph4j / LangChain4j application baseline,0df042c7204463f24cc4144c1fef7e9812efcd4bb0d808c72d1a0bcd6a988866
-Added,supply-chain-agent-app/src/main/java/dev/supplychain/agent/app/Phase0Application.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,4c84edac584d9392053600c0bee827947b6515ed9e06bd0d8810b2792680b022
-Added,supply-chain-agent-core/pom.xml,Initial Java 21 / LangGraph4j / LangChain4j application baseline,4902cf7d75d98a571a563074e85509cce13f478bf94199525fcbae02538c8268
-Added,supply-chain-agent-core/src/main/java/dev/supplychain/agent/core/interpretation/InterpretationOutcome.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,458102a082a88ce64c0b15a78ee9917264db82f6cf08d954dd732fc4df961d5a
-Added,supply-chain-agent-core/src/main/java/dev/supplychain/agent/core/interpretation/InterpretationRequest.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,ae8d37d536fc8a18279902e86059b1a8fe6f39df1e82ff5d27c23e191162325a
-Added,supply-chain-agent-core/src/main/java/dev/supplychain/agent/core/interpretation/RequestInterpretation.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,b17442766c6e24637af67a9201ea131f8966b1bc02941c4e592b61758ba84b1c
-Added,supply-chain-agent-core/src/main/java/dev/supplychain/agent/core/interpretation/RequestInterpreter.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,40ea5b90888093e76a826e4cf785bc29931b2ff413c0faa7a12d349b659ae61f
-Added,supply-chain-agent-runtime/pom.xml,Initial Java 21 / LangGraph4j / LangChain4j application baseline,aca8c518b3906a3547a02d9674a8e516fe41e176fad25e2694fb072dc5dbb8ed
-Added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langchain4j/LangChain4jRequestInterpreter.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,cf84cea3337c3236eff8f02db7164a8dd4c941c666c6f67544d68814727c573c
-Added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langchain4j/RequestClassificationAiService.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,edff4444f1d25b3a195cc41b1946b1ae96495242c9d585fc32b429ad8e2fdf24
-Added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langgraph/SupplyChainGraphState.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,7612f2f036d4c4fca1a5f570bc8c91f8786394077e272ee7129866d25b313d24
-Added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langgraph/SupplyChainIntakeGraph.java,Initial Java 21 / LangGraph4j / LangChain4j application baseline,8ccb0d6af4baf46a89975d8808c2e3a3df18d64bfa66c28f7b0c6a480b399967
-Added,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/CheckpointResumeCompatibilityTest.java,Framework compatibility test,daf70d00c0482b64621dc5609d08040735a0baeb47d7449b657c5b372326af82
-Added,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,Framework compatibility test,7ce7a4e8e7f0e9764c5d6572c69853aee69cb380a6b7953efd8442aa6633c064
-Added,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/PostgresCheckpointCompatibilityTest.java,Framework compatibility test,054a2e8b77ba894519b2a54df811dc78ed5839a86fcb7ac7346b1fe14ccbdff0
+status,path,description,sha256
+Modified,.mvn/wrapper/maven-wrapper.properties,Pinned Apache Maven URLs and official SHA-512 checksum.,95f558217fda7f3574aa7c77fb0c704832c84fc9600e18fcd66b5849244f0e07
+Added,.mvn/wrapper/bootstrap-maven.ps1,"Windows bootstrap with retry, SHA-512 validation and cache.",07570a4b0593a7fcbf45f475f5cb9c572883c0b35f9364fbce45f0591115080a
+Modified,mvnw,"POSIX bootstrap downloads directly from Apache, retries and verifies checksum.",be847a698a49859d5cdd8aef984d9cd3ff1bd1e9f8fb59d0c213bca678683b19
+Modified,mvnw.cmd,Delegates to the PowerShell Apache distribution bootstrap.,a67b996074d77955ab13e2b5389f0b4780b0de7912f585a3ccbe2efa423c4058
+Modified,.gitignore,Removes obsolete wrapper-JAR ignore entry.,1f6a405e0522eba935563f1cadc838e8518a84bedf557585c3f0afc625180a4c
+Modified,.github/workflows/ci.yml,Caches the pinned Maven binary and avoids a second bootstrap attempt if the build failed.,6709bb007ebe59365fab2869d0a4555dfe1a3c97b769be05a4de34123f7cdf0e
+Modified,README.md,"Documents Apache bootstrap, checksum and separate dependency resolution.",c27416fc3268f4793eb6f8e3149a3d52763779f9748c8b851b42747ffb5d0925
+Modified,docs/phase0/PHASE0-STATUS.md,Records the 429 failure and remediation without claiming full build success.,840e02034c63ed07784be68f4507bc10d54ffaec5c85c4e0c1acbd1f954463a7
+Added,docs/phase0/MAVEN-BOOTSTRAP.md,"Documents bootstrap flow, cache and scope limitation.",daf4685d957fa57744b74e56551a56be99cfa2e1512d67d8751fb8e1e7b990ae
+Added,CHANGELOG_CI_MAVEN_429.md,Detailed changes and verification status.,664840bbe80b60ac90a555327294356b63549a525882064e35705528b54040fb
+Added,README_CHANGESET.md,Instructions for applying this change-only package.,b13b1f52104fd45502c69c77ef8b8fa5992c90aa92fca1c0d72dbe3fe9be0b18
