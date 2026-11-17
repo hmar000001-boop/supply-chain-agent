@@ -1,6 +1,6 @@
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M3 — internal and external CoALA action system (implementation package prepared; CI pending)**
+**Current milestone: M4 — Fan & Lan mechanism implementations (implementation package prepared; CI pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -25,6 +25,7 @@ This is the reference application for Part III of *From Cognitive Architectures 
 - `supply-chain-agent-core`: framework-neutral application contracts; it does not own memory implementations.
 - `supply-chain-agent-simulator`: deterministic, side-effect-free transitions over domain snapshots; depends only on the domain module.
 - `supply-chain-agent-actions`: framework-neutral CoALA internal actions, read-only perception, simulator-backed grounding, capability/resource authorization, typed results and idempotency contracts.
+- `supply-chain-agent-mechanisms`: framework-neutral engineering realizations of Fan & Lan B1/B2/B3/B4/B6, with explicit S/C/T/P/F/L/R contracts; no agent-framework or database dependency.
 - `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j model adapters; this is the only module that depends on model/framework APIs.
 - `supply-chain-agent-app`: composition root.
 
@@ -68,7 +69,7 @@ The memory module is framework-neutral. `MemoryRetrievalService` provides exact 
 
 See [`docs/architecture/COALA-MEMORY-ARCHITECTURE.md`](docs/architecture/COALA-MEMORY-ARCHITECTURE.md), [`docs/adr/0002-coala-memory-boundaries.md`](docs/adr/0002-coala-memory-boundaries.md) and [`docs/phase2/M2-STATUS.md`](docs/phase2/M2-STATUS.md).
 
-## M3 — CoALA internal and external actions (implementation package prepared; CI pending)
+## M3 — CoALA internal and external actions (accepted by GitHub Actions CI; user reported green)
 
 M3 adds the `supply-chain-agent-actions` module. It deliberately separates:
 
@@ -80,9 +81,23 @@ All actions use typed request/result contracts. The dispatcher checks action/inp
 
 `LangChain4jReasoningProvider` is an adapter in the runtime module. Its AI Service returns a typed assessment, has no tools, and cannot authorize or execute business actions. The current AI Service uses typed POJO parsing; provider-specific JSON Schema enforcement is not assumed unless the configured `ChatModel` supports and explicitly enables it. The adapter validates evidence citations against only the evidence references supplied by the caller. See the official [LangChain4j structured-output documentation](https://docs.langchain4j.dev/tutorials/structured-outputs/) and [AI Services documentation](https://docs.langchain4j.dev/tutorials/ai-services/).
 
-M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed durable operation ledger, production external adapters, outbox/inbox, and durable memory repositories are deferred to M7. B1 activation-based retrieval/ranking remains M4; M3 retrieval is the M2 deterministic cross-memory lookup.
+M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed durable operation ledger, production external adapters, outbox/inbox, and durable memory repositories are deferred to M7. M3 exposes deterministic cross-memory lookup from M2; M4 adds B1 activation/accessibility, latency, downstream-utility and maintenance-aware selection on top of those contracts.
 
 See [`docs/architecture/COALA-ACTION-ARCHITECTURE.md`](docs/architecture/COALA-ACTION-ARCHITECTURE.md), [`docs/adr/0003-coala-action-and-authority-boundaries.md`](docs/adr/0003-coala-action-and-authority-boundaries.md), and [`docs/phase3/M3-STATUS.md`](docs/phase3/M3-STATUS.md).
+
+## M4 — Fan & Lan mechanism realizations (implementation package prepared; CI pending)
+
+M4 adds the framework-neutral `supply-chain-agent-mechanisms` module and implements the applicable residual bundles as independently testable capabilities:
+
+- **B1:** M2 retrieval-result adapter for all four memory types; configurable activation/accessibility estimate; separate predicted cognitive and measured infrastructure latency; downstream utility, context cost and maintenance accounting.
+- **B2:** typed impasse consolidation and bounded child-resolution cases, with parent version/objective protection, read/reasoning-only child capabilities, deadlines and action budgets. Child results contain evidence-backed findings only; parent authority is preserved.
+- **B3:** mandatory/optional workspace admission, utility/reliability/risk and marginal coverage scoring, symmetric conflicts, explicit coverage coalitions, immutable snapshots and scoped synchronous consumer receipts.
+- **B4:** versioned recovery intentions, protected objective fingerprint/constraints, reconsideration-gated method changes, suspension/resumption, bounded delegation and evidence-bearing completion.
+- **B6:** explicit evidence/hypothesis/plan uncertainty, computational resource reservations/consumption, per-next-step budget checks, deadlines, reduced computation, human/budget interruption and safe stopping.
+
+The scoring models are engineering realizations and are not claimed to be paper-exact equations. B5/GraSP remains the previously reviewed closed-candidate boundary; it is not implemented as a new residual mechanism. The mechanism module does not implement CoT/ToT/MCTS (M5) or LangGraph4j graph orchestration (M6). Its repositories/ledgers are in-memory reference adapters; M7 supplies durable transactional implementations.
+
+See [`docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md`](docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md), [`docs/adr/0004-fan-lan-mechanism-realizations.md`](docs/adr/0004-fan-lan-mechanism-realizations.md), and [`docs/phase4/M4-STATUS.md`](docs/phase4/M4-STATUS.md).
 
 ## Build and test
 
@@ -114,4 +129,4 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0 framework compatibility, M1 domain/simulator and M2 CoALA memory are accepted by GitHub Actions CI. M3 implements internal and external action contracts and is awaiting CI. Subsequent milestones implement Fan & Lan B1/B2/B3/B4/B6 mechanisms, independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
+M0 framework compatibility, M1 domain/simulator, M2 CoALA memory and M3 internal/external actions are accepted by GitHub Actions CI (M3 green status reported by the user). M4 implements Fan & Lan B1/B2/B3/B4/B6 and awaits CI. Subsequent milestones implement independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.

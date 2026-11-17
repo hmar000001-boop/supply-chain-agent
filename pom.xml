@@ -16,6 +16,7 @@
         <module>supply-chain-agent-domain</module>
         <module>supply-chain-agent-memory</module>
         <module>supply-chain-agent-actions</module>
+        <module>supply-chain-agent-mechanisms</module>
         <module>supply-chain-agent-core</module>
         <module>supply-chain-agent-simulator</module>
         <module>supply-chain-agent-runtime</module>

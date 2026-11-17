@@ -1,31 +1,18 @@
-# M3 change-only package
+# M4 change-only package
 
-Apply the ZIP contents at the root of the existing `supply-chain-agent` repository, preserving the directory structure.
+Apply this archive at the repository root of the M3-accepted supply-chain-agent project.
 
-This package contains only M3 additions and modifications. It does not contain the complete repository.
+- It contains only M4 additions and the small set of files updated for the M4 milestone.
+- It does not contain the full repository or unchanged files.
+- No files are deleted.
+- Keep the M0/M1/M2/M3 modules and tests intact.
 
-## Apply
-
-1. Extract the ZIP into the repository root, allowing the listed files to be added or replaced.
-2. Review `CHANGE_MANIFEST.csv` before committing.
-3. Commit the changes and run the complete CI command:
+After applying the archive, run the same clean acceptance command used for previous milestones:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-## Scope
+The Maven/Surefire GitHub Actions run is authoritative. The supplemental local 172-test harness is documented in `docs/phase4/M4-TEST-RESULTS.md`; it is not represented as a full Maven reactor run.
 
-- Adds the framework-neutral `supply-chain-agent-actions` module.
-- Adds the LangChain4j stable-core reasoning adapter to the runtime module.
-- Extends the M1 deterministic simulator with guarded shipment rerouting.
-- Updates architecture/status documentation and Maven reactor configuration.
-- Preserves the M0 compatibility tests and all M1/M2 sources and tests.
-
-## Validation note
-
-The authoring environment compiled the framework-neutral domain, memory, simulator and actions production sources with JDK 21 and executed 102 local regression test methods using a JUnit-compatible shim/reflection harness. It did not run Maven Surefire/JUnit Platform and could not compile the LangChain4j adapter against Maven artifacts locally. GitHub Actions is the acceptance gate for the complete Maven reactor.
-
-## Explicit limitations
-
-M3 uses in-memory reference adapters for the action ledger and simulator world. It does not provide durable action-ledger semantics, live ERP/WMS/carrier integrations, plan-bound human approval or LangGraph4j orchestration of the new action catalog. Those remain later milestones as documented in `docs/phase3/M3-STATUS.md`.
+The exact M4 file inventory and SHA-256 values are in `M4_CHANGE_MANIFEST.csv`.
