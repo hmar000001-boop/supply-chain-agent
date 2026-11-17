@@ -1,13 +1,15 @@
-# Applying this change set
+# M2 change-only package
 
-Extract this ZIP at the repository root, preserving the relative paths.
+Apply this archive at the root of the existing `supply-chain-agent` repository, preserving its directory structure. It contains only files added or modified for M2; it does not contain the full repository or unchanged M0/M1 files.
 
-The package contains one modified Java source file and two added documentation files. It does not contain the complete repository or unchanged files.
+- `Added`: the new `supply-chain-agent-memory` module, CoALA memory architecture/ADR/status/test documentation, changelog and manifest.
+- `Modified`: root Maven reactor POM, root README and M1 status document (to record M1 acceptance and describe the current M2 milestone).
+- `Deleted`: none.
 
-After applying it, run:
+After extraction, run from the repository root:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-The patch is based on the CI state where all seven compatibility tests passed and only the application-host compilation failed on `Phase0Application.java`'s obsolete `graph.execute(...)` call.
+The memory module is framework-neutral. The included PostgreSQL SQL file is a schema contract only; M2 does not run it. Durable memory JDBC adapters and migration execution remain M7 scope.

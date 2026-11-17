@@ -1,6 +1,6 @@
 # M1 status — domain foundation and deterministic world simulator
 
-**Status: implementation checkpoint prepared; awaiting GitHub Actions validation.**
+**Status: accepted — GitHub Actions CI passed on 2026-11-17.**
 
 ## Added capabilities
 
@@ -26,7 +26,7 @@ The following checks were performed after the final M1 source edits:
 - All Maven POM files parsed as XML; all five reactor module paths exist.
 - Domain and simulator production sources contain no LangGraph4j, LangChain4j, JDBC or PostgreSQL imports.
 
-The complete Maven reactor, Maven Enforcer and real JUnit/Surefire execution were **not** run in the authoring environment. The next clean GitHub Actions build must validate the new modules and their real JUnit tests while retaining the seven M0 compatibility tests.
+The complete Maven reactor, Maven Enforcer and real JUnit/Surefire execution were verified by the user-reported green GitHub Actions run on 2026-11-17. The authoring-environment checks above remain supplementary rather than a replacement for that CI evidence.
 
 ## Scope boundaries
 
@@ -34,4 +34,4 @@ This is the domain/simulator layer, not a complete agent implementation. It make
 
 ## Next
 
-After M1 passes the clean CI build, proceed to M2: implement CoALA working, episodic, semantic and procedural memory on these stable domain identifiers and snapshots. Keep the current domain/simulator invariants as mandatory tests.
+M1 passed the clean CI build. M2 now implements CoALA working, episodic, semantic and procedural memory on framework-neutral scope/entity/evidence references; M1 domain/simulator invariants remain mandatory tests.

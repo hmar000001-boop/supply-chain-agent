@@ -1,6 +1,6 @@
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M1 — supply-chain domain foundation and deterministic world simulator**
+**Current milestone: M2 — complete CoALA memory architecture**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -21,7 +21,8 @@ This is the reference application for Part III of *From Cognitive Architectures 
 ## Architecture and dependency boundaries
 
 - `supply-chain-agent-domain`: framework-independent business entities, value objects, cross-aggregate invariants and immutable supply-chain snapshots.
-- `supply-chain-agent-core`: framework-neutral application contracts.
+- `supply-chain-agent-memory`: framework-neutral CoALA working, episodic, semantic and procedural memory models, lifecycle services, repository ports and exact cross-memory retrieval.
+- `supply-chain-agent-core`: framework-neutral application contracts; it does not own memory implementations.
 - `supply-chain-agent-simulator`: deterministic, side-effect-free transitions over domain snapshots; depends only on the domain module.
 - `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j adapters.
 - `supply-chain-agent-app`: composition root.
@@ -51,7 +52,20 @@ M1 introduces:
 
 The initial supplier-capacity model represents one planning horizon per supplier/product capability. Time-phased capacity buckets, carrier throughput, richer temporal constraints and external execution adapters are intentionally deferred until later implementation phases require them. The simulator is a deterministic world model, not an ERP, authorization service or transaction manager.
 
-See [`docs/architecture/M1-DOMAIN-MODEL.md`](docs/architecture/M1-DOMAIN-MODEL.md) and [`docs/phase1/M1-STATUS.md`](docs/phase1/M1-STATUS.md).
+See [`docs/architecture/M1-DOMAIN-MODEL.md`](docs/architecture/M1-DOMAIN-MODEL.md) and [`docs/phase1/M1-STATUS.md`](docs/phase1/M1-STATUS.md). M1 passed the full GitHub Actions CI gate on 2026-11-17.
+
+## M2 — CoALA memory architecture
+
+M2 introduces four distinct memory responsibilities:
+
+- **Working memory:** immutable, versioned active context with typed slots, per-slot evidence and provisional hypotheses.
+- **Episodic memory:** structured experience and outcomes; only explicitly verified episodes are retrievable as trusted experience.
+- **Semantic memory:** typed, provenance-controlled facts with separate valid-time and knowledge-time queries.
+- **Procedural memory:** immutable artifact references and append-only procedure versions with explicit validation and activation.
+
+The memory module is framework-neutral. `MemoryRetrievalService` provides exact deterministic retrieval and does not implement B1 activation/ranking; B1 is a later mechanism. Graph state/checkpoints are not CoALA memory. In-memory adapters support local tests only. An initial PostgreSQL schema contract is included, but migration execution and durable PostgreSQL memory adapters are deferred to M7.
+
+See [`docs/architecture/COALA-MEMORY-ARCHITECTURE.md`](docs/architecture/COALA-MEMORY-ARCHITECTURE.md), [`docs/adr/0002-coala-memory-boundaries.md`](docs/adr/0002-coala-memory-boundaries.md) and [`docs/phase2/M2-STATUS.md`](docs/phase2/M2-STATUS.md).
 
 ## Build and test
 
@@ -83,4 +97,4 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0 framework compatibility is complete. M1 domain/simulator is the current milestone. Subsequent milestones implement CoALA's four memory types, internal/external action system, Fan & Lan B1/B2/B3/B4/B6 mechanisms, independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
+M0 framework compatibility and M1 domain/simulator are accepted. M2 implements CoALA memory and is awaiting CI. Subsequent milestones implement internal/external action systems, Fan & Lan B1/B2/B3/B4/B6 mechanisms, independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
