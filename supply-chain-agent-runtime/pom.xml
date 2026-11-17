@@ -24,6 +24,21 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-memory</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-mechanisms</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-planning</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.bsc.langgraph4j</groupId>
             <artifactId>langgraph4j-core</artifactId>
         </dependency>

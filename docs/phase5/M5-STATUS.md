@@ -1,6 +1,8 @@
 # M5 status — independent decision algorithms
 
-**Status: implementation delivered; awaiting GitHub Actions CI acceptance.**
+**Status: accepted — GitHub Actions CI reported green by the project owner on 2026-11-17.**
+
+The CI acceptance is recorded from the user's confirmation. The CI job log was not included in the supplied source archive and was not independently re-run in this authoring environment.
 
 ## Added
 
@@ -24,7 +26,7 @@
 - Parsed Maven POMs and reviewed the new module's dependency boundary.
 - Verified the planning module has no LangGraph4j, LangChain4j, JDBC or PostgreSQL dependency.
 
-**Limitation:** the local test harness is not Maven Surefire/JUnit Platform. The full Maven reactor, including M0 LangGraph4j/LangChain4j runtime tests and the PostgreSQL checkpoint integration test, was not run locally. GitHub Actions is the acceptance gate.
+**Local validation limitation:** the 208-test result above used a local JUnit-compatible harness, not Maven Surefire/JUnit Platform. The user subsequently confirmed that the full M5 CI run is green; this is the milestone acceptance result. The CI log itself is not embedded in this change set.
 
 ## Explicit limitations and deferred work
 
