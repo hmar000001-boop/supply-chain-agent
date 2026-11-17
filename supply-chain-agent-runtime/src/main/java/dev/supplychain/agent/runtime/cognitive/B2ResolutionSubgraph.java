@@ -81,16 +81,22 @@ public final class B2ResolutionSubgraph {
     }
 
     private static CycleContext childContext(B2ResolutionGraphState state) {
+        // Keep the impasse cause in CycleContext.lastReason. The initial child state has no
+        // child-specific REASON yet, so fall back to the parent-provided IMPASSE_REASON. Once
+        // open/investigate nodes run, their REASON becomes the latest child lifecycle reason.
+        String childReason = state.text(B2ResolutionGraphState.REASON).isBlank()
+                ? state.text(B2ResolutionGraphState.IMPASSE_REASON)
+                : state.text(B2ResolutionGraphState.REASON);
         return new CycleContext(
                 state.text(B2ResolutionGraphState.REQUEST_ID),
                 state.text(B2ResolutionGraphState.EXECUTION_ID),
                 state.text(B2ResolutionGraphState.MEMORY_SCOPE_ID),
-                "", "", state.text(B2ResolutionGraphState.IMPASSE_REASON), "", 0,
+                "", "", "", "", 0,
                 "", state.parentWorkingMemoryVersion(), "", 0, "", "", "", 0,
                 "", "", "", 0, "",
                 state.text(B2ResolutionGraphState.IMPASSE_CASE_ID),
                 state.text(B2ResolutionGraphState.INVESTIGATION_REFERENCE),
                 "", "", "", "", "", "", "",
-                state.text(B2ResolutionGraphState.REASON));
+                childReason);
     }
 }

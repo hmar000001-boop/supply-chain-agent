@@ -1,0 +1,7 @@
+status,path,size_bytes,sha256
+MODIFIED,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionSubgraph.java,5325,af8689a5fa1fb4b45768629cc205ddb715bea22d10d0a3a206d0da01201829dc
+MODIFIED,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java,26908,4e73db3c6839a704ad6d9c05ce2dc322fe861262df004e30b4d9b66c6091e554
+ADDED,docs/phase6/M6-CI-FAILURE-ANALYSIS-2026-11-17.md,3596,dede0f11858172f02cdc0634cf37fe5846ecd1d405343f59def716dfaff965af
+MODIFIED,docs/phase6/M6-STATUS.md,5759,fdd3550de11cf241c94913e525e788ebbae1c44a553df76f3206d58c5a5ca5f7
+MODIFIED,docs/phase6/M6-TEST-RESULTS.md,5764,65419ea95bf2e9d4a9c9f9190178695fe9d336369f6b1c0f30d86e43201f4cd8
+MODIFIED,CHANGELOG_M6.md,1585,ced5569e0c0db3648c20ca118786f27cd3a80b0b371ac2bd0fa88ef5395ce751

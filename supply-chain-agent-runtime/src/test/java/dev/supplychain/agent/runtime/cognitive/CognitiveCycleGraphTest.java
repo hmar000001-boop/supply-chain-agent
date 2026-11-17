@@ -224,7 +224,8 @@ class CognitiveCycleGraphTest {
                 CognitiveCycleState.APPROVAL_RESPONSE_ID, "approval-response-1",
                 CognitiveCycleState.APPROVER_ID, "human-approver-7"), null);
 
-        assertThrows(SecurityException.class, () -> graph.invokeFinal(GraphInput.resume(), updateConfig));
+        assertFailureContains(SecurityException.class,
+                () -> graph.invokeFinal(GraphInput.resume(), updateConfig));
         assertEquals(0, operations.executeCalls);
     }
 
@@ -242,7 +243,8 @@ class CognitiveCycleGraphTest {
                 CognitiveCycleState.HUMAN_CONTROL_RESPONSE_ID, "control-response-1",
                 CognitiveCycleState.HUMAN_CONTROL_ACTOR_ID, "operator-1"), null);
 
-        assertThrows(SecurityException.class, () -> graph.invokeFinal(GraphInput.resume(), updateConfig));
+        assertFailureContains(SecurityException.class,
+                () -> graph.invokeFinal(GraphInput.resume(), updateConfig));
         assertEquals(0, operations.executeCalls);
     }
 
@@ -287,6 +289,27 @@ class CognitiveCycleGraphTest {
         assertEquals("ESCALATED", result.state().text(CognitiveCycleState.DECISION_STATUS));
         assertEquals(0, operations.executeCalls);
         assertEquals(1, operations.escalationCalls);
+    }
+
+    /**
+     * LangGraph4j exposes node failures through its asynchronous graph runner. Assert the
+     * security failure in the cause chain instead of depending on one wrapper exception type.
+     */
+    private static void assertFailureContains(Class<? extends Throwable> expectedCause,
+                                              org.junit.jupiter.api.function.Executable executable) {
+        var thrown = assertThrows(RuntimeException.class, executable);
+        Throwable current = thrown;
+        while (current != null) {
+            if (expectedCause.isInstance(current)) {
+                return;
+            }
+            if (current.getCause() == current) {
+                break;
+            }
+            current = current.getCause();
+        }
+        throw new AssertionError("Expected failure cause " + expectedCause.getName()
+                + " but found " + thrown, thrown);
     }
 
     private static RunnableConfig config(String prefix) {
@@ -378,6 +401,8 @@ class CognitiveCycleGraphTest {
         }
         @Override public ImpasseOpened openImpasse(CycleContext context) {
             openImpasseCalls++;
+            assertEquals("A source conflict requires bounded resolution.", context.lastReason(),
+                    "B2 must receive the original impasse cause as the child's last reason");
             return new ImpasseOpened("impasse-1", context.lastReason());
         }
         @Override public ImpasseInvestigated investigateImpasse(CycleContext context) {

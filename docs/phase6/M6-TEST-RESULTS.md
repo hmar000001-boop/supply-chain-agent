@@ -21,6 +21,32 @@ The tests are in `supply-chain-agent-runtime/src/test/java/dev/supplychain/agent
 | 13 | `workingMemoryVersionConflictForcesReloadAndReconsideration` | A memory version conflict reloads the latest version and retries the persisted observation; the external action is not executed again. |
 | 14 | `metaControlStopNeverReachesAuthorizationOrExecution` | B6 stop decision terminates through escalation without authorizing or executing a candidate. |
 
+
+## First full GitHub Actions run — 2026-11-17
+
+The user supplied the output of the complete `clean verify` workflow. The results relevant to M6 were:
+
+| Scope | Tests | Failures | Errors | Result |
+|---|---:|---:|---:|---|
+| M0–M5 modules | 208 | 0 | 0 | Passed |
+| M6 cognitive-cycle graph tests | 14 | 2 | 1 | Failed before correction |
+| Runtime compatibility tests (checkpoint resume, framework, PostgreSQL saver) | 7 | 0 | 0 | Passed |
+
+The runtime module total was 21 tests, with 18 successful and three unsuccessful. The application-host module was skipped after the runtime failure. The PostgreSQL checkpoint compatibility test passed in this run.
+
+### Corrected failure causes
+
+1. **B2 blank reason:** `childContext` placed the parent impasse reason in `summary`, but the B2 operation contract reads `lastReason`. The correction now maps the initial `IMPASSE_REASON` to `lastReason`, then prefers a nonblank child `REASON` as the child lifecycle advances. The test explicitly verifies the original reason is passed to `openImpasse`.
+2. **Security exception wrappers:** LangGraph4j's asynchronous execution wraps node exceptions. The tests now search the cause chain for `SecurityException`; they retain the assertion that execution is never reached. The authorization and actor checks themselves are unchanged.
+
+### Status after correction
+
+The code and tests have been corrected, but **the corrected 14-test result is not yet verified**. Maven 3.9.16 could not be bootstrapped in the authoring environment because the configured Apache distribution host was not resolvable. Run the full command in GitHub Actions and require the entire reactor to pass before accepting M6.
+
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean verify
+```
+
 ## Authoring-environment checks
 
 - The new M6 production and test source files compiled with Java 21 `javac --release 21 -Xlint:all` against temporary minimal LangGraph4j/JUnit API stubs. No errors were reported; the only warning was a missing `serialVersionUID` in the temporary stub exception, not in project source.

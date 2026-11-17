@@ -1,6 +1,6 @@
 # M6 status — LangGraph4j cognitive orchestration
 
-**Status: implementation delivered; CI acceptance pending.**
+**Status: implementation delivered; first full CI run exposed three M6 test issues; correction prepared; CI acceptance pending.**
 
 The user confirmed that M5 GitHub Actions CI is green on 2026-11-17. M6 starts from that accepted M5 state. The M5 CI run log was not included in the uploaded ZIP, so this status records user-reported acceptance rather than an independently inspected workflow artifact.
 
@@ -24,11 +24,16 @@ The user confirmed that M5 GitHub Actions CI is green on 2026-11-17. M6 starts f
 
 The B2 child graph is a separate compiled, bounded graph. CoT/ToT/MCTS are invoked via M5 service contracts and their internal trees/frontiers remain in M5.
 
-## Validation performed in this authoring environment
+## CI feedback and correction
 
-- Java 21 `javac --release 21 -Xlint:all` syntax/type-shape compilation of the new M6 source and test classes succeeded against temporary minimal API/JUnit stubs. This checks source syntax and internal Java signatures only; it does **not** validate the real LangGraph4j/JUnit binaries or graph runtime behavior.
-- Maven/Surefire and the full reactor were not run. The Maven distribution is not present locally and wrapper bootstrap could not reach Maven Central in this offline environment.
-- No claim is made that the 14 M6 tests have passed; see [M6-TEST-RESULTS.md](M6-TEST-RESULTS.md). GitHub Actions is the acceptance gate.
+The user's GitHub Actions log for `./mvnw -B -ntp -Dphase0.postgres=true clean verify` on 2026-11-17 showed that the M0–M5 modules passed, as did the seven runtime compatibility tests (checkpoint resume, framework compatibility and PostgreSQL checkpoint compatibility). In the 14 `CognitiveCycleGraphTest` tests, 11 passed, two failed and one errored.
+
+The three failures were traced to two test/runtime integration issues and are corrected in the accompanying M6 CI-fix change-set:
+
+- B2 initially mapped the parent impasse reason to `CycleContext.summary`, leaving `CycleContext.lastReason` blank. `B2ResolutionSubgraph.childContext` now preserves the initial cause in `lastReason` and then uses the latest child reason. The B2 test asserts the original cause reaches `openImpasse`.
+- LangGraph4j wraps asynchronous node exceptions. The approval-binding and human-actor tests now assert that `SecurityException` occurs in the cause chain rather than requiring it to be the top-level exception. Both tests continue to assert that no external action executes.
+
+The corrected Maven/Surefire tests have **not yet been rerun** in the authoring environment because Maven 3.9.16 is unavailable locally and wrapper bootstrap cannot resolve the configured Apache host. GitHub Actions remains the acceptance gate. See [M6-CI-FAILURE-ANALYSIS-2026-11-17.md](M6-CI-FAILURE-ANALYSIS-2026-11-17.md) and [M6-TEST-RESULTS.md](M6-TEST-RESULTS.md).
 
 ## Remaining M6 integration gate and later milestones
 
