@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.supplychain.agent</groupId>
+    <artifactId>supply-chain-agent-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Supply Chain Agent — Parent</name>
+    <description>Production-oriented Java agentic application. Phase 0 verifies LangGraph4j and LangChain4j integration.</description>
+
+    <modules>
+        <module>supply-chain-agent-core</module>
+        <module>supply-chain-agent-runtime</module>
+        <module>supply-chain-agent-app</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <maven.compiler.showWarnings>true</maven.compiler.showWarnings>
+        <project.build.outputTimestamp>2026-11-16T00:00:00Z</project.build.outputTimestamp>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <langgraph4j.version>1.8.28</langgraph4j.version>
+        <langchain4j.version>1.23.0</langchain4j.version>
+        <junit.version>5.12.2</junit.version>
+        <postgresql.version>42.7.8</postgresql.version>
+
+        <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>3.5.3</maven.surefire.plugin.version>
+        <maven.enforcer.plugin.version>3.5.0</maven.enforcer.plugin.version>
+        <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
+        <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-core</artifactId>
+                <version>${langgraph4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-postgres-saver</artifactId>
+                <version>${langgraph4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j</artifactId>
+                <version>${langchain4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
+                    <configuration>
+                        <release>${maven.compiler.release}</release>
+                        <parameters>${maven.compiler.parameters}</parameters>
+                        <encoding>UTF-8</encoding>
+                        <showWarnings>true</showWarnings>
+                        <compilerArgs><arg>-Xlint:all</arg></compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven.surefire.plugin.version}</version>
+                    <configuration>
+                        <useModulePath>false</useModulePath>
+                        <failIfNoTests>false</failIfNoTests>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven.enforcer.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${maven.dependency.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${exec.maven.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,22)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9.16,)</version>
+                                </requireMavenVersion>
+                                <dependencyConvergence/>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

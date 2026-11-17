@@ -1,0 +1,18 @@
+# Maven
+**/target/
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Local environment
+.env
+.env.*
+!.env.example
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
