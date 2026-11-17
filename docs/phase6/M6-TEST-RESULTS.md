@@ -1,6 +1,6 @@
 # M6 test inventory and validation results
 
-**Status: 14 tests added; execution under Maven Surefire/GitHub Actions pending.**
+**Status: the user confirmed the corrected M6 graph CI rerun is green. The corrected run log was not included, so no updated test totals are asserted here. M6-A adds three new tests; their local execution is described below.**
 
 The tests are in `supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java`. They use `MemorySaver` and deterministic scripted `CognitiveCycleOperations` implementations. They exercise the actual graph definition and host resume protocol; they do not call real ERP/provider services.
 
@@ -62,3 +62,17 @@ Run from the repository root after applying the changes:
 ```
 
 All previously accepted M0–M5 tests must remain green, the 14 M6 tests must pass under JUnit Platform/Surefire, and the existing PostgreSQL checkpoint compatibility test must remain green. M6 must not be marked accepted until that CI run succeeds.
+
+
+## Subsequent user-confirmed CI status
+
+After applying the B2 reason-propagation and exception-cause-chain correction, the user reported that GitHub Actions CI is green. The subsequent run log was not supplied in this conversation. The earlier detailed failure table above is retained as historical diagnostic evidence, not as the current CI status.
+
+## M6-A focused local validation
+
+Three additional tests were introduced for the decision-service composition. Their source compiled with Java 21 and the tests executed successfully in a local assertion-compatible harness. This is not JUnit Platform/Surefire. The full GitHub Actions reactor remains required for M6-A acceptance. See [M6A-TEST-RESULTS.md](M6A-TEST-RESULTS.md).
+
+
+## M6-A decision-service composition (delivery 1/2)
+
+The user confirmed the corrected M6 graph-core CI rerun is green. M6-A adds four targeted tests, locally executed through a lightweight harness; they are not yet counted as Maven Surefire or GitHub Actions results. See `M6A-TEST-RESULTS.md`. Full acceptance requires rerunning the reactor after applying the M6-A change-set.
