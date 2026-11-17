@@ -7,6 +7,7 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.supplychain.agent.runtime.langchain4j.LangChain4jRequestInterpreter;
 import dev.supplychain.agent.runtime.langgraph.SupplyChainGraphState;
 import dev.supplychain.agent.runtime.langgraph.SupplyChainIntakeGraph;
+import org.bsc.langgraph4j.GraphInput;
 import org.bsc.langgraph4j.RunnableConfig;
 import org.bsc.langgraph4j.checkpoint.MemorySaver;
 
@@ -22,14 +23,27 @@ public final class Phase0Application {
     public static void main(String[] args) throws Exception {
         var interpreter = new LangChain4jRequestInterpreter(new FixedResponseChatModel("READY"));
         var graph = SupplyChainIntakeGraph.compile(interpreter, new MemorySaver());
-        var result = graph.execute(
-                Map.of(SupplyChainGraphState.REQUEST,
-                        "Assess the impact of a supplier capacity reduction on order SO-100."),
-                RunnableConfig.builder().threadId("phase0-local-smoke-" + UUID.randomUUID()).build());
+        var config = RunnableConfig.builder()
+                .threadId("phase0-local-smoke-" + UUID.randomUUID())
+                .build();
+        var finalOutput = graph.invokeFinal(
+                        GraphInput.args(Map.<String, Object>of(
+                                SupplyChainGraphState.REQUEST,
+                                "Assess the impact of a supplier capacity reduction on order SO-100.")),
+                        config)
+                .orElseThrow(() -> new IllegalStateException(
+                        "The intake graph produced no final output"));
 
-        System.out.println("Outcome: " + result.get(SupplyChainGraphState.OUTCOME));
-        System.out.println("Intent: " + result.get(SupplyChainGraphState.NORMALIZED_INTENT));
-        System.out.println("Summary: " + result.get(SupplyChainGraphState.SUMMARY));
+        if (!finalOutput.isEND()) {
+            throw new IllegalStateException(
+                    "The local smoke graph was interrupted before completion at node: "
+                            + finalOutput.node());
+        }
+
+        SupplyChainGraphState result = finalOutput.state();
+        System.out.println("Outcome: " + result.outcome());
+        System.out.println("Intent: " + result.normalizedIntent());
+        System.out.println("Summary: " + result.summary());
     }
 
     private static final class FixedResponseChatModel implements ChatModel {

@@ -1,7 +1,5 @@
-status,path,sha256,description
-Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/CheckpointResumeCompatibilityTest.java,c8d849e460fd551349b0523ca8d96750a81e65e691d5d2eb335b4c6aa3ccaba4,Use invokeFinal terminal NodeOutput for resumed result; avoid querying a pinned historical checkpoint
-Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,2afdb7147ca0b0eb3d54b88549af2a67383a9537d0b4a38b2004e0399b328aeb,Assert END and state from resumed clarification execution
-Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/PostgresCheckpointCompatibilityTest.java,5d26996eb7e8a8af6534736978100d9db658a4ff073590bb244b13a2bd585eec,Assert END and state from PostgreSQL-backed resumed execution
-Added,CHANGELOG_CHECKPOINT_RESUME_ASSERTIONS.md,8a290b995c65b9749bc6ebd33d038f438ef8693b3a67baed6d8d92b338a86a08,Root-cause analysis and correction summary
-Added,docs/phase0/CHECKPOINT-RESUME-ASSERTION-FIX-2026-11-17.md,7461935a57ce508ef93b20f2d73798195d27b82bcd496eee0cd1d57a541be41e,Version-specific checkpoint semantics and usage
-Added,README_CHANGESET.md,2904742ec6d59d75232436874a43f4a4a798557c631813720492ec14f52fc25b,Application instructions
+status,path,description
+Modified,supply-chain-agent-app/src/main/java/dev/supplychain/agent/app/Phase0Application.java,Use LangGraph4j 1.8.20 GraphInput/invokeFinal API and inspect completion before reading typed state.
+Added,CHANGELOG_APPLICATION_ENTRYPOINT_API_FIX.md,Root cause and correction rationale with official API references.
+Added,README_CHANGESET.md,Instructions for applying the change-only patch.
+Added,docs/phase0/APP-HOST-GRAPH-INVOCATION-2026-11-17.md,Records the supported graph invocation contract.

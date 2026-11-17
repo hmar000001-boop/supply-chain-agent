@@ -1,7 +1,13 @@
-# Change-only package — checkpoint/resume test correction
+# Applying this change set
 
-Apply this ZIP at the repository root, preserving the included relative paths.
+Extract this ZIP at the repository root, preserving the relative paths.
 
-It contains only three modified test files and the change documentation. It does not include the complete repository.
+The package contains one modified Java source file and two added documentation files. It does not contain the complete repository or unchanged files.
 
-The test correction distinguishes the checkpoint selected for resumption from the terminal result of that resumed execution. No production source, dependency, workflow, or Enforcer rule is changed.
+After applying it, run:
+
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean verify
+```
+
+The patch is based on the CI state where all seven compatibility tests passed and only the application-host compilation failed on `Phase0Application.java`'s obsolete `graph.execute(...)` call.
