@@ -1,6 +1,6 @@
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M2 — complete CoALA memory architecture**
+**Current milestone: M3 — internal and external CoALA action system (implementation package prepared; CI pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -24,7 +24,8 @@ This is the reference application for Part III of *From Cognitive Architectures 
 - `supply-chain-agent-memory`: framework-neutral CoALA working, episodic, semantic and procedural memory models, lifecycle services, repository ports and exact cross-memory retrieval.
 - `supply-chain-agent-core`: framework-neutral application contracts; it does not own memory implementations.
 - `supply-chain-agent-simulator`: deterministic, side-effect-free transitions over domain snapshots; depends only on the domain module.
-- `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j adapters.
+- `supply-chain-agent-actions`: framework-neutral CoALA internal actions, read-only perception, simulator-backed grounding, capability/resource authorization, typed results and idempotency contracts.
+- `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j model adapters; this is the only module that depends on model/framework APIs.
 - `supply-chain-agent-app`: composition root.
 
 The domain must not depend on LangGraph4j, LangChain4j, PostgreSQL or provider classes. The simulator performs no network or database writes and does not authorize real operational actions. Graph state and graph checkpoints are not substitutes for CoALA's separate memory stores or the application's authoritative business records.
@@ -67,6 +68,22 @@ The memory module is framework-neutral. `MemoryRetrievalService` provides exact 
 
 See [`docs/architecture/COALA-MEMORY-ARCHITECTURE.md`](docs/architecture/COALA-MEMORY-ARCHITECTURE.md), [`docs/adr/0002-coala-memory-boundaries.md`](docs/adr/0002-coala-memory-boundaries.md) and [`docs/phase2/M2-STATUS.md`](docs/phase2/M2-STATUS.md).
 
+## M3 — CoALA internal and external actions (implementation package prepared; CI pending)
+
+M3 adds the `supply-chain-agent-actions` module. It deliberately separates:
+
+- **Internal actions:** deterministic cross-memory retrieval; scoped/versioned working-memory writes; append-only episode recording that cannot self-verify; and bounded structured reasoning through an injected `ReasoningProvider`.
+- **Perception:** read-only, versioned observations of suppliers, inventory lots and availability, customer orders, shipments and lot-level quality disposition. Snapshot observations carry evidence and source provenance.
+- **Grounding:** capability-authorized inventory reservation/release, purchase-order placement and shipment rerouting over the M1 deterministic simulator.
+
+All actions use typed request/result contracts. The dispatcher checks action/input/output types, trusted capability plus resource scope, idempotency state and preconditions before execution. Known domain and memory failures have typed outcomes. Unexpected failures during state-changing execution are marked `UNKNOWN_OUTCOME` and must be reconciled rather than blindly retried. Duplicate requests are suppressed by an operation ledger; the delivered in-memory ledger is a deterministic test/local adapter, not the durable M7 implementation.
+
+`LangChain4jReasoningProvider` is an adapter in the runtime module. Its AI Service returns a typed assessment, has no tools, and cannot authorize or execute business actions. The current AI Service uses typed POJO parsing; provider-specific JSON Schema enforcement is not assumed unless the configured `ChatModel` supports and explicitly enables it. The adapter validates evidence citations against only the evidence references supplied by the caller. See the official [LangChain4j structured-output documentation](https://docs.langchain4j.dev/tutorials/structured-outputs/) and [AI Services documentation](https://docs.langchain4j.dev/tutorials/ai-services/).
+
+M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed durable operation ledger, production external adapters, outbox/inbox, and durable memory repositories are deferred to M7. B1 activation-based retrieval/ranking remains M4; M3 retrieval is the M2 deterministic cross-memory lookup.
+
+See [`docs/architecture/COALA-ACTION-ARCHITECTURE.md`](docs/architecture/COALA-ACTION-ARCHITECTURE.md), [`docs/adr/0003-coala-action-and-authority-boundaries.md`](docs/adr/0003-coala-action-and-authority-boundaries.md), and [`docs/phase3/M3-STATUS.md`](docs/phase3/M3-STATUS.md).
+
 ## Build and test
 
 Basic build and all deterministic tests:
@@ -97,4 +114,4 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0 framework compatibility and M1 domain/simulator are accepted. M2 implements CoALA memory and is awaiting CI. Subsequent milestones implement internal/external action systems, Fan & Lan B1/B2/B3/B4/B6 mechanisms, independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
+M0 framework compatibility, M1 domain/simulator and M2 CoALA memory are accepted by GitHub Actions CI. M3 implements internal and external action contracts and is awaiting CI. Subsequent milestones implement Fan & Lan B1/B2/B3/B4/B6 mechanisms, independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.

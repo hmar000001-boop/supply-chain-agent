@@ -172,6 +172,53 @@ class SupplyChainSimulatorTest {
     }
 
     @Test
+    void plannedShipmentCanBeReroutedToActiveCarrierSupportedRoute() {
+        var initial = ScenarioFixtures.world();
+        var inTransit = initial.shipment(ScenarioFixtures.SHIPMENT);
+        var planned = new dev.supplychain.agent.domain.logistics.Shipment(inTransit.id(), inTransit.carrierId(),
+                inTransit.routeId(), inTransit.lines(), inTransit.expectedArrivalAt(), null,
+                dev.supplychain.agent.domain.logistics.ShipmentStatus.PLANNED, inTransit.version());
+        var plannedWorld = initial.toBuilder().replaceShipment(planned).build();
+        var revisedEta = ScenarioFixtures.NOW.plus(Duration.ofDays(5));
+
+        var result = simulator.simulate(plannedWorld, new SimulationCommand.RerouteShipment("CMD-REROUTE-1",
+                ScenarioFixtures.SHIPMENT, ScenarioFixtures.ALTERNATIVE_ROUTE, revisedEta,
+                "Approved alternate route", ScenarioFixtures.NOW.plusSeconds(1)));
+
+        var changed = result.snapshot().shipment(ScenarioFixtures.SHIPMENT);
+        assertEquals(ScenarioFixtures.ALTERNATIVE_ROUTE, changed.routeId());
+        assertEquals(revisedEta, changed.expectedArrivalAt());
+        assertEquals(dev.supplychain.agent.domain.logistics.ShipmentStatus.PLANNED, changed.status());
+        assertEquals(1, changed.version());
+        assertTrue(result.effects().stream().anyMatch(effect -> effect.type() == SimulationEffectType.SHIPMENT_REROUTED));
+        assertTrue(result.effects().getFirst().affectedEntityReferences().contains(ScenarioFixtures.ORDER.toString()));
+    }
+
+    @Test
+    void shipmentInTransitCannotBeRerouted() {
+        var exception = assertThrows(DomainViolation.class, () -> simulator.simulate(ScenarioFixtures.world(),
+                new SimulationCommand.RerouteShipment("CMD-REROUTE-2", ScenarioFixtures.SHIPMENT,
+                        ScenarioFixtures.ALTERNATIVE_ROUTE, ScenarioFixtures.NOW.plus(Duration.ofDays(5)),
+                        "Too late to reroute", ScenarioFixtures.NOW.plusSeconds(1))));
+        assertEquals(DomainViolation.Code.INVALID_STATE, exception.code());
+    }
+
+    @Test
+    void rerouteRejectsArrivalEarlierThanTargetRouteTransitTime() {
+        var initial = ScenarioFixtures.world();
+        var inTransit = initial.shipment(ScenarioFixtures.SHIPMENT);
+        var planned = new dev.supplychain.agent.domain.logistics.Shipment(inTransit.id(), inTransit.carrierId(),
+                inTransit.routeId(), inTransit.lines(), inTransit.expectedArrivalAt(), null,
+                dev.supplychain.agent.domain.logistics.ShipmentStatus.PLANNED, inTransit.version());
+        var plannedWorld = initial.toBuilder().replaceShipment(planned).build();
+        var exception = assertThrows(DomainViolation.class, () -> simulator.simulate(plannedWorld,
+                new SimulationCommand.RerouteShipment("CMD-REROUTE-3", ScenarioFixtures.SHIPMENT,
+                        ScenarioFixtures.ALTERNATIVE_ROUTE, ScenarioFixtures.NOW.plusSeconds(2),
+                        "Impossible ETA", ScenarioFixtures.NOW.plusSeconds(1))));
+        assertEquals(DomainViolation.Code.INVALID_DATE, exception.code());
+    }
+
+    @Test
     void releasingReservationRestoresAvailability() {
         var reserved = simulator.simulate(ScenarioFixtures.world(), new SimulationCommand.ReserveInventory("CMD-11A",
                 new ReservationId("RES-REL"), ScenarioFixtures.ORDER, ScenarioFixtures.LINE,

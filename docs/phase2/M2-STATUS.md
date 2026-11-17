@@ -1,6 +1,6 @@
 # M2 status — complete CoALA memory architecture
 
-**Status: implementation package prepared; awaiting GitHub Actions validation.**
+**Status: accepted — user-reported GitHub Actions CI passed on 2026-11-17.**
 
 ## Added capabilities
 
@@ -46,8 +46,8 @@ These authoring-environment checks are not a substitute for the real Maven react
 - Current-context evidence is recomputed when working-memory slots/hypotheses change.
 - The in-memory reference adapters pass all 43 M2 lifecycle tests.
 - The combined M1/M2 authoring-environment harness passes 74 tests; the seven M0 compatibility tests are unchanged.
-- The full Maven reactor, real JUnit/Surefire engine and PostgreSQL checkpoint integration still require the user's clean CI run.
+- The user subsequently reported the complete Maven/Surefire/PostgreSQL checkpoint CI gate green on 2026-11-17; this is the acceptance evidence for M2.
 
 ## Next
 
-After M2 passes CI, proceed to M3: explicit internal/external action contracts, observation/perception, grounding capabilities, scoped authorization, typed action results and model-provider adapters.
+M2 passed the user-reported CI gate. M3 implements explicit internal/external action contracts, observation/perception, grounding capabilities, scoped authorization, typed action results and model-provider adapters.

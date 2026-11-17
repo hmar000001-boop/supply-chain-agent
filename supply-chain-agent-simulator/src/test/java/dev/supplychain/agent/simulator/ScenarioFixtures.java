@@ -64,6 +64,7 @@ final class ScenarioFixtures {
     static final PurchaseOrderId OPEN_PO = new PurchaseOrderId("PO-OPEN");
     static final CarrierId CARRIER = new CarrierId("CARRIER-1");
     static final RouteId ROUTE = new RouteId("ROUTE-MTL-TOR");
+    static final RouteId ALTERNATIVE_ROUTE = new RouteId("ROUTE-MTL-OTT");
     static final ShipmentId SHIPMENT = new ShipmentId("SHIP-100");
     static final SubstitutionId SUBSTITUTION = new SubstitutionId("SUB-QUAL-1");
     static final RecoveryObjectiveId OBJECTIVE = new RecoveryObjectiveId("REC-100");
@@ -92,7 +93,8 @@ final class ScenarioFixtures {
                 NOW.plus(Duration.ofDays(3)), PurchaseOrderStatus.CONFIRMED,
                 List.of(new PurchaseOrderLine(PRODUCT, q("30"), q("0"), Money.of("12.50", "CAD"))), 0);
         Route route = new Route(ROUTE, "Montreal", "Toronto", Duration.ofDays(3), true);
-        Carrier carrier = new Carrier(CARRIER, "Reliable Freight", Set.of(ROUTE), true);
+        Route alternativeRoute = new Route(ALTERNATIVE_ROUTE, "Montreal", "Ottawa", Duration.ofDays(2), true);
+        Carrier carrier = new Carrier(CARRIER, "Reliable Freight", Set.of(ROUTE, ALTERNATIVE_ROUTE), true);
         Shipment shipment = new Shipment(SHIPMENT, CARRIER, ROUTE,
                 List.of(new ShipmentLine(ORDER, LINE, PRODUCT, null, q("5"), q("5"), NOW)),
                 NOW.plus(Duration.ofDays(3)), null, ShipmentStatus.IN_TRANSIT, 0);
@@ -113,7 +115,7 @@ final class ScenarioFixtures {
                 .inventoryLot(lot).inventoryLot(substituteLot)
                 .customerOrder(order)
                 .purchaseOrder(openPo)
-                .route(route).carrier(carrier).shipment(shipment)
+                .route(route).route(alternativeRoute).carrier(carrier).shipment(shipment)
                 .recoveryObjective(objective).recoveryCandidate(candidate)
                 .build();
     }

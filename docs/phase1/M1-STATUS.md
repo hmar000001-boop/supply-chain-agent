@@ -26,7 +26,7 @@ The following checks were performed after the final M1 source edits:
 - All Maven POM files parsed as XML; all five reactor module paths exist.
 - Domain and simulator production sources contain no LangGraph4j, LangChain4j, JDBC or PostgreSQL imports.
 
-The complete Maven reactor, Maven Enforcer and real JUnit/Surefire execution were verified by the user-reported green GitHub Actions run on 2026-11-17. The authoring-environment checks above remain supplementary rather than a replacement for that CI evidence.
+The complete Maven reactor, Maven Enforcer and real JUnit/Surefire execution were verified by the user-reported green GitHub Actions run on 2026-11-17. M3 extends the simulator with a guarded planned/delayed shipment reroute transition and adds tests for the supported-route, active-carrier and minimum-transit-time rules. The authoring-environment checks above remain supplementary rather than a replacement for that CI evidence.
 
 ## Scope boundaries
 

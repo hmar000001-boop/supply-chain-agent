@@ -1,71 +1,81 @@
-status,path,sha256,size_bytes
-Added,CHANGELOG_M2.md,3b5779c22f430a4b438d3c15f3f98cee10d2777f1b11c269246e2e5b00092c28,4662
-Modified,README.md,bf03760420020b6eefe54f61b66355b98b49f23c5aae0a91a8466c3efeed44b0,6825
-Added,README_CHANGESET.md,fd9e1aa6be4a498c0122bd88192581f9e71e385ea813b549508e4834230ec3ff,855
-Added,docs/adr/0002-coala-memory-boundaries.md,5f11d9ebc5edafda2b7be3cfc97a1f1d8065a2ff07627239103eac03befe27db,3214
-Added,docs/architecture/COALA-MEMORY-ARCHITECTURE.md,d95a27105b99c04f542e860831c94df93c59969898f508827b63106a0ef84575,8172
-Modified,docs/phase1/M1-STATUS.md,9fc8e978415ca75c1ef20f002e4bc801bd6e66a7196f4f685f48fa78255d82eb,3404
-Added,docs/phase2/M2-STATUS.md,633e6157dc5bd8431d7088209820d10180bf6ae12449fc33d8ca15bcd0857511,4333
-Added,docs/phase2/M2-TEST-RESULTS.md,26e22a054486e04b3a4d6bf7c366df7e9b68ea65a4269ac9b158edbd9a0e2a4b,1634
-Modified,pom.xml,9b0515cafd6c7a1a7bcd82faa5af99201544f79025bc327c88609e82e6a9b429,6729
-Added,supply-chain-agent-memory/pom.xml,cf901c0e6d08704248b3a5e2fd6935047f3969332a414fc60512d96097559820,1365
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/EntityReference.java,f104ef59ac1448ed647632760896d7f998098d89a3f84a293341b1b9478b70f2,620
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/EvidenceReference.java,bb4a74b59c67968f05d044977e9d69d7f4b39eb203a1c5f1b0c32122f7ec7f40,648
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/MemoryConflictException.java,21529725f6ec288988e669e630e25b87672642416544f3aa39b69d9bd5593031,255
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/MemoryNotFoundException.java,c9816537b314ebb0d74bdcd7c811b04e7badd8ff9740e67e36203f6990098487,255
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/MemoryScopeId.java,e3abfd3ca4acc92185ecd75bc1d5109e7f7a0a56843e21669d1e571eb4f7f0b6,404
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/MemoryVersionConflictException.java,fb95798de58468de0e1391ea7642b26503d551b013f0254664f131623c9d8e87,269
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/Provenance.java,c68d4bbbf89f3c683632963d52e147eec70848390d0caa4b7c0862f6153e32c9,1375
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/common/ProvenanceSource.java,8a8fb123279dd87535cc20a640cfc5d611101accfbfb78b4413164ff374995ef,331
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/Episode.java,6f9341494ed2668d2ae6600464a894573741dd54e3ae8a0d75a160aaf4bd95ec,7852
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeEvent.java,3c66bec80641128d2d2fdaf86290f447cd889e6bbbb95fb46e6b1acfdd188786,882
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeId.java,344517182de7cecf12d7bc9132708578f56e9ab6213a51e5375e97f1bbb96458,415
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeOutcome.java,33861278d83853c930504e78303dc370e0a2e7586f8d9a407dd822da639bcffc,151
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeQuery.java,84b6f156603d761b2fb98e22084e323d671c8eb7fadd08a47f0eea5f47e6a13e,567
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeRepository.java,283bab375f2f893d11fc1d7734857faa00a1eeea7ecd49d8fac3a8a349edd593,429
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodeStatus.java,bbe1baf8f138a430cb8a96c7d311f9799f044ea58b05b9df2739a30590055674,135
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/episodic/EpisodicMemoryService.java,bbb13405a8ae2a30195b00c4f3784dd3cac74720cb9583a3925f87a5dcb04a8b,4216
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/inmemory/InMemoryEpisodeRepository.java,d51096b445fa0456da7106818465595d619931d4b3d37f103936c91dfad02858,3132
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/inmemory/InMemoryProceduralMemoryRepository.java,3c8954b7b1f68d740b401fac9f7ede306ab29c46b82deeabec9db3b1285369bc,7378
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/inmemory/InMemorySemanticFactRepository.java,d7edddc16413ea5e0650f8d082ef0f636ff0644325124c3f5d252c957a5c0f8b,8496
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/inmemory/InMemoryWorkingMemoryRepository.java,92fc018a4148352db88223275c8b46762e1487c9339678a12c2b0efb0daa138a,2507
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/maintenance/MemoryMaintenanceResult.java,5ffdcf4e8da9016561890068f76ebba55178712f2a1db5c54d172fc06edf83bf,573
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/maintenance/MemoryMaintenanceService.java,46c9b33059dc65de176cd7c00b4e0b1e5254856da72cf4307e23ecc9e9403c00,1460
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/maintenance/MemoryRetentionPolicy.java,d042f9356d576231b54ca95b1a7355b24f989e44a09c507ff30b1a778874767e,949
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProceduralMemoryRepository.java,1ba0607efbfc5341774da773f73aa32c5e98dbffa4ea779d3f1d6ddea1bc670d,906
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProceduralMemoryService.java,e7c961196156e78d846ca44f97992268154797cee7abca4c8a392c08327e4ca9,2738
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProcedureArtifactReference.java,3fe23ccbed18588bfb0ec19b36bd9634e959887ec9520f5b1b324bed07a3e834,936
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProcedureKind.java,de8a8134151839e32f52ff8bb2a438562ecc16f4b0bceedf6cdd9c17d1825b3e,184
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProcedureStatus.java,d33b980facd080a18aa22c740d69c3755553f7d3486ecc821f02f18e91f0e5d4,146
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProcedureVersion.java,4b895d77a03a8e692128b90d76626412d7c6414474eb4dc9ca10e08dcc014eba,7798
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProcedureVersionId.java,851eb660a03d7d7eeb06de67825e414ddfaf1c0a73a17697e97286305d660e66,453
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/retrieval/MemoryRetrievalQuery.java,75b71cbaf07e483dbb91b0e684ff83e6d0385ef5cedfb8755b18731c1c38cc05,1121
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/retrieval/MemoryRetrievalResult.java,7a94e270ef00de4aafb2e474bd21426f952a57347deab16cf41d1342ffff43a9,881
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/retrieval/MemoryRetrievalService.java,e5f79d6e1f37c347fb470609ac9dfb003765cfa77e2c793c23230fe1a80b977b,2930
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/FactKey.java,2f2c5d81771bcfcd07bae3018fd065abf6b96ff60575316819c93bd295b12d39,609
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/FactStatus.java,5583ae352abbcaeaa674ec2dbfee4394b20e0d2358a0ef830063092e7d32d97a,130
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/FactValue.java,c2eaa094e346091f74e9a3b914329ef8f8df599eaa39532c7dca02488db63e1e,1028
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticAdmissionPolicy.java,56ec692656a11e1b3bb576ff2f83ba85ee4b26e5ac5c7b50cf5e0173896ae2cc,649
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticFact.java,e1dfb8ae66d1291cfeaaae7b0d3a922e34df15595ef8b0e04cc1bb64186af60e,7962
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticFactId.java,026d4e97b507f50668aeeef31d312d4d76d56a61da48f57433f5b8b26bdaff87,435
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticFactQuery.java,14a238f78d2bf7a7e537cbc03c24030247933bf406da69a75afb1004732915e3,873
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticFactRepository.java,de10d07aa7d74c712d65e2f08d6262b88f33caa08279dce2498db2c0d0ff0763,1418
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticFactRevision.java,648ada196a3b5b13b87230aed662b1651b19143afb73ac655593b581c747f26a,454
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/semantic/SemanticMemoryService.java,dd466710f3dc49771e018f0fdc0980ae589fe9225d18a6c0fe86e7292e968418,5724
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/Hypothesis.java,abd3ebb9a95c9f8a4e8217d62cfbc6026b3d9540cb5f693b12c010cfab6cfda2,3001
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/HypothesisId.java,32de76ec3f6cd6fbd76e12d01e3ce9a7ddd57bbef7876f2ad85851e937f25781,427
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/HypothesisStatus.java,dda4ac36f88a6c934558730138fec2a9b1e38183942aa8caae669fbdb129458c,136
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/MemoryValue.java,43338a20747159e7c91e79299341d5f4128e3d81dea3108b847d5f181d4cc0d3,1304
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/WorkingMemoryEntry.java,31f9c452945556c22582ab59d535c4e12172f5c68e9baf5c0edeea967cd2a26a,630
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/WorkingMemoryId.java,f06cbab410134ec57132cfcea8bd3e794e50c201b3f9e9ad90bac666eeea15cb,439
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/WorkingMemoryRepository.java,b3493ace4929fcb9177ca07c40066dba129d01421060dd04cbf730d336c8800c,432
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/WorkingMemoryService.java,c1b2b41b3911ad8966013e18681155a0ec908e6b5af3eff66ce7ed67b71e9263,3777
-Added,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/working/WorkingMemorySnapshot.java,3e17e6dd389a742e5cdf634cb34aad6a09e454e199bb692cafea38505a5b292c,5258
-Added,supply-chain-agent-memory/src/main/resources/db/migration/V001__coala_memory_schema.sql,cae67f4f4b363551cb079c03e692d1fee568edf6dd1e52255fd4462266878e59,17635
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/MemoryFixtures.java,044164f52a7b0f52c2a89623c120ffdaa7e6710421b4399fe97f669fbd2b4396,1840
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/episodic/EpisodicMemoryServiceTest.java,1253a4fe724b4f08482e0c50cb98fe9df9be5deee5695d5f1c9f9d5b978e9db6,8213
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/maintenance/MemoryMaintenanceServiceTest.java,4a217987b561621f672452fdd3d2f332d6a16be13e5d1fb5b54747c634d0d0f9,4859
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/procedural/ProceduralMemoryServiceTest.java,aefc4adced7172e3ab081473f7f5eea95419490f9b97694c9b9803da1c78c454,5238
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/retrieval/MemoryRetrievalServiceTest.java,a72b5137bdb172145744d61ff11c2d67d83211893e774338d36d1884bde9bbb9,6818
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/semantic/SemanticMemoryServiceTest.java,e37e58ff8a03a1272642d2fc5fdc446488182fbbf2fefdea69829a4aa26cfcff,11530
-Added,supply-chain-agent-memory/src/test/java/dev/supplychain/agent/memory/working/WorkingMemoryServiceTest.java,815295834f67e22d57e4780ed8b3f0b16742336e879beed1bc6df30d2d61a258,5839
+status,path,sha256,description
+added,CHANGELOG_M3.md,dd2f33d2b6c677ed39d2746c26365e4668ff107e2b8e57f7fbc039262fca2cf5,"New M3 source, test, architecture or status artifact."
+added,docs/adr/0003-coala-action-and-authority-boundaries.md,5194645b7f7f6e53b514d9bd9cc90915f768c79f39108c10a0daf6f3b7a1764d,"New M3 source, test, architecture or status artifact."
+added,docs/architecture/COALA-ACTION-ARCHITECTURE.md,ebe1ed269c525d3237fa0ebd7a8cd36879f4c3c9a7f677679986b369bb91d981,"New M3 source, test, architecture or status artifact."
+added,docs/phase3/M3-STATUS.md,c48149b889a4f058f0eda2f22199aa7901cb0b7aa514f8a84f2e09133340ea92,"New M3 source, test, architecture or status artifact."
+added,docs/phase3/M3-TEST-RESULTS.md,8f51a9f194f0f703c7c379a66ad229ae86fc945a520e8fc1b1f523f5697e3102,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/pom.xml,90b16c3aa4d32bb9769bedab9bfc8ea9c2445da1c600a1cce0407f1d86aaa63b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/SupplyChainActionCatalog.java,4c8f62ae444d7959f2fb112a44ae995b1799c3c8c41239f36a77932770078764,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionCategory.java,45b5e37c593ec702f065529a595ad4246f3204eedb40529e99f4536e3a46292b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionContext.java,c7af002d74055cba2dd1f0ded4fe0bded9b42b38db4f32982de2d83f546a6891,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionDescriptor.java,b7e698ea710d986413341fc3c97913ea2411b50efdff65d6a92776ae4c217fee,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionDispatcher.java,1e58b5b990835f0d6cbe06298d390d46ef61b7fa156fdb193772aaa9e7f27151,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionEffect.java,367fc3357bf77ee1b84a4d449668498478f63a9ec04cbcac33c5d336c2ca5eed,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionExecutionException.java,aaca521186834c9b4d21600caf80050b2e79cd5e398e70ebd55640fbdd0971ff,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionExecutionLedger.java,df8e6e7a8a0ad0012264ec56c63a7aa5764a37d6134db830d858998d7e75cd84,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionFailure.java,6c5a3db154de80578c56c65635122896dbf4ba328ed830a561b93066223a82b9,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionFailureCode.java,1c5dbf90a36e59121ea68a84aed8ec8fa55e5fdf5133299232015bdfa7052636,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionHandler.java,3e9772b8395a619d0b2f602e2bbbea12748dde18d3628c62e214a18d996c4141,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionId.java,dc04c20ae13534e8253b0e62df645959fa1ce714b11ecbaada36e5aaa2dd35fd,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionLedgerClaim.java,4a47d4f584780c0c7736fb27629b73b4ebb05d49a09d6ea00b413ec58f010f7b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionPrincipal.java,9456552564890c6ca4b0a3e16f2c89f3f3e48013f5b46fd577b6c6b77965cda9,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionReceipt.java,cf898d7dc6f70711d554b1f0fddb71353aa848b8c3f94ccd48512927717a4fc0,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionRegistry.java,c6462e6b1a54667b10589647a80abd82d620def24f02a55c4d53bfadbb478c5b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionResult.java,17db1af7279e30aea6c09c043ca5c15cce6bc0a41dfbd178bbeb2f3084a007c8,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ActionStatus.java,c9cb387547924abc671bc4449309e7453ffb50828c8fe9c921ff2791a1bf5c13,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/Capability.java,023b3aa3745f33ef618f6aec6aa8f744ddb154ab956e87cd163d886413f0b090,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/CapabilityAuthorizer.java,db54dd7500a2cd91863f6060c14f414ee219a686f5f69c33e19138154188d26c,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/CapabilityGrant.java,f0fe0c4248fc84980d04de8174b3911255ce7e8381956a9f0a5f145af6e622fd,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/IdempotencyLedgerKey.java,46f18668a826b95f5348d17249018e75736a261013c4bbd1a88961777d025ad3,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/InMemoryActionExecutionLedger.java,33f2773bd20d301b93ef3ef8124dfcffa16651aa09764c59b83609a28e94d5b4,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/PreconditionCheck.java,babb7d54f0fbe31a635dff61bf5983847202414b3bed78c2d5d3dcee8c5997ca,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/api/ResourceReference.java,37d1d90bb2b9cc73727cf579157abe0e2a1dc7a3686540027a66ada41552160e,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/InMemorySupplyChainSimulationWorld.java,ad9561d00c0e157ed2fb4877a7bbf4abbb1998ebf960f714ddf4ab6626d86d70,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/PlacePurchaseOrderRequest.java,3ddba9c76e91fdb16fae55858966e986f0daef8d6e960577e8b8e8763839a0f7,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/ReleaseReservationRequest.java,84d7083f6285f2f1c6110f3b10acd10ceed006ec48d5ddab0d40a8165904b25d,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/RerouteShipmentRequest.java,84863c22a274d0e5bca04e36655b889cd26937c65d75be5a192f5850ca9727f5,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/ReserveInventoryRequest.java,7af456aefd757e9c2b7a58aba1075cdcf78bcba858ef78b2f5a2ea2e36785306,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/SupplyChainGroundingActions.java,dc5bbad10908e355063606079927b502b46c92f783b46c3ca24f4f99a051d2cf,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/grounding/SupplyChainSimulationWorld.java,cdb0b6e7c185016ed97ae843d0fad39d62bbe5dc11e75f51c658dee3206a31d5,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/Observation.java,fa5a20dae0b6ffffc52fe19665576f3da82b8a6ada85b547812a9efd4dd0b617,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/QualityDisposition.java,722f351c603dea9846de463a4d5f146437d6522148765b739a969db0a81199db,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadAvailableInventoryRequest.java,ee4956f25a07e5f65029fb68a4c7565caffa9ba9f56171b6a623c9deaf4a941d,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadCustomerOrderRequest.java,4da7c2438e414c544937e2de73034d5e336a825d0c18ba1afc74fdeda7da40b6,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadInventoryLotRequest.java,6e5d59d49b46d7d7165e41e6719351a4707dc22d878b563cf3724607e7486c5c,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadQualityStatusRequest.java,45e4daea821df54e04137b24a8c65c32209357ad0d877b4fabdf91f5cad863af,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadShipmentRequest.java,4a3de523316a2ad431927c8f067749abb52f44fe7e68fd7f9889649123cde2d7,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/ReadSupplierRequest.java,f97c8146c97ea2f13f4fca98b9805f011b2c1f7c090cee2ab2418d3b2370700d,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/SnapshotSupplyChainPerceptionAdapter.java,74c242c75217c33d43171505e7856800bae82db418dc2221be928381162c1e3c,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/SupplyChainPerceptionActions.java,864f4eddf4ab7af605b425ba6008ab4e7e018b37dfa92d7fbead1b3843d160b7,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/SupplyChainPerceptionPort.java,9352aa464d39b6adf196caadced2d7c8e1f6cf0a22b54eef7e5e2c2b9d7bf87b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/external/perception/SupplyChainSnapshotProvider.java,2c19af23d42737e95583848cf9c9fa9c9741a970ac2ebec09057366f6e8e8c40,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/EpisodeLearningAction.java,adc7417ce2084afd9c182aaefdadd2373318ec3ca01cbfb5cbf348c94b3d0d49,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/MemoryRetrievalAction.java,f016975ba7b050ae77142c1528afe1752e568fd4567c8df2999e14903080a1f3,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/ReasoningAction.java,1c4d7a2bd8349c80dec3ddbe054399d3ec2fc54686ba68bdc85a0218e10b1213,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/ReasoningAssessment.java,2512ad4e02cf64e05eece359545f4fa84f4aa8ab68e182e81b23f718df15a985,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/ReasoningConfidence.java,ecbf6a5461b1152632831574d8fe5d27a226e47b3333042f761c1fc464dfb61c,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/ReasoningProvider.java,0da9eef243e7fd7e5003e774ec51c88832efc529e2b8b28427b926246707cb53,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/ReasoningRequest.java,846c2e542f919d114d8c6447b94d2955f1e1fa29426b4b06b0ea2ea813c168f3,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/RecordEpisodeRequest.java,604ae1a947d9ae190dfd2c9155de5878f09587f3d1d649b71bd894ef118d34d0,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/WorkingMemoryUpdateAction.java,2fc417f20f6072829e3beb7cbc297da307fd236b86a556f78089096be6237969,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/main/java/dev/supplychain/agent/actions/internal/WorkingMemoryUpdateRequest.java,9be18d4427a9b21fc43352dce15647816ae9f1003b54c0f0c19ded4958758e99,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/ActionDispatcherTest.java,aa1d974a418e00dc4f09cfcf8b0e3e0c02d069cc4e94cd2797513de3fca1789b,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/ActionTestFixtures.java,f574b8f46567494a2c411f1fbf9e120772e20459201f672145de69edc22b5e80,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/CoalaInternalActionsTest.java,6b9d3d0738456f51347142d6387935174c630b08dc05417713e0124e186625da,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/SupplyChainActionCatalogTest.java,e31bafbb5c307161c0d5dfb30454f5084a92c48497d9a33f8c5893c8974f5627,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/SupplyChainExternalActionsTest.java,314477225c0f3a2186faffc2eb8b625f26c0b522a6a31a4afe333a0f683c242a,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langchain4j/LangChain4jReasoningProvider.java,43761f8323ea66f6e42ac18f5fc71a2c19c41160dc753356a0efa8baf4abd0b2,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langchain4j/ReasoningAiService.java,276e797fd266f7cbac939085259797106c85835d95cbebabc40ad477fe89afe2,"New M3 source, test, architecture or status artifact."
+added,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/langchain4j/ReasoningModelResponse.java,15b8278a274b9d6dee6a9d2381db22434556b7525b2003aaa6ef4c2ce73f6101,"New M3 source, test, architecture or status artifact."
+modified,README.md,853bfe0b783ee12ad77569aeaabb4b4d7f9417c86facf14cfcb7ceffa5af9c16,"Project overview, M3 module boundaries, limitations and milestone status."
+modified,README_CHANGESET.md,6cae28611263104daf57abd2684d5fdc09d540b1ae69c877be4ef445b26a4f3a,Updated existing project configuration or milestone documentation.
+modified,docs/phase1/M1-STATUS.md,5c9d813bf861f1b562fea1cdefbf06e563091d4d7b471795c193945e4a8a7b62,Records the M3 simulator reroute extension while preserving M1 acceptance status.
+modified,docs/phase2/M2-STATUS.md,1e782facc0cf45cd4b0ee83dc079bcca9d879c62c509a189c3238d49e7a704ec,Records M2 accepted status and M3 action progression.
+modified,pom.xml,c4d7c0064fd52121e5eb29b2077b48197f9b874c8c07ae7c73fd55229a6bd1f6,Adds the action module to the Maven reactor.
+modified,supply-chain-agent-runtime/pom.xml,361a7027e45cff6746d8a724a84c30837e8d0401e16ab91dd53390f4806b1e64,Adds the framework-neutral action module dependency.
+modified,supply-chain-agent-simulator/src/main/java/dev/supplychain/agent/simulator/SupplyChainSimulator.java,252ca8fa39e83ecf1fa481cf0a42fbb4202dca6c6f204ddd3a4400e274ea8b71,Adds guarded shipment rerouting transition.
+modified,supply-chain-agent-simulator/src/main/java/dev/supplychain/agent/simulator/command/SimulationCommand.java,c8d700dab67812c6aada6d7df0e749033e6cd1148d702ac23c1be8543a07d6c7,Adds reroute shipment command contract.
+modified,supply-chain-agent-simulator/src/main/java/dev/supplychain/agent/simulator/effect/SimulationEffectType.java,97414aaca584c907dad1c15b42c1a23c5dac370f6081650750aca26990c5c54b,Adds shipment reroute effect type.
+modified,supply-chain-agent-simulator/src/test/java/dev/supplychain/agent/simulator/ScenarioFixtures.java,4d64f5fbfc66d401b9e49f6b5b1a7a92e430110dc00782d103a521f095686df9,Adds route/carrier support to rerouting test fixture.
+modified,supply-chain-agent-simulator/src/test/java/dev/supplychain/agent/simulator/SupplyChainSimulatorTest.java,5a96fed2d440aa4ea6a46702b71f81de4926c6d5d2827a92b9276edc2de47fde,Adds rerouting constraint and success tests.
+deleted,—,—,None; M3 deletes no files.

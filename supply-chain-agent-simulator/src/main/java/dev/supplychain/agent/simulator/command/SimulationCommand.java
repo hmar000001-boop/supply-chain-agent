@@ -6,6 +6,7 @@ import dev.supplychain.agent.domain.disruption.Disruption;
 import dev.supplychain.agent.domain.inventory.InventoryLotId;
 import dev.supplychain.agent.domain.inventory.ReservationId;
 import dev.supplychain.agent.domain.logistics.ShipmentId;
+import dev.supplychain.agent.domain.logistics.RouteId;
 import dev.supplychain.agent.domain.orders.CustomerOrderId;
 import dev.supplychain.agent.domain.orders.OrderLineId;
 import dev.supplychain.agent.domain.procurement.PurchaseOrder;
@@ -20,6 +21,7 @@ public sealed interface SimulationCommand permits
         SimulationCommand.PlacePurchaseOrder,
         SimulationCommand.ApplyQualityHold,
         SimulationCommand.DelayShipment,
+        SimulationCommand.RerouteShipment,
         SimulationCommand.ReserveInventory,
         SimulationCommand.ReleaseReservation,
         SimulationCommand.ChangeOrderDemand,
@@ -59,6 +61,16 @@ public sealed interface SimulationCommand permits
             Objects.requireNonNull(occurredAt);
             reason = Objects.requireNonNull(reason, "reason").trim();
             if (reason.isEmpty()) throw new IllegalArgumentException("Delay reason cannot be blank");
+        }
+    }
+
+    record RerouteShipment(String commandId, ShipmentId shipmentId, RouteId newRouteId,
+                           Instant revisedArrivalAt, String reason, Instant occurredAt) implements SimulationCommand {
+        public RerouteShipment {
+            requireId(commandId); Objects.requireNonNull(shipmentId); Objects.requireNonNull(newRouteId);
+            Objects.requireNonNull(revisedArrivalAt); Objects.requireNonNull(occurredAt);
+            reason = Objects.requireNonNull(reason, "reason").trim();
+            if (reason.isEmpty()) throw new IllegalArgumentException("Reroute reason cannot be blank");
         }
     }
 

@@ -10,6 +10,8 @@ import dev.supplychain.agent.domain.inventory.InventoryReservation;
 import dev.supplychain.agent.domain.inventory.LotQualityStatus;
 import dev.supplychain.agent.domain.inventory.ReservationStatus;
 import dev.supplychain.agent.domain.logistics.Shipment;
+import dev.supplychain.agent.domain.logistics.Route;
+import dev.supplychain.agent.domain.logistics.Carrier;
 import dev.supplychain.agent.domain.logistics.ShipmentStatus;
 import dev.supplychain.agent.domain.orders.CustomerOrder;
 import dev.supplychain.agent.domain.orders.OrderStatus;
@@ -49,6 +51,8 @@ public final class SupplyChainSimulator {
             next = applyQualityHold(current, c, effects);
         } else if (command instanceof SimulationCommand.DelayShipment c) {
             next = delayShipment(current, c, effects);
+        } else if (command instanceof SimulationCommand.RerouteShipment c) {
+            next = rerouteShipment(current, c, effects);
         } else if (command instanceof SimulationCommand.ReserveInventory c) {
             next = reserveInventory(current, c, effects);
         } else if (command instanceof SimulationCommand.ReleaseReservation c) {
@@ -187,6 +191,47 @@ public final class SupplyChainSimulator {
                         + "; affected orders require reassessment",
                 affected, Map.of("reason", command.reason())));
         return advance(current, command.occurredAt(), builder -> builder.replaceShipment(changed));
+    }
+
+    private SupplyChainSnapshot rerouteShipment(SupplyChainSnapshot current,
+            SimulationCommand.RerouteShipment command, List<SimulationEffect> effects) {
+        Shipment shipment = current.shipment(command.shipmentId());
+        if (shipment.status() != ShipmentStatus.PLANNED && shipment.status() != ShipmentStatus.DELAYED) {
+            throw new DomainViolation(DomainViolation.Code.INVALID_STATE,
+                    "Only planned or delayed shipments can be rerouted: " + shipment.id());
+        }
+        if (shipment.routeId().equals(command.newRouteId())) {
+            throw new DomainViolation(DomainViolation.Code.INVALID_TRANSITION,
+                    "A shipment cannot be rerouted to its current route");
+        }
+        Route route = current.routes().get(command.newRouteId());
+        if (route == null) throw new DomainViolation(DomainViolation.Code.NOT_FOUND,
+                "Route not found: " + command.newRouteId());
+        if (!route.active()) throw new DomainViolation(DomainViolation.Code.INVALID_STATE,
+                "Target route is inactive: " + route.id());
+        Carrier carrier = current.carriers().get(shipment.carrierId());
+        if (carrier == null) throw new DomainViolation(DomainViolation.Code.NOT_FOUND,
+                "Carrier not found: " + shipment.carrierId());
+        if (!carrier.active() || !carrier.supportedRoutes().contains(route.id())) {
+            throw new DomainViolation(DomainViolation.Code.INVALID_STATE,
+                    "Carrier is not active and qualified for target route " + route.id());
+        }
+        Instant earliestArrival = command.occurredAt().plus(route.transitTime());
+        if (command.revisedArrivalAt().isBefore(earliestArrival)) {
+            throw new DomainViolation(DomainViolation.Code.INVALID_DATE,
+                    "Revised arrival is earlier than the target route's modeled transit time");
+        }
+        Shipment rerouted = new Shipment(shipment.id(), shipment.carrierId(), route.id(), shipment.lines(),
+                command.revisedArrivalAt(), null, ShipmentStatus.PLANNED, shipment.version() + 1);
+        Set<String> affected = new LinkedHashSet<>();
+        affected.add(shipment.id().toString());
+        shipment.affectedOrders().forEach(orderId -> affected.add(orderId.toString()));
+        effects.add(effect(SimulationEffectType.SHIPMENT_REROUTED,
+                "Shipment route changed in the simulation model from " + shipment.routeId() + " to " + route.id()
+                        + "; affected orders require reassessment",
+                affected, Map.of("previousRoute", shipment.routeId().toString(), "newRoute", route.id().toString(),
+                        "reason", command.reason(), "revisedArrivalAt", command.revisedArrivalAt().toString())));
+        return advance(current, command.occurredAt(), builder -> builder.replaceShipment(rerouted));
     }
 
     private SupplyChainSnapshot reserveInventory(SupplyChainSnapshot current,
