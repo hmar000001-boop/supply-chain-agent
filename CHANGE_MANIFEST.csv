@@ -1,11 +1,4 @@
-status,path,description
-Modified,pom.xml,"Import official SLF4J BOM 2.0.20 to converge transitive logging API versions"
-Modified,README.md,"Document the SLF4J dependency baseline"
-Modified,docs/adr/0001-framework-selection.md,"Record the dependency conflict, version alignment decision and compatibility acceptance condition"
-Modified,docs/phase0/PHASE0-STATUS.md,"Record CI evidence and SLF4J alignment; Phase 0 remains open"
-Modified,docs/phase0/COMPATIBILITY-GATE.md,"Add SLF4J dependency-tree and Enforcer acceptance condition"
-Modified,docs/phase0/SOURCE-REFERENCES.md,"Add official SLF4J release and Maven Central BOM/API references"
-Added,docs/phase0/DEPENDENCY-CONVERGENCE-2026-11-17.md,"Explain cause, resolution and verification"
-Added,CHANGELOG_SLF4J_ALIGNMENT.md,"Human-readable change summary"
-Added,README_CHANGESET.md,"Application and verification instructions"
-Added,CHANGE_MANIFEST.csv,"File inventory"
+Status,Path,Bytes,SHA256
+Added,CHANGELOG_GRAPH_EXECUTE_TEST_FIX.md,1122,a9ae3803a9d5ae4b521f9a57931c2841b6cef4ae70888c47c25f7e59a5600f60
+Added,README_CHANGESET.md,583,68b87d8dd8e57417787f992e9c8d64c0bc91e11d5605df67460953efaad15615
+Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,7397,1ffab2180451aa7d6fc59b77633ecc9f3f9aa1651b7a17c937c541d65c813b20

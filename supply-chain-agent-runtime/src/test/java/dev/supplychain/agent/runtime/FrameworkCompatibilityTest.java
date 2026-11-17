@@ -126,7 +126,7 @@ class FrameworkCompatibilityTest {
         var graph = SupplyChainIntakeGraph.compile(interpreter, new MemorySaver());
         var config = RunnableConfig.builder().threadId("phase0-ready-" + UUID.randomUUID()).build();
 
-        var result = graph.execute(Map.of(
+        var result = graph.execute(Map.<String, Object>of(
                 SupplyChainGraphState.REQUEST,
                 "Assess the impact of a supplier capacity reduction on order SO-100."), config);
 

@@ -1,14 +1,9 @@
-# Apply this change set
+# Change-only patch — LangGraph4j execute test generic fix
 
-Extract this ZIP at the repository root, preserving relative paths. This is a change-only package, not a complete project archive.
+Apply the contents of this ZIP at the repository root, preserving relative paths.
 
-The parent `pom.xml` imports the official SLF4J 2.0.20 BOM so transitive logging dependencies from LangGraph4j 1.8.20 and LangChain4j 1.23.0 converge on one managed version. Keep Maven Enforcer's `dependencyConvergence` rule enabled.
+This patch changes one test input from inferred `Map<String, String>` to explicit `Map<String, Object>`, which matches the LangGraph4j 1.8 `CompiledGraph.execute(Map<String, Object>, RunnableConfig)` API.
 
-After applying, run:
+No production Java code, dependency versions, Maven Enforcer rules, or test assertions are changed.
 
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean verify
-./mvnw -B -ntp dependency:tree -Dincludes=org.slf4j -DoutputFile=target/slf4j-dependency-tree.txt
-```
-
-Do not treat dependency convergence as verified until CI passes and the dependency-tree artifact shows the aligned version.
+See `CHANGELOG_GRAPH_EXECUTE_TEST_FIX.md` for details. `CHANGE_MANIFEST.csv` lists the complete file inventory and SHA-256 hashes.
