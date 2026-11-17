@@ -3,7 +3,7 @@
 ## Source prepared
 
 - Java 21 Maven reactor with three modules: framework-neutral core contracts, agent runtime and application host.
-- LangGraph4j 1.8.28 LTS selected as sole graph/workflow orchestrator.
+- LangGraph4j 1.8.20 LTS artifacts, managed by the official BOM, selected as the sole graph/workflow orchestrator after CI showed that the 1.8.28 GitHub release artifacts were not resolvable from Maven Central.
 - LangChain4j 1.23.0 stable core selected for model-facing AI Services.
 - Experimental `langchain4j-agentic` excluded from the reference application.
 - Deterministic fake `ChatModel` used in tests; no live model credentials required.
@@ -17,8 +17,14 @@
 ## Environment observed
 
 - OpenJDK 21.0.12.1 is available.
-- Maven is not installed globally. The custom wrapper now downloads Apache Maven 3.9.16 directly from Apache distribution infrastructure, verifies the pinned SHA-512 checksum, and caches the installation. It no longer needs a wrapper JAR from Maven Central.
-- The GitHub Actions failure on 2026-11-17 was HTTP 429 during the old Maven Central bootstrap. This source change addresses that exact bootstrap dependency; it does not prevent Maven Central rate limits while resolving project dependencies.
+- Maven is not installed globally; the Maven Wrapper is pinned to Maven 3.9.16 and Wrapper 3.3.4.
+- Maven Central DNS resolution fails in this authoring container, so the wrapper cannot download its bootstrap JAR or Maven distribution.
+
+## Dependency-resolution correction — 2026-11-17
+
+- The first GitHub Actions build successfully bootstrapped Maven but failed dependency resolution because Maven Central could not find `langgraph4j-core:1.8.28` or `langgraph4j-postgres-saver:1.8.28`.
+- The build now targets the common published 1.8.20 release for both artifacts and imports `langgraph4j-bom:1.8.20` so module versions remain aligned.
+- The clean Maven and PostgreSQL tests must be rerun; this source correction is not itself proof that Phase 0 passes.
 
 ## Execution status
 

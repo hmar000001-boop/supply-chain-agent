@@ -1,5 +1,10 @@
-# Apply CI Maven HTTP 429 fix
+# Apply this change-only package
 
-Extract this change-only ZIP at the repository root, preserving paths. It contains the modified Maven wrapper scripts/properties and GitHub Actions workflow plus new bootstrap documentation.
+1. Extract this ZIP at the root of the existing `supply-chain-agent` repository.
+2. Allow the six modified files to overwrite their existing counterparts.
+3. Keep all other repository files, including the Maven bootstrap fix already applied.
+4. Commit the changes and run the `Java CI` workflow.
 
-After applying, commit the changes and rerun the Java CI workflow. The wrapper downloads Maven 3.9.16 directly from Apache distribution infrastructure, verifies SHA-512 and caches the distribution. A future 429 while Maven resolves project dependencies would be a separate Maven repository issue.
+This archive deliberately excludes the complete repository and all unchanged files.
+
+The package does not claim a successful Maven build. Phase 0 remains open until CI passes the clean build, tests, PostgreSQL saver test and dependency-tree inspection.

@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <langgraph4j.version>1.8.28</langgraph4j.version>
+        <langgraph4j.version>1.8.20</langgraph4j.version>
         <langchain4j.version>1.23.0</langchain4j.version>
         <junit.version>5.12.2</junit.version>
         <postgresql.version>42.7.8</postgresql.version>
@@ -40,16 +40,16 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Keep every LangGraph4j module on one published, aligned release. -->
             <dependency>
                 <groupId>org.bsc.langgraph4j</groupId>
-                <artifactId>langgraph4j-core</artifactId>
+                <artifactId>langgraph4j-bom</artifactId>
                 <version>${langgraph4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>org.bsc.langgraph4j</groupId>
-                <artifactId>langgraph4j-postgres-saver</artifactId>
-                <version>${langgraph4j.version}</version>
-            </dependency>
+
+
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j</artifactId>

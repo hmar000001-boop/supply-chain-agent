@@ -1,12 +1,11 @@
-status,path,description,sha256
-Modified,.mvn/wrapper/maven-wrapper.properties,Pinned Apache Maven URLs and official SHA-512 checksum.,95f558217fda7f3574aa7c77fb0c704832c84fc9600e18fcd66b5849244f0e07
-Added,.mvn/wrapper/bootstrap-maven.ps1,"Windows bootstrap with retry, SHA-512 validation and cache.",07570a4b0593a7fcbf45f475f5cb9c572883c0b35f9364fbce45f0591115080a
-Modified,mvnw,"POSIX bootstrap downloads directly from Apache, retries and verifies checksum.",be847a698a49859d5cdd8aef984d9cd3ff1bd1e9f8fb59d0c213bca678683b19
-Modified,mvnw.cmd,Delegates to the PowerShell Apache distribution bootstrap.,a67b996074d77955ab13e2b5389f0b4780b0de7912f585a3ccbe2efa423c4058
-Modified,.gitignore,Removes obsolete wrapper-JAR ignore entry.,1f6a405e0522eba935563f1cadc838e8518a84bedf557585c3f0afc625180a4c
-Modified,.github/workflows/ci.yml,Caches the pinned Maven binary and avoids a second bootstrap attempt if the build failed.,6709bb007ebe59365fab2869d0a4555dfe1a3c97b769be05a4de34123f7cdf0e
-Modified,README.md,"Documents Apache bootstrap, checksum and separate dependency resolution.",c27416fc3268f4793eb6f8e3149a3d52763779f9748c8b851b42747ffb5d0925
-Modified,docs/phase0/PHASE0-STATUS.md,Records the 429 failure and remediation without claiming full build success.,840e02034c63ed07784be68f4507bc10d54ffaec5c85c4e0c1acbd1f954463a7
-Added,docs/phase0/MAVEN-BOOTSTRAP.md,"Documents bootstrap flow, cache and scope limitation.",daf4685d957fa57744b74e56551a56be99cfa2e1512d67d8751fb8e1e7b990ae
-Added,CHANGELOG_CI_MAVEN_429.md,Detailed changes and verification status.,664840bbe80b60ac90a555327294356b63549a525882064e35705528b54040fb
-Added,README_CHANGESET.md,Instructions for applying this change-only package.,b13b1f52104fd45502c69c77ef8b8fa5992c90aa92fca1c0d72dbe3fe9be0b18
+status,path,sha256,bytes
+Modified,pom.xml,82dae67756355d2f721069ebf07ebddffcd6b0dc0f2de480ec8ba4306a45fb53,6148
+Modified,README.md,9fcc6d0346633b5750a52baf788b20f3c6230cb186659f24edfaffc2cd599023,3403
+Modified,docs/adr/0001-framework-selection.md,0301c916d2c77df4e458b7d07b4047850bea44b1de3cbe5ff36f4b7a0657bdac,6722
+Modified,docs/phase0/COMPATIBILITY-GATE.md,cca882a7ccb32507e37c957d790b5249e385d49501f5f718339c8d8eb7e48c01,2602
+Modified,docs/phase0/PHASE0-STATUS.md,5483917e503906cce0f5be17cb3801df093a1915c030fdbf029fb7045815395b,2919
+Modified,docs/phase0/SOURCE-REFERENCES.md,703b5385edbd7d84982f4f5d6759a20672520cd1dab0a101b02f1afa2eb40f2a,2837
+Added,docs/phase0/DEPENDENCY-RESOLUTION-2026-11-17.md,42ec7a69429fee7657e1ae4574b00ce3a9c302e09f890ef6531594b6f087ee99,2915
+Added,CHANGELOG_DEPENDENCY_FIX.md,b6185fd3018d79f69512faea7af06fd8396cb62f8b1e27ca794ef4b811a88cb1,1602
+Added,README_CHANGESET.md,fbeb992739408fa08afad234ac4850b11ab212bf2c8be259a883f25815e47881,584
+Added,CHANGE_MANIFEST.csv,see SHA-256 sidecar generated with ZIP,0
