@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static org.bsc.langgraph4j.StateGraph.END;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,11 +79,14 @@ class FrameworkCompatibilityTest {
                 1
         ), null);
 
-        for (var ignored : graph.stream(GraphInput.resume(), updateConfig)) {
-            // The graph records the actual human clarification, re-runs the interpreter and completes.
-        }
+        // updateConfig deliberately identifies the approval-updated checkpoint. The final NodeOutput
+        // is the result of the resumed execution; getState(updateConfig) would read the older checkpoint.
+        var resumedOutput = graph.invokeFinal(GraphInput.resume(), updateConfig)
+                .orElseThrow(() -> new AssertionError("Resumed intake graph produced no terminal output"));
+        assertEquals(END, resumedOutput.node(),
+                "Clarification flow must reach END rather than remain interrupted");
 
-        var completed = graph.getState(updateConfig).state();
+        var completed = resumedOutput.state();
         assertEquals(InterpretationOutcome.READY.name(), completed.outcome());
         assertEquals(1, completed.clarificationRound());
         assertEquals(2, model.requests().size());
@@ -109,11 +113,12 @@ class FrameworkCompatibilityTest {
                 SupplyChainGraphState.CLARIFICATION_CONTEXT, "The affected order is SO-404.",
                 SupplyChainGraphState.CLARIFICATION_ROUND, 1
         ), null);
-        for (var ignored : graph.stream(GraphInput.resume(), updateConfig)) {
-            // The second clarification request must terminate rather than loop forever.
-        }
+        var resumedOutput = graph.invokeFinal(GraphInput.resume(), updateConfig)
+                .orElseThrow(() -> new AssertionError("Bounded clarification graph produced no terminal output"));
+        assertEquals(END, resumedOutput.node(),
+                "Clarification limit must terminate the graph rather than pause again");
 
-        var completed = graph.getState(updateConfig).state();
+        var completed = resumedOutput.state();
         assertEquals(InterpretationOutcome.NEEDS_CLARIFICATION.name(), completed.outcome());
         assertEquals(1, completed.clarificationRound());
         assertEquals(2, model.requests().size());

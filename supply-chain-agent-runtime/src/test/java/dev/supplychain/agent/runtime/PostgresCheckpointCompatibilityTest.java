@@ -53,7 +53,7 @@ class PostgresCheckpointCompatibilityTest {
                 .build());
         var config = RunnableConfig.builder().threadId(threadId).build();
 
-        var firstRun = firstGraph.stream(Map.of(STATUS, "CREATED"), config);
+        var firstRun = firstGraph.stream(GraphInput.args(Map.<String, Object>of(STATUS, "CREATED")), config);
         for (var ignored : firstRun) {
             // Stop at the approval breakpoint; the checkpoint is committed to PostgreSQL.
         }
@@ -71,11 +71,13 @@ class PostgresCheckpointCompatibilityTest {
 
         assertEquals("WAITING_FOR_APPROVAL", resumedGraph.getState(config).state().value(STATUS).orElse(""));
         var updateConfig = resumedGraph.updateState(config, Map.of(APPROVAL, "APPROVED"), null);
-        for (var ignored : resumedGraph.stream(GraphInput.resume(), updateConfig)) {
-            // Continue from the database checkpoint after the new saver has loaded it.
-        }
+        // Resume from the exact checkpoint produced by updateState. Assert the terminal output
+        // directly rather than querying with updateConfig, which remains pinned to that checkpoint.
+        var resumedOutput = resumedGraph.invokeFinal(GraphInput.resume(), updateConfig)
+                .orElseThrow(() -> new AssertionError("Resumed PostgreSQL graph produced no terminal output"));
+        assertEquals(END, resumedOutput.node(), "PostgreSQL-backed graph must reach END after resumption");
 
-        var completed = resumedGraph.getState(updateConfig).state();
+        var completed = resumedOutput.state();
         assertEquals("COMPLETED", completed.value(STATUS).orElse(""));
         assertEquals("APPROVED", completed.value(APPROVAL).orElse(""));
     }

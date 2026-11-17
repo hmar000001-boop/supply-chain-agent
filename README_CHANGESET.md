@@ -1,13 +1,7 @@
-# Apply this change set
+# Change-only package — checkpoint/resume test correction
 
-Extract this ZIP at the repository root, preserving paths, and commit the resulting change.
+Apply this ZIP at the repository root, preserving the included relative paths.
 
-The patch changes only `PostgresCheckpointCompatibilityTest.java` so its helper explicitly propagates the checked `SQLException` thrown by the LangGraph4j 1.8.20 PostgreSQL saver builder.
+It contains only three modified test files and the change documentation. It does not include the complete repository.
 
-Then rerun:
-
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean verify
-```
-
-Do not disable the PostgreSQL test or Maven Enforcer rules to work around this compilation error.
+The test correction distinguishes the checkpoint selected for resumption from the terminal result of that resumed execution. No production source, dependency, workflow, or Enforcer rule is changed.

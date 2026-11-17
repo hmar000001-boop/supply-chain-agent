@@ -41,7 +41,8 @@ class CheckpointResumeCompatibilityTest {
                 .build());
         var config = RunnableConfig.builder().threadId("phase0-approval-" + UUID.randomUUID()).build();
 
-        for (var ignored : graph.stream(Map.of(STATUS, "CREATED"), config)) {
+        var firstRun = graph.stream(GraphInput.args(Map.<String, Object>of(STATUS, "CREATED")), config);
+        for (var ignored : firstRun) {
             // Consume updates until LangGraph4j interrupts before the approval node.
         }
 
@@ -49,11 +50,14 @@ class CheckpointResumeCompatibilityTest {
         assertEquals("WAITING_FOR_APPROVAL", paused.value(STATUS).orElse(""));
 
         var updatedConfig = graph.updateState(config, Map.of(APPROVAL, "APPROVED"), null);
-        for (var ignored : graph.stream(GraphInput.resume(), updatedConfig)) {
-            // Resume from the saved checkpoint after applying the external approval decision.
-        }
+        // updateState returns a config pinned to the checkpoint that contains the approval update.
+        // Use invokeFinal's terminal output for the resumed execution; getState(updatedConfig) would
+        // intentionally read that historical checkpoint, not the later checkpoints from the resume.
+        var resumedOutput = graph.invokeFinal(GraphInput.resume(), updatedConfig)
+                .orElseThrow(() -> new AssertionError("Resumed graph produced no terminal output"));
+        assertEquals(END, resumedOutput.node(), "Resumed graph must reach END rather than pause again");
 
-        var completed = graph.getState(updatedConfig).state();
+        var completed = resumedOutput.state();
         assertEquals("COMPLETED", completed.value(STATUS).orElse(""));
         assertEquals("APPROVED", completed.value(APPROVAL).orElse(""));
     }
