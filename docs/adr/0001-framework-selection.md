@@ -1,6 +1,6 @@
 # ADR-0001: Java agentic framework selection
 
-- Status: **Provisional selection; compatibility gate pending CI**
+- Status: **Accepted — Phase 0 compatibility gate passed in GitHub Actions on 2026-11-17**
 - Original decision date: 2026-11-16
 - Dependency alignment corrections: 2026-11-17
 - Scope: Part III supply-chain application
@@ -23,13 +23,13 @@ The root POM imports `org.bsc.langgraph4j:langgraph4j-bom:1.8.20`. Direct versio
 
 ## SLF4J dependency convergence
 
-The first CI build using the published LangGraph4j 1.8.20 artifacts reached Maven Enforcer and identified a transitive version conflict: LangGraph4j requested `slf4j-api:2.0.9`, while LangChain4j 1.23.0 requested `slf4j-api:2.0.18`. The root POM now imports the official `org.slf4j:slf4j-bom:2.0.20`, the current stable SLF4J 2.0 release as of 2026-11-17. This centrally manages the SLF4J family and resolves the conflicting transitive requests through Maven dependency management. The Enforcer `dependencyConvergence` rule remains enabled. The next clean CI build and dependency-tree inspection must verify that the resolved graph converges; the ADR does not treat the source change alone as proof.
+The first CI build using the published LangGraph4j 1.8.20 artifacts reached Maven Enforcer and identified a transitive version conflict: LangGraph4j requested `slf4j-api:2.0.9`, while LangChain4j 1.23.0 requested `slf4j-api:2.0.18`. The root POM now imports the official `org.slf4j:slf4j-bom:2.0.20`, the current stable SLF4J 2.0 release as of 2026-11-17. This centrally manages the SLF4J family and resolves the conflicting transitive requests through Maven dependency management. The Enforcer `dependencyConvergence` rule remains enabled. The successful clean CI build passed Maven Enforcer `dependencyConvergence` with this managed graph; the selected versions are pinned pending a deliberate compatibility migration.
 
 ## Why LangChain4j stable core
 
 LangChain4j is used for the model-facing boundary: `ChatModel`, AI Services, structured outputs, embeddings and provider adapters as required by later phases. The first integration calls a LangChain4j AI Service from a LangGraph4j node through an application-owned `RequestInterpreter` port. This keeps model integration replaceable and prevents framework types from leaking into the domain/core contracts.
 
-The selected 1.23.0 stable core version is retained. Its compatibility with LangGraph4j 1.8.20 is a hypothesis until the clean Maven build and tests pass.
+The selected 1.23.0 stable core version is retained. The clean Java 21 Maven build and deterministic AI Service/graph tests passed in GitHub Actions on 2026-11-17. This establishes the tested integration seam; it does not yet prove all later graph subgraph/parallelism, process-restart recovery or production deployment behavior.
 
 ## Why not LangChain4j Agentic as the outer orchestrator
 
@@ -55,9 +55,9 @@ These alternatives are not being added as dependencies. The application will hav
 6. Graph state contains a minimal serializable execution snapshot and references to authoritative records; it does not serialize service objects, providers or secrets.
 7. The LangGraph4j BOM is the sole version authority for LangGraph4j modules; do not override an individual module version without a documented compatibility reason.
 
-## Compatibility proof required
+## Compatibility proof completed on 2026-11-17
 
-The decision becomes accepted only after CI demonstrates:
+GitHub Actions demonstrated:
 
 - Clean Java 21 Maven build with the published LangGraph4j 1.8.20 BOM/core/PostgreSQL saver set and LangChain4j 1.23.0.
 - Deterministic LangChain4j AI Service call using a fake `ChatModel`.

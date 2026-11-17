@@ -10,10 +10,12 @@
     <packaging>pom</packaging>
 
     <name>Supply Chain Agent — Parent</name>
-    <description>Production-oriented Java agentic application. Phase 0 verifies LangGraph4j and LangChain4j integration.</description>
+    <description>Production-oriented Java agentic supply-chain application; Part III reference implementation for CoALA and Fan &amp; Lan.</description>
 
     <modules>
+        <module>supply-chain-agent-domain</module>
         <module>supply-chain-agent-core</module>
+        <module>supply-chain-agent-simulator</module>
         <module>supply-chain-agent-runtime</module>
         <module>supply-chain-agent-app</module>
     </modules>

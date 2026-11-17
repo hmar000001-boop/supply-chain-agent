@@ -1,4 +1,4 @@
-# Phase 0 — compatibility gate
+# Phase 0 — compatibility gate (completed 2026-11-17)
 
 ## Implemented tests
 
@@ -9,6 +9,7 @@
 | `langGraph4jRoutesToRealClarificationInterruptAndResumesThroughLangChain4jService` | LangGraph4j 1.8.20 calls the LangChain4j adapter from a node, takes a conditional branch, loops through clarification and terminates. |
 | `graphCanPauseUpdateStateAndResumeUsingMemorySaver` | LangGraph4j can checkpoint, interrupt before approval, accept a state update and resume. |
 | `clarificationCycleIsBoundedToOneRound` | A repeated clarification request terminates after the configured limit instead of looping indefinitely. |
+| `localIntakeGraphCanCompleteWithoutClarification` | The synchronous `invoke(GraphInput.args(...))` path returns the expected typed state for a READY request. |
 | `postgresCheckpointCanBeReloadedByANewSaverAndResumed` | With PostgreSQL enabled, a new saver/graph instance reloads the checkpoint from PostgreSQL and resumes. This simulates process replacement; it is not an OS-level process-kill test. |
 
 ## Commands
@@ -31,7 +32,7 @@ Dependency inspection:
 ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt
 ```
 
-## Exit criteria
+## Exit criteria — passed in GitHub Actions on 2026-11-17
 
 - All reactor modules compile using `--release 21`.
 - All deterministic tests pass without external provider credentials.
@@ -41,6 +42,6 @@ Dependency inspection:
 - V1 PostgreSQL saver limitation is respected: V1 does not persist interruption metadata. Pending approvals and authorization decisions must therefore be authoritative application records, not inferred from the checkpoint saver alone. The production database design must persist approval status independently and revalidate it before resuming an action.
 - The resolved dependency tree contains LangGraph4j core and PostgreSQL saver 1.8.20 as managed by the official 1.8.20 BOM, plus LangChain4j 1.23.0, without unexpected duplicate/mismatched LangGraph4j artifacts.
 - The resolved SLF4J dependency family is aligned to 2.0.20 by the official SLF4J BOM; Maven Enforcer `dependencyConvergence` remains enabled and passes.
-- GitHub Actions succeeds from a clean checkout.
+- GitHub Actions succeeded from a clean checkout. The latest successful run reported seven runtime tests passing (five in `FrameworkCompatibilityTest`, one in-memory checkpoint test and one PostgreSQL checkpoint test), all Maven reactor modules compiling, and Maven Enforcer dependency convergence passing.
 
-No domain implementation or chapter prose begins until this gate is green.
+M0 is closed. M1 begins the domain implementation; the seven compatibility tests remain mandatory in subsequent CI runs.
