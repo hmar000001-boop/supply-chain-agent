@@ -12,6 +12,7 @@ import org.bsc.langgraph4j.state.Channels;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 
@@ -79,7 +80,12 @@ class PostgresCheckpointCompatibilityTest {
         assertEquals("APPROVED", completed.value(APPROVAL).orElse(""));
     }
 
-    private static PostgresSaver newSaver(StateGraph<ApprovalState> builder) {
+    /**
+     * Builds the JDBC-backed checkpoint saver and initializes its schema when requested.
+     * Database connection and schema-initialization failures are deliberately propagated
+     * to the integration test rather than hidden or converted into a skipped test.
+     */
+    private static PostgresSaver newSaver(StateGraph<ApprovalState> builder) throws SQLException {
         return PostgresSaver.builder()
                 .host(env("PGHOST", "localhost"))
                 .port(Integer.parseInt(env("PGPORT", "5432")))

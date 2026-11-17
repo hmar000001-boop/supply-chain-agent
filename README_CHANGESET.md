@@ -1,13 +1,13 @@
-# Change set — LangGraph4j invocation API correction
+# Apply this change set
 
-Apply this ZIP at the root of the `supply-chain-agent` repository, preserving the paths inside the archive.
+Extract this ZIP at the repository root, preserving paths, and commit the resulting change.
 
-This is a change-only package. It contains one modified test source file and three added documentation files. It does not contain the full repository.
+The patch changes only `PostgresCheckpointCompatibilityTest.java` so its helper explicitly propagates the checked `SQLException` thrown by the LangGraph4j 1.8.20 PostgreSQL saver builder.
 
-After applying it, run:
+Then rerun:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-The correction uses the official LangGraph4j 1.8.20 `CompiledGraph.invoke(GraphInput, RunnableConfig)` API. CI remains the authority for build and integration-test success.
+Do not disable the PostgreSQL test or Maven Enforcer rules to work around this compilation error.

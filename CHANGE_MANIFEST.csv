@@ -1,5 +1,5 @@
 Status,Path,Description,SHA-256
-Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,Use the published LangGraph4j 1.8.20 GraphInput/invoke API; make initial stream inputs explicit; assert typed final state and completion event.,831389a9860003509d0d27057ea32034cd37a449a24dbbe4b418f070885e9d4a
-Added,CHANGELOG_GRAPH_INVOCATION_API_FIX.md,Detailed diagnosis and rationale for the correct version-specific API.,f3c07f47bd9ccfeb82fbfad44b6c83b2eda29d4823a1bb460597b5d02579675d
-Added,README_CHANGESET.md,Change-only ZIP application instructions.,99827a05a9ebaa863b28a63cdfce35c65dbfc1157ff33385a052aac3d1b56ed6
-Added,docs/phase0/LANGGRAPH4J_GRAPH_INVOCATION_API_FIX_2026-11-17.md,Durable version-specific API decision and official Javadoc links.,1f3f10078ca7147ff380739d684f23c2dd9716b991dc1bac40bb2d837105d260
+Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/PostgresCheckpointCompatibilityTest.java,Declare precise SQLException propagation from PostgreSQL saver construction,c5d077f0e49a1b8c198ac38d0d0bae074cc2829e5f1c88c3df453bd6e6050edf
+Added,CHANGELOG_POSTGRES_SAVER_CHECKED_EXCEPTION.md,Explain cause and correction,babb427119b956c46c4a20082abde96466cd5fe9f02eaa49a40328c8dbb1a764
+Added,README_CHANGESET.md,Application instructions,e6aecebb7ff91618f714917f27451ecd413d84d6ae69b640835aca0b50147a61
+Added,docs/phase0/POSTGRES-SAVER-CHECKED-EXCEPTION-2026-11-17.md,Record checked-exception contract,edfbf9bed05e34311da3e0a17b46ba93b26ea0c2432ee77d88eff018a279f7bc
