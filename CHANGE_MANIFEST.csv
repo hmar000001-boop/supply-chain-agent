@@ -1,4 +1,5 @@
-Status,Path,Bytes,SHA256
-Added,CHANGELOG_GRAPH_EXECUTE_TEST_FIX.md,1122,a9ae3803a9d5ae4b521f9a57931c2841b6cef4ae70888c47c25f7e59a5600f60
-Added,README_CHANGESET.md,583,68b87d8dd8e57417787f992e9c8d64c0bc91e11d5605df67460953efaad15615
-Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,7397,1ffab2180451aa7d6fc59b77633ecc9f3f9aa1651b7a17c937c541d65c813b20
+Status,Path,Description,SHA-256
+Modified,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/FrameworkCompatibilityTest.java,Use the published LangGraph4j 1.8.20 GraphInput/invoke API; make initial stream inputs explicit; assert typed final state and completion event.,831389a9860003509d0d27057ea32034cd37a449a24dbbe4b418f070885e9d4a
+Added,CHANGELOG_GRAPH_INVOCATION_API_FIX.md,Detailed diagnosis and rationale for the correct version-specific API.,f3c07f47bd9ccfeb82fbfad44b6c83b2eda29d4823a1bb460597b5d02579675d
+Added,README_CHANGESET.md,Change-only ZIP application instructions.,99827a05a9ebaa863b28a63cdfce35c65dbfc1157ff33385a052aac3d1b56ed6
+Added,docs/phase0/LANGGRAPH4J_GRAPH_INVOCATION_API_FIX_2026-11-17.md,Durable version-specific API decision and official Javadoc links.,1f3f10078ca7147ff380739d684f23c2dd9716b991dc1bac40bb2d837105d260

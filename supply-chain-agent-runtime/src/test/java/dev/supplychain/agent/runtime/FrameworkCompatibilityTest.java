@@ -58,9 +58,9 @@ class FrameworkCompatibilityTest {
         var graph = SupplyChainIntakeGraph.compile(interpreter, new MemorySaver());
         var config = RunnableConfig.builder().threadId("phase0-cycle-" + UUID.randomUUID()).build();
 
-        var firstRun = graph.stream(Map.of(
+        var firstRun = graph.stream(GraphInput.args(Map.<String, Object>of(
                 SupplyChainGraphState.REQUEST,
-                "Investigate a supplier disruption affecting several orders."), config);
+                "Investigate a supplier disruption affecting several orders.")), config);
         for (var ignored : firstRun) {
             // The graph pauses before await-clarification, after the model requested user input.
         }
@@ -98,9 +98,9 @@ class FrameworkCompatibilityTest {
                 new LangChain4jRequestInterpreter(model), new MemorySaver());
         var config = RunnableConfig.builder().threadId("phase0-bounded-" + UUID.randomUUID()).build();
 
-        var firstRun = graph.stream(Map.of(
+        var firstRun = graph.stream(GraphInput.args(Map.<String, Object>of(
                 SupplyChainGraphState.REQUEST,
-                "Investigate an unspecified supply-chain disruption."), config);
+                "Investigate an unspecified supply-chain disruption.")), config);
         for (var ignored : firstRun) {
             // First clarification interrupt.
         }
@@ -126,12 +126,15 @@ class FrameworkCompatibilityTest {
         var graph = SupplyChainIntakeGraph.compile(interpreter, new MemorySaver());
         var config = RunnableConfig.builder().threadId("phase0-ready-" + UUID.randomUUID()).build();
 
-        var result = graph.execute(Map.<String, Object>of(
+        var result = graph.invoke(GraphInput.args(Map.<String, Object>of(
                 SupplyChainGraphState.REQUEST,
-                "Assess the impact of a supplier capacity reduction on order SO-100."), config);
+                "Assess the impact of a supplier capacity reduction on order SO-100.")), config)
+                .orElseThrow(() -> new AssertionError(
+                        "Expected the intake graph to complete and return its final state"));
 
-        assertEquals(InterpretationOutcome.READY.name(), result.get(SupplyChainGraphState.OUTCOME));
-        assertEquals("READY", result.get(SupplyChainGraphState.NORMALIZED_INTENT));
+        assertEquals(InterpretationOutcome.READY.name(), result.outcome());
+        assertEquals("READY", result.normalizedIntent());
+        assertTrue(result.events().contains("intake-finished"));
     }
 
     private static final class ScriptedChatModel implements ChatModel {

@@ -1,9 +1,13 @@
-# Change-only patch — LangGraph4j execute test generic fix
+# Change set — LangGraph4j invocation API correction
 
-Apply the contents of this ZIP at the repository root, preserving relative paths.
+Apply this ZIP at the root of the `supply-chain-agent` repository, preserving the paths inside the archive.
 
-This patch changes one test input from inferred `Map<String, String>` to explicit `Map<String, Object>`, which matches the LangGraph4j 1.8 `CompiledGraph.execute(Map<String, Object>, RunnableConfig)` API.
+This is a change-only package. It contains one modified test source file and three added documentation files. It does not contain the full repository.
 
-No production Java code, dependency versions, Maven Enforcer rules, or test assertions are changed.
+After applying it, run:
 
-See `CHANGELOG_GRAPH_EXECUTE_TEST_FIX.md` for details. `CHANGE_MANIFEST.csv` lists the complete file inventory and SHA-256 hashes.
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean verify
+```
+
+The correction uses the official LangGraph4j 1.8.20 `CompiledGraph.invoke(GraphInput, RunnableConfig)` API. CI remains the authority for build and integration-test success.
