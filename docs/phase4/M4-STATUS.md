@@ -1,6 +1,6 @@
 # M4 status — Fan & Lan mechanism implementations
 
-**Status: implementation package prepared; awaiting GitHub Actions CI acceptance.**
+**Status: accepted — user reported GitHub Actions CI green on 2026-11-17.**
 
 ## Added
 
@@ -21,7 +21,7 @@
 - Parsed Maven POMs as XML and reviewed the dependency boundary.
 - M4 has no LangGraph4j, LangChain4j or JDBC/PostgreSQL dependency.
 
-**Limitation:** this local execution used a JUnit-compatible shim and reflection runner, not Maven Surefire/JUnit Platform. No full Maven reactor or M0 LangGraph4j runtime tests are claimed locally. GitHub Actions is the acceptance gate.
+**Limitation:** this local execution used a JUnit-compatible shim and reflection runner, not Maven Surefire/JUnit Platform. No full Maven reactor or M0 LangGraph4j runtime tests are claimed locally. GitHub Actions was the acceptance gate; the user confirmed a green CI run.
 
 ## Explicit limitations and deferred work
 
@@ -34,9 +34,6 @@
 - B5/GraSP is not implemented as a residual mechanism.
 - CoT/ToT/RAP-inspired MCTS are separate M5 algorithms; LangGraph4j composition is M6.
 
-## Acceptance criteria
+## Acceptance result
 
-- M4's 70 mechanism tests pass in Maven Surefire in CI.
-- M0/M1/M2/M3 tests remain in the reactor and pass.
-- The module stays independent of agent framework and persistence implementations.
-- All five applicable bundles have S/C/T/P/F/L/R traceability.
+The user reported a green GitHub Actions run including M4 and all preceding modules. The module remains independent of agent-framework and persistence implementations, and all five applicable bundles have S/C/T/P/F/L/R traceability.

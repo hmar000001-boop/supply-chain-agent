@@ -1,6 +1,6 @@
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M4 — Fan & Lan mechanism implementations (implementation package prepared; CI pending)**
+**Current milestone: M5 — independent planning algorithms (implementation package delivered; CI pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -26,6 +26,7 @@ This is the reference application for Part III of *From Cognitive Architectures 
 - `supply-chain-agent-simulator`: deterministic, side-effect-free transitions over domain snapshots; depends only on the domain module.
 - `supply-chain-agent-actions`: framework-neutral CoALA internal actions, read-only perception, simulator-backed grounding, capability/resource authorization, typed results and idempotency contracts.
 - `supply-chain-agent-mechanisms`: framework-neutral engineering realizations of Fan & Lan B1/B2/B3/B4/B6, with explicit S/C/T/P/F/L/R contracts; no agent-framework or database dependency.
+- `supply-chain-agent-planning`: independent CoT-style sequential, ToT-inspired bounded search, and RAP-inspired domain-grounded MCTS strategies behind one planner contract; shared deterministic evaluator, explainable router, B6 budget integration and in-memory resumable planner sessions.
 - `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j model adapters; this is the only module that depends on model/framework APIs.
 - `supply-chain-agent-app`: composition root.
 
@@ -85,7 +86,7 @@ M3's perception and grounding adapters are reference implementations over immuta
 
 See [`docs/architecture/COALA-ACTION-ARCHITECTURE.md`](docs/architecture/COALA-ACTION-ARCHITECTURE.md), [`docs/adr/0003-coala-action-and-authority-boundaries.md`](docs/adr/0003-coala-action-and-authority-boundaries.md), and [`docs/phase3/M3-STATUS.md`](docs/phase3/M3-STATUS.md).
 
-## M4 — Fan & Lan mechanism realizations (implementation package prepared; CI pending)
+## M4 — Fan & Lan mechanism realizations (accepted by GitHub Actions CI; user reported green)
 
 M4 adds the framework-neutral `supply-chain-agent-mechanisms` module and implements the applicable residual bundles as independently testable capabilities:
 
@@ -98,6 +99,14 @@ M4 adds the framework-neutral `supply-chain-agent-mechanisms` module and impleme
 The scoring models are engineering realizations and are not claimed to be paper-exact equations. B5/GraSP remains the previously reviewed closed-candidate boundary; it is not implemented as a new residual mechanism. The mechanism module does not implement CoT/ToT/MCTS (M5) or LangGraph4j graph orchestration (M6). Its repositories/ledgers are in-memory reference adapters; M7 supplies durable transactional implementations.
 
 See [`docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md`](docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md), [`docs/adr/0004-fan-lan-mechanism-realizations.md`](docs/adr/0004-fan-lan-mechanism-realizations.md), and [`docs/phase4/M4-STATUS.md`](docs/phase4/M4-STATUS.md).
+
+## M5 — independent planning strategies (implementation delivered; CI pending)
+
+M5 adds `supply-chain-agent-planning`. It keeps the planning algorithms separate from the LangGraph4j execution graph: CoT-style sequential reasoning is a structured one-path baseline; ToT-inspired search explores/prunes structured partial action paths; and RAP-inspired MCTS uses UCT-style selection, expansion, deterministic simulator-backed rollouts and reward backpropagation. All strategies return proposal-only candidates through one common evaluator that replays actions against the trusted M1 simulator and enforces hard constraints independently of weighted scores. An explainable router chooses a strategy from initial complexity/budget heuristics, and M4 B6 resource accounting tracks compute usage. Request fingerprints include semantic world/memory content and algorithm configuration so changed inputs cannot silently resume an old search.
+
+The names are intentionally qualified: ToT is an inspired structured action-path search, not a literal textual-thought reproduction; MCTS is RAP-inspired with a deterministic supply-chain world model, not faithful RAP. The default routing thresholds require M8 evaluation. Planner sessions currently use an in-memory reference store; durable transactional persistence and process-restart recovery are M7. LangGraph4j orchestration and LangChain4j provider wiring remain M6. No planner can authorize or execute an action.
+
+See [`docs/architecture/PLANNING-ARCHITECTURE.md`](docs/architecture/PLANNING-ARCHITECTURE.md), [`docs/adr/0005-independent-planning-strategies.md`](docs/adr/0005-independent-planning-strategies.md), [`docs/phase5/M5-STATUS.md`](docs/phase5/M5-STATUS.md), and [`docs/phase5/M5-TRACEABILITY.md`](docs/phase5/M5-TRACEABILITY.md). Local framework-neutral regression: 208 passed, 0 failed using a JUnit-compatible harness; full Maven/Surefire CI remains the acceptance gate.
 
 ## Build and test
 
@@ -129,4 +138,4 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0 framework compatibility, M1 domain/simulator, M2 CoALA memory and M3 internal/external actions are accepted by GitHub Actions CI (M3 green status reported by the user). M4 implements Fan & Lan B1/B2/B3/B4/B6 and awaits CI. Subsequent milestones implement independent CoT/ToT/RAP-inspired MCTS planners, the complete LangGraph4j cognitive lifecycle, production persistence/governance, and full integration/evaluation. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
+M0 framework compatibility, M1 domain/simulator, M2 CoALA memory, M3 internal/external actions, and M4 Fan & Lan mechanisms are accepted by GitHub Actions CI (green status reported by the user). M5 independent CoT/ToT/RAP-inspired MCTS planners is delivered and awaits CI. M6 will compose the full cognitive lifecycle in LangGraph4j; M7 adds durable production persistence/governance; M8 performs full integration/evaluation and freezes the application. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.

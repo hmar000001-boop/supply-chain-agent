@@ -1,18 +1,11 @@
-# M4 change-only package
+# M5 change-only package application
 
-Apply this archive at the repository root of the M3-accepted supply-chain-agent project.
+Apply this archive at the root of the M4-accepted repository, preserving paths and replacing the three modified files. It contains the complete new `supply-chain-agent-planning` module and M5 documentation only; it does not contain unchanged M0–M4 files.
 
-- It contains only M4 additions and the small set of files updated for the M4 milestone.
-- It does not contain the full repository or unchanged files.
-- No files are deleted.
-- Keep the M0/M1/M2/M3 modules and tests intact.
-
-After applying the archive, run the same clean acceptance command used for previous milestones:
+After applying, run:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-The Maven/Surefire GitHub Actions run is authoritative. The supplemental local 172-test harness is documented in `docs/phase4/M4-TEST-RESULTS.md`; it is not represented as a full Maven reactor run.
-
-The exact M4 file inventory and SHA-256 values are in `M4_CHANGE_MANIFEST.csv`.
+The existing M0 PostgreSQL checkpoint integration test and all M1–M4 tests must remain enabled. GitHub Actions CI is the acceptance gate. The local 208-test result documented in `docs/phase5/M5-TEST-RESULTS.md` used a JUnit-compatible authoring harness, not Maven Surefire.

@@ -1,0 +1,14 @@
+package dev.supplychain.agent.planning.api;
+
+public enum PlannerTerminationReason {
+    COMPLETED,
+    NO_AVAILABLE_ACTIONS,
+    NO_FEASIBLE_CANDIDATES,
+    MAX_DEPTH_REACHED,
+    SEARCH_BUDGET_EXHAUSTED,
+    RESOURCE_BUDGET_EXHAUSTED,
+    DEADLINE_EXCEEDED,
+    INVALID_PROPOSAL,
+    STOPPED_BY_STRATEGY,
+    RESUMED_AND_COMPLETED
+}

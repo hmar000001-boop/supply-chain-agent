@@ -19,6 +19,7 @@
         <module>supply-chain-agent-mechanisms</module>
         <module>supply-chain-agent-core</module>
         <module>supply-chain-agent-simulator</module>
+        <module>supply-chain-agent-planning</module>
         <module>supply-chain-agent-runtime</module>
         <module>supply-chain-agent-app</module>
     </modules>
