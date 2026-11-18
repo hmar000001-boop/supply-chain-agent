@@ -26,6 +26,28 @@ public final class ActionRegistry {
         return handler;
     }
 
+    /** Returns the registered descriptor for trusted application-side action-plan validation. */
+    public synchronized ActionDescriptor descriptor(ActionId id) {
+        return require(id).descriptor();
+    }
+
+    /**
+     * Returns the handler's canonical request fingerprint after validating the runtime input type.
+     * This is intended for trusted application composition, not for model-supplied descriptors.
+     */
+    public synchronized String requestFingerprint(ActionId id, Object input) {
+        ActionHandler<?, ?> handler = require(id);
+        if (!handler.inputType().isInstance(Objects.requireNonNull(input, "input"))) {
+            throw new IllegalArgumentException("Input type does not match registered action " + id);
+        }
+        return fingerprintUnchecked(handler, input);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static String fingerprintUnchecked(ActionHandler handler, Object input) {
+        return Objects.requireNonNull(handler.requestFingerprint(input), "request fingerprint");
+    }
+
     public synchronized Collection<ActionDescriptor> descriptors() {
         return handlers.values().stream().map(ActionHandler::descriptor)
                 .sorted(Comparator.comparing(descriptor -> descriptor.id().value())).toList();

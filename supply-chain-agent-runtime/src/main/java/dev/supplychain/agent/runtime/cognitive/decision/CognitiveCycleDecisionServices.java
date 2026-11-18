@@ -10,6 +10,7 @@ import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionStatus;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastService;
 import dev.supplychain.agent.planning.api.CandidateEvaluator;
 import dev.supplychain.agent.planning.api.PlanningAction;
+import dev.supplychain.agent.planning.api.PlanCandidate;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.planning.api.PlanningResult;
 import dev.supplychain.agent.planning.api.PlanningState;
@@ -208,6 +209,69 @@ public final class CognitiveCycleDecisionServices {
         return new CandidateEvaluation(EvaluationDisposition.SELECTED, best.candidateId(),
                 "selected by common deterministic evaluation; feasible=" + evaluated.size()
                         + ", score=" + best.score() + ", evaluator=" + candidateEvaluator.configurationFingerprint());
+    }
+
+    /** Returns the exact selected M5 candidate and its immutable planning provenance. */
+    public SelectedPlanningCandidate selectedCandidate(CognitiveCycleOperations.CycleContext context) {
+        Objects.requireNonNull(context, "context");
+        String candidateSetId = require(context.candidateSetId(), "candidateSetId");
+        var artifacts = planningArtifacts.find(candidateSetId).orElseThrow(() ->
+                new IllegalStateException("planner candidate set is not available: " + candidateSetId));
+        if (!artifacts.executionId().equals(context.executionId())) {
+            throw new SecurityException("candidate set belongs to a different graph execution");
+        }
+        if (!artifacts.result().plannerId().name().equals(context.plannerId())
+                || !artifacts.result().sessionId().equals(context.plannerSessionId())) {
+            throw new SecurityException("candidate set planner identity/session does not match the active graph state");
+        }
+        PlanCandidate candidate = artifacts.result().candidates().stream()
+                .filter(value -> value.candidateId().equals(context.selectedCandidateId()))
+                .findFirst().orElseThrow(() -> new SecurityException(
+                        "selected candidate is not part of the active candidate set"));
+        if (!candidate.objectiveId().equals(artifacts.request().objective().id())) {
+            throw new SecurityException("selected candidate targets a different recovery objective");
+        }
+        return new SelectedPlanningCandidate(candidateSetId, candidate, artifacts.request(), artifacts.result());
+    }
+
+    /** Replays the already-selected action path against a freshly loaded authoritative world snapshot. */
+    public CandidateRevalidation revalidateSelectedCandidate(
+            CognitiveCycleOperations.CycleContext context, PlanningRequest freshRequest) {
+        Objects.requireNonNull(freshRequest, "freshRequest");
+        SelectedPlanningCandidate selected = selectedCandidate(context);
+        PlanningRequest original = selected.request();
+        if (!freshRequest.executionId().equals(context.executionId())
+                || !freshRequest.objective().id().equals(original.objective().id())
+                || !freshRequest.objective().equals(original.objective())
+                || !freshRequest.hardConstraints().containsAll(original.hardConstraints())
+                || !freshRequest.workingMemory().id().value().equals(context.workingMemoryId())
+                || freshRequest.workingMemory().version() != context.workingMemoryVersion()
+                || !freshRequest.workingMemory().scopeId().equals(original.workingMemory().scopeId())) {
+            return new CandidateRevalidation(false,
+                    "fresh request changed execution, objective, hard constraints, or active working-memory binding");
+        }
+        if (!freshRequest.actionDefinitionsById().equals(original.actionDefinitionsById())) {
+            return new CandidateRevalidation(false, "trusted grounding action definitions changed after planning");
+        }
+        EvaluatedCandidate replay = evaluateCandidate(freshRequest, selected.candidate().candidateId(),
+                selected.candidate().actions());
+        return replay.feasible()
+                ? new CandidateRevalidation(true, "selected candidate remains feasible under fresh deterministic replay")
+                : new CandidateRevalidation(false, "selected candidate no longer satisfies deterministic transitions and hard constraints");
+    }
+
+    public record SelectedPlanningCandidate(String candidateSetId, PlanCandidate candidate,
+                                            PlanningRequest request, PlanningResult result) {
+        public SelectedPlanningCandidate {
+            candidateSetId = require(candidateSetId, "candidateSetId");
+            Objects.requireNonNull(candidate, "candidate");
+            Objects.requireNonNull(request, "request");
+            Objects.requireNonNull(result, "result");
+        }
+    }
+
+    public record CandidateRevalidation(boolean valid, String reason) {
+        public CandidateRevalidation { reason = require(reason, "reason"); }
     }
 
     private EvaluatedCandidate evaluateCandidate(PlanningRequest request, String candidateId,

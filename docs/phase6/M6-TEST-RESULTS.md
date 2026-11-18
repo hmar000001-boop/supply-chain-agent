@@ -1,78 +1,48 @@
-# M6 test inventory and validation results
+# M6 test inventory and validation
 
-**Status: the user confirmed the corrected M6 graph CI rerun is green. The corrected run log was not included, so no updated test totals are asserted here. M6-A adds three new tests; their local execution is described below.**
+**Current status:** the user confirmed the corrected M6 graph-core CI run green and subsequently marked M6-A complete. The specific M6-A CI output was not included. M6-B adds 12 focused service-integration tests that passed in a local Java 21 lightweight JUnit-compatible harness. The full post-M6-B Maven/Surefire/GitHub Actions result remains pending.
 
-The tests are in `supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java`. They use `MemorySaver` and deterministic scripted `CognitiveCycleOperations` implementations. They exercise the actual graph definition and host resume protocol; they do not call real ERP/provider services.
+## M6 graph-core tests — 14
+
+The tests live in `supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java`. They use the actual LangGraph4j graph definition, `MemorySaver` and deterministic scripted `CognitiveCycleOperations` implementations. They test graph routing/interrupt behavior; they do not call real ERP or identity providers.
 
 | # | Test | Invariant exercised |
 |---:|---|---|
-| 1 | `readOnlyCycleRunsThroughCoalaPlannersAndObservationWithoutApproval` | Complete read-only cycle calls retrieval, workspace, M5 planning/evaluation, execution/observation boundary and episodic recording without an approval interrupt. |
-| 2 | `clarificationIsSuppliedByHostBeforeTheInterpretationCycleResumes` | The graph interrupts before clarification; only host-supplied text is accepted; clarification round is recorded. |
-| 3 | `stateChangingCandidateInterruptsAndResumesOnlyAfterBoundApproval` | A state-changing candidate pauses, binds to a durable approval reference, then resumes through revalidation before execution. |
-| 4 | `deniedApprovalNeverExecutesCandidate` | Denied approval routes to escalation; execution count remains zero. |
-| 5 | `externalEvidenceIsARealInterruptAndIsAcceptedBeforeRetrievalRepeats` | External evidence response reference is required and accepted before retrieval/decision resumes. |
-| 6 | `b2ImpasseIsResolvedInItsOwnBoundedSubgraphBeforeParentReconsiders` | The parent invokes a bounded B2 child lifecycle and receives a validated typed result. |
-| 7 | `b6HumanControlInterruptRequiresAHostIssuedResponse` | B6 human interruption requires both a response reference and actor identity before continuing. |
-| 8 | `modelOrPlannerCannotMarkAStateChangingCandidateAsApprovalFree` | Typed authorization contract rejects `stateChanging=true` with `NO_APPROVAL_REQUIRED`. |
-| 9 | `b4SuspensionUsesTheHumanControlInterruptionAndThenResumes` | B4 `SUSPEND` is connected to the host human-control interrupt and can resume. |
-| 10 | `approvalMustMatchExactCandidateSetAndIntentionVersion` | An approval record referring to another candidate is rejected; execution is not reached. |
-| 11 | `spoofedHumanControlActorIsRejected` | Returned actor identity must match the authenticated host actor. |
-| 12 | `unknownExternalOutcomeIsReconciledAndNeverBlindlyRetried` | `UNKNOWN_OUTCOME` routes to observation; external action is dispatched only once. |
-| 13 | `workingMemoryVersionConflictForcesReloadAndReconsideration` | A memory version conflict reloads the latest version and retries the persisted observation; the external action is not executed again. |
-| 14 | `metaControlStopNeverReachesAuthorizationOrExecution` | B6 stop decision terminates through escalation without authorizing or executing a candidate. |
+| 1 | `readOnlyCycleRunsThroughCoalaPlannersAndObservationWithoutApproval` | Complete read-only route through retrieval, workspace, planning/evaluation, observation and episodic recording without an approval interrupt. |
+| 2 | `clarificationIsSuppliedByHostBeforeTheInterpretationCycleResumes` | Host-supplied clarification is required before reinterpretation resumes. |
+| 3 | `stateChangingCandidateInterruptsAndResumesOnlyAfterBoundApproval` | State-changing candidate pauses for bound approval and resumes through revalidation. |
+| 4 | `deniedApprovalNeverExecutesCandidate` | Denial routes to escalation; execution count remains zero. |
+| 5 | `externalEvidenceIsARealInterruptAndIsAcceptedBeforeRetrievalRepeats` | External evidence reference is required and accepted before retrieval repeats. |
+| 6 | `b2ImpasseIsResolvedInItsOwnBoundedSubgraphBeforeParentReconsiders` | Bounded B2 child result returns to the parent through the typed contract. |
+| 7 | `b6HumanControlInterruptRequiresAHostIssuedResponse` | Human-control response and actor references are required. |
+| 8 | `modelOrPlannerCannotMarkAStateChangingCandidateAsApprovalFree` | Typed authorization rejects the approval-free path for a state-changing candidate. |
+| 9 | `b4SuspensionUsesTheHumanControlInterruptionAndThenResumes` | B4 suspension is connected to human interruption and controlled resumption. |
+| 10 | `approvalMustMatchExactCandidateSetAndIntentionVersion` | Approval for a different candidate/version is rejected. |
+| 11 | `spoofedHumanControlActorIsRejected` | Returned actor must match the host-authenticated actor. |
+| 12 | `unknownExternalOutcomeIsReconciledAndNeverBlindlyRetried` | Unknown outcome routes to observation; graph does not redispatch. |
+| 13 | `workingMemoryVersionConflictForcesReloadAndReconsideration` | Version conflict reloads memory and retries the stored observation, not the external action. |
+| 14 | `metaControlStopNeverReachesAuthorizationOrExecution` | B6 stop prevents authorization/execution. |
 
+The first CI run on 2026-11-17 showed 11/14 graph tests passing (two failures, one error). The cause was B2 reason propagation (`summary` vs `lastReason`) and tests expecting unwrapped exceptions instead of LangGraph4j's async cause chain. Both were corrected. The user confirmed the corrected graph CI green; the corrected run log was not supplied, so no post-correction test count is asserted independently.
 
-## First full GitHub Actions run — 2026-11-17
+## M6-A decision-service tests — 5
 
-The user supplied the output of the complete `clean verify` workflow. The results relevant to M6 were:
+See `M6A-TEST-RESULTS.md`. They cover M2 retrieval/B1 selection, B3 admission/broadcast success and failure, M5 planner routing/artifact retrieval, and deterministic simulator-replayed feasible candidate selection. The user subsequently confirmed that M6-A is done and CI green.
 
-| Scope | Tests | Failures | Errors | Result |
-|---|---:|---:|---:|---|
-| M0–M5 modules | 208 | 0 | 0 | Passed |
-| M6 cognitive-cycle graph tests | 14 | 2 | 1 | Failed before correction |
-| Runtime compatibility tests (checkpoint resume, framework, PostgreSQL saver) | 7 | 0 | 0 | Passed |
+## M6-B lifecycle-service tests — 12
 
-The runtime module total was 21 tests, with 18 successful and three unsuccessful. The application-host module was skipped after the runtime failure. The PostgreSQL checkpoint compatibility test passed in this run.
+See `M6B-TEST-RESULTS.md`. They exercise actual M2 working/episodic memory, M3 action dispatch and ledger, B2 impasse child restrictions/return, B4 objective/method/termination governance, and B6 execution-bound budget handling. Test doubles are used only at the explicit domain and trusted-authority adapter interfaces.
 
-### Corrected failure causes
+## M6-B authoring-environment validation
 
-1. **B2 blank reason:** `childContext` placed the parent impasse reason in `summary`, but the B2 operation contract reads `lastReason`. The correction now maps the initial `IMPASSE_REASON` to `lastReason`, then prefers a nonblank child `REASON` as the child lifecycle advances. The test explicitly verifies the original reason is passed to `openImpasse`.
-2. **Security exception wrappers:** LangGraph4j's asynchronous execution wraps node exceptions. The tests now search the cause chain for `SecurityException`; they retain the assertion that execution is never reached. The authorization and actor checks themselves are unchanged.
+- Changed M6-B production sources and their transitive project dependencies compiled using `javac --release 21 -Xlint:all` against actual M2/M3/B2/B4/B6 project sources.
+- The 12 M6-B test methods compiled and executed with a local lightweight JUnit-compatible shim/reflection harness. All 12 passed.
+- This is not JUnit Platform/Surefire and does not claim the full Maven reactor passed. LangGraph4j application-host compilation, complete graph execution with the real lifecycle service composition, PostgreSQL persistence and external provider integration must be confirmed in CI/M7/M8.
 
-### Status after correction
-
-The code and tests have been corrected, but **the corrected 14-test result is not yet verified**. Maven 3.9.16 could not be bootstrapped in the authoring environment because the configured Apache distribution host was not resolvable. Run the full command in GitHub Actions and require the entire reactor to pass before accepting M6.
+## Full M6 acceptance command
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-## Authoring-environment checks
-
-- The new M6 production and test source files compiled with Java 21 `javac --release 21 -Xlint:all` against temporary minimal LangGraph4j/JUnit API stubs. No errors were reported; the only warning was a missing `serialVersionUID` in the temporary stub exception, not in project source.
-- This is a source syntax/type-shape check only. It does not establish binary compatibility with the real LangGraph4j 1.8.20 or execute the graph.
-- The Maven Wrapper was invoked with `-pl supply-chain-agent-runtime -am -DskipTests compile`, but the wrapper could not download Maven 3.9.16 because the authoring environment could not resolve the configured Apache distribution hosts. Therefore no Maven/Surefire results are claimed.
-
-## CI acceptance gate
-
-Run from the repository root after applying the changes:
-
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean verify
-```
-
-All previously accepted M0–M5 tests must remain green, the 14 M6 tests must pass under JUnit Platform/Surefire, and the existing PostgreSQL checkpoint compatibility test must remain green. M6 must not be marked accepted until that CI run succeeds.
-
-
-## Subsequent user-confirmed CI status
-
-After applying the B2 reason-propagation and exception-cause-chain correction, the user reported that GitHub Actions CI is green. The subsequent run log was not supplied in this conversation. The earlier detailed failure table above is retained as historical diagnostic evidence, not as the current CI status.
-
-## M6-A focused local validation
-
-Three additional tests were introduced for the decision-service composition. Their source compiled with Java 21 and the tests executed successfully in a local assertion-compatible harness. This is not JUnit Platform/Surefire. The full GitHub Actions reactor remains required for M6-A acceptance. See [M6A-TEST-RESULTS.md](M6A-TEST-RESULTS.md).
-
-
-## M6-A decision-service composition (delivery 1/2)
-
-The user confirmed the corrected M6 graph-core CI rerun is green. M6-A adds four targeted tests, locally executed through a lightweight harness; they are not yet counted as Maven Surefire or GitHub Actions results. See `M6A-TEST-RESULTS.md`. Full acceptance requires rerunning the reactor after applying the M6-A change-set.
+Require all M0–M5 regression tests, 14 graph tests, five M6-A tests, 12 M6-B tests, framework/PostgreSQL checkpoint compatibility and application-host compilation to pass. M6 is not fully accepted until this complete post-M6-B run is green.

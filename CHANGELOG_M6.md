@@ -25,3 +25,14 @@
 - Added a planning-artifact storage port and a thread-safe in-memory reference adapter; durable persistence remains M7 work.
 - Added five focused service-composition tests for retrieval/B1, successful B3 broadcast acknowledgement, fail-closed broadcast errors, M5 planner artifact retrieval, and deterministic simulator-replayed feasible-candidate selection.
 - M6-B remains required to implement the remaining B2/B4/B6/M3 operations and full real-service graph integration tests.
+
+## 2026-11-17 — M6-B lifecycle service composition (delivery 2/2)
+
+- Added `CognitiveCycleServiceOperations`, which composes all graph operations from the M6-A decision services and M6-B lifecycle services without a catch-all `CognitiveCycleOperations` host delegate.
+- Added service-backed lifecycle integration with M2 working/episodic memory, B2 impasse resolution, B4 recovery intentions, B6 meta-control, and M3 typed action dispatch/registry.
+- Added explicit `CognitiveCycleLifecyclePort` and `CognitiveCycleAuthorityPort` contracts for authoritative domain translation, external observation/reconciliation, approval, authenticated human control and resource-scoped action principals.
+- Added stable scoped working-memory/intention creation; B2/B4 paired delegation and compensation; child capability/action-budget checks; B4 protected-objective and authorized termination guards; B6 execution-bound budget validation/recording.
+- Added exact M5 candidate to typed M3 command binding, action fingerprints, approval revalidation, authenticated principal-bound operation batches, idempotent per-step receipts, unknown-outcome reconciliation, and no blind retry of terminal/uncertain plans.
+- Added versioned observation-to-working-memory updates and idempotent episode writes. Reuse of an episode idempotency key with conflicting outcome content now fails; B4 completion requires verified proof tied to the protected objective and exact reconciled observation. Episodes remain unverified until the M2 review policy verifies them.
+- Added 12 focused service-integration tests. They passed in a local Java 21 lightweight JUnit-compatible harness against actual M2/M3/B2/B4/B6 service classes; Maven/Surefire/GitHub Actions validation is pending.
+- Documented in-memory persistence limits, required domain/authority adapters and M7 durable-store/reconciliation work.

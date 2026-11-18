@@ -28,9 +28,13 @@ public record RecoveryIntention(RecoveryIntentionId id,MemoryScopeId scopeId,Rec
         if(completionProof!=null&&!objectiveFingerprint.equals(completionProof.objectiveFingerprint()))throw new IllegalArgumentException("completion proof targets a different objective");
     }
     public static RecoveryIntention create(RecoveryObjective objective,MemoryScopeId scope,String owner,RecoveryMethodReference method,Instant at){
+        return create(RecoveryIntentionId.random(), objective, scope, owner, method, at);
+    }
+    public static RecoveryIntention create(RecoveryIntentionId id, RecoveryObjective objective, MemoryScopeId scope,
+                                           String owner, RecoveryMethodReference method, Instant at){
         Objects.requireNonNull(objective,"objective");
         if(objective.status()!=dev.supplychain.agent.domain.recovery.RecoveryObjectiveStatus.ACTIVE)throw new IllegalStateException("only an active recovery objective can create an intention");
-        return new RecoveryIntention(RecoveryIntentionId.random(),scope,objective.id(),ObjectiveFingerprint.from(objective).value(),owner,
+        return new RecoveryIntention(Objects.requireNonNull(id,"id"),scope,objective.id(),ObjectiveFingerprint.from(objective).value(),owner,
                 objective.hardConstraints(),method,IntentionStatus.ACTIVE,0,at,at,null,null,null,null);
     }
     public RecoveryIntention requestReconsideration(String why,Instant at){requireActive();return revise(IntentionStatus.RECONSIDERATION_PENDING,at,why,null,null,null);}

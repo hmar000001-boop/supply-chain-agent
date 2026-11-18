@@ -44,6 +44,28 @@ public final class EpisodicMemoryService {
         return repository.append(episode);
     }
 
+    public Episode recordIdempotent(MemoryScopeId scope, String title, String summary, EpisodeOutcome outcome,
+                                    Instant startedAt, Instant completedAt, Instant recordedAt,
+                                    List<dev.supplychain.agent.memory.common.EntityReference> entities,
+                                    List<EpisodeEvent> events, List<EvidenceReference> evidence, Provenance provenance,
+                                    EvidenceReference idempotencyReference) {
+        Objects.requireNonNull(provenance, "provenance");
+        Objects.requireNonNull(idempotencyReference, "idempotencyReference");
+        List<EvidenceReference> suppliedEvidence = List.copyOf(Objects.requireNonNull(evidence, "evidence"));
+        List<EpisodeEvent> suppliedEvents = List.copyOf(Objects.requireNonNull(events, "events"));
+        var allEvidence = new java.util.ArrayList<>(suppliedEvidence);
+        allEvidence.add(idempotencyReference);
+        suppliedEvents.forEach(event -> allEvidence.addAll(event.evidence()));
+        List<EvidenceReference> distinctEvidence = allEvidence.stream().distinct().toList();
+        if (provenance.isModelDerived() && distinctEvidence.isEmpty()) {
+            throw new IllegalArgumentException("model-derived episode requires supporting evidence before recording");
+        }
+        Episode episode = Episode.recorded(EpisodeId.random(), scope, title, summary, outcome,
+                startedAt, completedAt, recordedAt, recordedAt.plus(unverifiedRetention), entities,
+                suppliedEvents, distinctEvidence, provenance);
+        return repository.appendIdempotent(episode, idempotencyReference);
+    }
+
     public Episode verify(EpisodeId id, long expectedVersion, String verifier,
                           EvidenceReference verificationEvidence, Instant at) {
         Episode current = load(id);

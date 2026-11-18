@@ -28,6 +28,30 @@ public final class WorkingMemoryService {
         return repository.create(WorkingMemorySnapshot.empty(scope, now, now.plus(ttl)));
     }
 
+    /** Idempotent open used when the host supplies a stable execution-scoped memory identity. */
+    public WorkingMemorySnapshot open(WorkingMemoryId id, MemoryScopeId scope, Instant now) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(scope, "scope");
+        Objects.requireNonNull(now, "now");
+        var existing = repository.findById(id);
+        if (existing.isPresent()) {
+            if (!existing.get().scopeId().equals(scope)) throw new SecurityException("working memory identity is already bound to another scope");
+            return existing.get();
+        }
+        var proposed = WorkingMemorySnapshot.empty(id, scope, now, now.plus(ttl));
+        try {
+            return repository.create(proposed);
+        } catch (dev.supplychain.agent.memory.common.MemoryConflictException concurrentCreate) {
+            var winner = repository.findById(id).orElseThrow(() -> concurrentCreate);
+            if (!winner.scopeId().equals(scope)) throw new SecurityException("working memory identity is already bound to another scope");
+            return winner;
+        }
+    }
+
+    public java.util.Optional<WorkingMemorySnapshot> find(WorkingMemoryId id) {
+        return repository.findById(Objects.requireNonNull(id, "id"));
+    }
+
     public WorkingMemorySnapshot put(WorkingMemoryId id, long expectedVersion, String key,
                                      MemoryValue value, List<EvidenceReference> evidence, Instant now) {
         var current = load(id);

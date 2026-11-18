@@ -8,7 +8,9 @@ import java.util.Objects;
 public final class RecoveryIntentionService{
     private final RecoveryIntentionRepository repository;
     public RecoveryIntentionService(RecoveryIntentionRepository repository){this.repository=Objects.requireNonNull(repository,"repository");}
-    public RecoveryIntention create(RecoveryObjective objective,MemoryScopeId scope,String owner,RecoveryMethodReference method,Instant at){var value=RecoveryIntention.create(objective,scope,owner,method,at);repository.saveNew(value);return value;}
+    public RecoveryIntention create(RecoveryObjective objective,MemoryScopeId scope,String owner,RecoveryMethodReference method,Instant at){return create(RecoveryIntentionId.random(),objective,scope,owner,method,at);}
+    public RecoveryIntention create(RecoveryIntentionId id,RecoveryObjective objective,MemoryScopeId scope,String owner,RecoveryMethodReference method,Instant at){var value=RecoveryIntention.create(id,objective,scope,owner,method,at);repository.saveNew(value);return value;}
+    public java.util.Optional<RecoveryIntention> find(RecoveryIntentionId id){return repository.findById(id);}
     public RecoveryIntention get(RecoveryIntentionId id){return repository.findById(id).orElseThrow(()->new IllegalArgumentException("unknown intention: "+id));}
     public RecoveryIntention requestReconsideration(RecoveryIntentionId id,long version,String reason,Instant at){return update(id,version,v->v.requestReconsideration(reason,at));}
     public RecoveryIntention changeMethod(RecoveryIntentionId id,long version,RecoveryMethodReference method,String objectiveFingerprint,Instant at){return update(id,version,v->v.changeMethod(method,objectiveFingerprint,at));}

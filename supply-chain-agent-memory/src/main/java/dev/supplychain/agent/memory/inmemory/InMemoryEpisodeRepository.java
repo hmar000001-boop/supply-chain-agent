@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Thread-safe reference adapter. Verified episodes are retained; only expired unverified records are purged. */
@@ -24,6 +25,45 @@ public final class InMemoryEpisodeRepository implements EpisodeRepository {
             throw new MemoryConflictException("Episode already exists: " + episode.id().value());
         }
         return episode;
+    }
+
+    @Override
+    public synchronized Episode appendIdempotent(Episode episode,
+            dev.supplychain.agent.memory.common.EvidenceReference idempotencyReference) {
+        java.util.Objects.requireNonNull(episode, "episode");
+        java.util.Objects.requireNonNull(idempotencyReference, "idempotencyReference");
+        if (!episode.evidence().contains(idempotencyReference)) {
+            throw new IllegalArgumentException("episode must retain its idempotency evidence reference");
+        }
+        for (Episode existing : episodes.values()) {
+            if (existing.scopeId().equals(episode.scopeId()) && existing.evidence().contains(idempotencyReference)) {
+                if (!sameIdempotentPayload(existing, episode)) {
+                    throw new MemoryConflictException("episode idempotency reference was reused with a different outcome payload");
+                }
+                return existing;
+            }
+        }
+        if (episodes.putIfAbsent(episode.id(), episode) != null) {
+            throw new MemoryConflictException("Episode already exists: " + episode.id().value());
+        }
+        return episode;
+    }
+
+    private static boolean sameIdempotentPayload(Episode existing, Episode proposed) {
+        var oldSource = existing.provenance();
+        var newSource = proposed.provenance();
+        return existing.title().equals(proposed.title())
+                && existing.summary().equals(proposed.summary())
+                && existing.outcome() == proposed.outcome()
+                && existing.startedAt().equals(proposed.startedAt())
+                && existing.completedAt().equals(proposed.completedAt())
+                && existing.entities().equals(proposed.entities())
+                && existing.events().equals(proposed.events())
+                && existing.evidence().equals(proposed.evidence())
+                && oldSource.source() == newSource.source()
+                && oldSource.sourceId().equals(newSource.sourceId())
+                && oldSource.observedAt().equals(newSource.observedAt())
+                && Objects.equals(oldSource.sourceVersion(), newSource.sourceVersion());
     }
 
     @Override

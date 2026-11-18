@@ -47,7 +47,11 @@ public record WorkingMemorySnapshot(
     }
 
     public static WorkingMemorySnapshot empty(MemoryScopeId scope, Instant now, Instant expiresAt) {
-        return new WorkingMemorySnapshot(WorkingMemoryId.random(), scope, 0, now, now,
+        return empty(WorkingMemoryId.random(), scope, now, expiresAt);
+    }
+
+    public static WorkingMemorySnapshot empty(WorkingMemoryId id, MemoryScopeId scope, Instant now, Instant expiresAt) {
+        return new WorkingMemorySnapshot(Objects.requireNonNull(id, "id"), scope, 0, now, now,
                 expiresAt, Map.of(), Map.of(), List.of());
     }
 

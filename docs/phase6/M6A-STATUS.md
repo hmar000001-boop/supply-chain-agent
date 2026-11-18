@@ -1,8 +1,8 @@
 # M6-A — Service-backed decision pipeline (delivery 1/2)
 
-**Status: implementation delivered; five focused service-composition tests passed in the authoring harness. Full Maven/GitHub Actions validation is pending.**
+**Status: delivery 1/2 is marked complete by the user. Five focused service-composition tests passed in the authoring harness; the specific M6-A CI log was not included in this conversation.**
 
-M6 is intentionally split into two independently reviewable deliveries. M6-A connects the decision/evidence path to real M2, B1, B3 and M5 services. M6-B will complete the remaining `CognitiveCycleOperations` implementation for B2, B4, B6, M3 grounding/authorization and memory learning, then exercise the complete graph with the real composed services.
+M6 is intentionally split into two independently reviewable deliveries. M6-A connects the decision/evidence path to real M2, B1, B3 and M5 services. Delivery 2/2 is documented in [M6B-STATUS.md](M6B-STATUS.md) and supplies the remaining service-backed lifecycle implementation.
 
 ## Added
 
@@ -13,7 +13,7 @@ M6 is intentionally split into two independently reviewable deliveries. M6-A con
   - B3 `WorkspaceAdmissionService` and `WorkspaceBroadcastService`;
   - M5 `PlannerRouter`, `PlanningWorldModel` and common `CandidateEvaluator`.
 - `PlanningArtifactStore` and the thread-safe `InMemoryPlanningArtifactStore` reference adapter. The full `PlanningRequest` and `PlanningResult` are kept outside the LangGraph4j state and are retrieved by the candidate-set reference for deterministic evaluation. The in-memory adapter is not claimed as durable production persistence; M7 supplies the durable adapter.
-- `CognitiveCycleDecisionOperations`: graph-facing decorator that routes evidence retrieval, workspace admission/broadcast, planner invocation and candidate evaluation through the real decision services, while forwarding the remaining lifecycle/control operations to the host delegate for M6-B.
+- `CognitiveCycleDecisionOperations`: graph-facing decorator that routes evidence retrieval, workspace admission/broadcast, planner invocation and candidate evaluation through the real decision services, while the remaining lifecycle/control operations were originally forwarded to a host delegate. M6-B adds the full service-backed composition.
 - `CognitiveCycleApplicationGraph`: application-level composition entry point that wraps host operations with the decision pipeline before compiling `CognitiveCycleGraph`.
 - Five focused tests covering M2 retrieval → B1 selection, successful B3 admission plus acknowledgement, fail-closed broadcast handling, M5 routing/artifact retrieval, and deterministic selection of a simulator-replayed feasible candidate.
 
@@ -33,13 +33,13 @@ M6 is intentionally split into two independently reviewable deliveries. M6-A con
 
 The domain port remains responsible for converting real supply-chain records into `MemoryRetrievalQuery`, `B1SelectionRequest`, `WorkspaceAdmissionRequest` and a complete `PlanningRequest`, and for durably storing evidence/receipt references. Those are not generic cognitive services and must not be fabricated inside graph nodes.
 
-The M6-A graph decorator deliberately delegates the remaining operations to the host implementation. It is an integration slice, not the completed M6 production application. M6-B must replace that remaining host delegate with the complete application implementation using:
+The M6-A graph decorator was deliberately delivered as the decision-side integration slice. M6-B now supplies the corresponding service-backed lifecycle implementation using:
 
 - `WorkingMemoryService` and `EpisodicMemoryService` for working-memory lifecycle and verified/unverified episode recording;
 - `ImpasseResolutionService` for the B2 child lifecycle;
 - `RecoveryIntentionService` for B4 objective/method governance;
 - `MetaControlGovernor` for B6 budget and uncertainty decisions;
 - M3 `ActionDispatcher` for read/write external actions, with durable approval and observation/reconciliation adapters;
-- end-to-end graph tests using those actual services rather than scripted `CognitiveCycleOperations`.
+- focused service-integration tests over those actual services are listed in [M6B-TEST-RESULTS.md](M6B-TEST-RESULTS.md). Full graph-to-service end-to-end execution and host deployment integration remain part of the M6 full acceptance gate.
 
 Durable PostgreSQL stores for memory, workspace, planner artifacts, intentions, approvals and operation ledgers remain M7 work. The M6-A in-memory planning artifact store is an explicit reference implementation only.
