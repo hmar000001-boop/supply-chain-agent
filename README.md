@@ -1,11 +1,11 @@
 
-## Current milestone status — M6 (2026-11-17)
+## Current milestone status — M7 (2026-11-17)
 
-The user confirmed the corrected M6 graph CI is green. M6 is being completed in two deliveries. **M6-A** connects M2 retrieval, B1 selection, B3 workspace admission/broadcast and M5 planning/evaluation to the LangGraph4j decision stages. **M6-B** will complete the remaining B2/B4/B6/M3 service-backed operations and full real-service graph integration tests. M6 is not accepted until both deliveries pass the complete CI reactor. See `docs/phase6/M6-STATUS.md`.
+The user confirmed that the complete M6 CI is green after both M6-A and M6-B. M6 is accepted. M7 is split into two deliveries: **M7-A** adds the PostgreSQL infrastructure module, checksummed migrations and durable Working/Episodic memory repositories; **M7-B** will add durable Semantic/Procedural memory, M6/M5 runtime ledgers and planner artifacts, transaction/outbox/inbox handling, restart reconciliation, pooling and operational hardening. See `docs/phase6/M6-STATUS.md` and `docs/phase7/M7-STATUS.md`.
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M6 — LangGraph4j cognitive orchestration (M6-A complete; M6-B implementation delivered; full reactor acceptance pending)**
+**Current milestone: M7 — PostgreSQL persistence, transactional recovery and operations (M7-A delivered; M7-B planned)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -33,6 +33,7 @@ This is the reference application for Part III of *From Cognitive Architectures 
 - `supply-chain-agent-mechanisms`: framework-neutral engineering realizations of Fan & Lan B1/B2/B3/B4/B6, with explicit S/C/T/P/F/L/R contracts; no agent-framework or database dependency.
 - `supply-chain-agent-planning`: independent CoT-style sequential, ToT-inspired bounded search, and RAP-inspired domain-grounded MCTS strategies behind one planner contract; shared deterministic evaluator, explainable router, B6 budget integration and in-memory resumable planner sessions.
 - `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j model adapters; this is the only module that depends on model/framework APIs.
+- `supply-chain-agent-infrastructure-postgres`: PostgreSQL migrations, durable JDBC repositories and database configuration; depends inward on memory contracts, never the reverse.
 - `supply-chain-agent-app`: composition root.
 
 The domain must not depend on LangGraph4j, LangChain4j, PostgreSQL or provider classes. The simulator performs no network or database writes and does not authorize real operational actions. Graph state and graph checkpoints are not substitutes for CoALA's separate memory stores or the application's authoritative business records.
@@ -71,7 +72,7 @@ M2 introduces four distinct memory responsibilities:
 - **Semantic memory:** typed, provenance-controlled facts with separate valid-time and knowledge-time queries.
 - **Procedural memory:** immutable artifact references and append-only procedure versions with explicit validation and activation.
 
-The memory module is framework-neutral. `MemoryRetrievalService` provides exact deterministic retrieval and does not implement B1 activation/ranking; B1 is a later mechanism. Graph state/checkpoints are not CoALA memory. In-memory adapters support local tests only. An initial PostgreSQL schema contract is included, but migration execution and durable PostgreSQL memory adapters are deferred to M7.
+The memory module is framework-neutral. `MemoryRetrievalService` provides exact deterministic retrieval and does not implement B1 activation/ranking; B1 is a separate mechanism. Graph state/checkpoints are not CoALA memory. In-memory adapters remain useful for deterministic tests. M7-A adds checksummed PostgreSQL migrations and durable Working/Episodic JDBC repositories. M7-B completes Semantic/Procedural repositories and operational stores.
 
 See [`docs/architecture/COALA-MEMORY-ARCHITECTURE.md`](docs/architecture/COALA-MEMORY-ARCHITECTURE.md), [`docs/adr/0002-coala-memory-boundaries.md`](docs/adr/0002-coala-memory-boundaries.md) and [`docs/phase2/M2-STATUS.md`](docs/phase2/M2-STATUS.md).
 
@@ -87,7 +88,7 @@ All actions use typed request/result contracts. The dispatcher checks action/inp
 
 `LangChain4jReasoningProvider` is an adapter in the runtime module. Its AI Service returns a typed assessment, has no tools, and cannot authorize or execute business actions. The current AI Service uses typed POJO parsing; provider-specific JSON Schema enforcement is not assumed unless the configured `ChatModel` supports and explicitly enables it. The adapter validates evidence citations against only the evidence references supplied by the caller. See the official [LangChain4j structured-output documentation](https://docs.langchain4j.dev/tutorials/structured-outputs/) and [AI Services documentation](https://docs.langchain4j.dev/tutorials/ai-services/).
 
-M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed durable operation ledger, production external adapters, outbox/inbox, and durable memory repositories are deferred to M7. M3 exposes deterministic cross-memory lookup from M2; M4 adds B1 activation/accessibility, latency, downstream-utility and maintenance-aware selection on top of those contracts.
+M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed operation ledger, production external adapters, outbox/inbox and remaining durable memory/runtime stores are M7 work. M3 exposes deterministic cross-memory lookup from M2; M4 adds B1 activation/accessibility, latency, downstream-utility and maintenance-aware selection on top of those contracts.
 
 See [`docs/architecture/COALA-ACTION-ARCHITECTURE.md`](docs/architecture/COALA-ACTION-ARCHITECTURE.md), [`docs/adr/0003-coala-action-and-authority-boundaries.md`](docs/adr/0003-coala-action-and-authority-boundaries.md), and [`docs/phase3/M3-STATUS.md`](docs/phase3/M3-STATUS.md).
 
@@ -101,7 +102,7 @@ M4 adds the framework-neutral `supply-chain-agent-mechanisms` module and impleme
 - **B4:** versioned recovery intentions, protected objective fingerprint/constraints, reconsideration-gated method changes, suspension/resumption, bounded delegation and evidence-bearing completion.
 - **B6:** explicit evidence/hypothesis/plan uncertainty, computational resource reservations/consumption, per-next-step budget checks, deadlines, reduced computation, human/budget interruption and safe stopping.
 
-The scoring models are engineering realizations and are not claimed to be paper-exact equations. B5/GraSP remains the previously reviewed closed-candidate boundary; it is not implemented as a new residual mechanism. The mechanism module does not implement CoT/ToT/MCTS (M5) or LangGraph4j graph orchestration (M6). Its repositories/ledgers are in-memory reference adapters; M7 supplies durable transactional implementations.
+The scoring models are engineering realizations and are not claimed to be paper-exact equations. B5/GraSP remains the previously reviewed closed-candidate boundary; it is not implemented as a new residual mechanism. The mechanism module does not implement CoT/ToT/MCTS (M5) or LangGraph4j graph orchestration (M6). Its repositories/ledgers remain in-memory reference adapters; M7 supplies durable transactional implementations.
 
 See [`docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md`](docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md), [`docs/adr/0004-fan-lan-mechanism-realizations.md`](docs/adr/0004-fan-lan-mechanism-realizations.md), and [`docs/phase4/M4-STATUS.md`](docs/phase4/M4-STATUS.md).
 
@@ -109,24 +110,24 @@ See [`docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md`](docs/architecture/FA
 
 M5 adds `supply-chain-agent-planning`. It keeps the planning algorithms separate from the LangGraph4j execution graph: CoT-style sequential reasoning is a structured one-path baseline; ToT-inspired search explores/prunes structured partial action paths; and RAP-inspired MCTS uses UCT-style selection, expansion, deterministic simulator-backed rollouts and reward backpropagation. All strategies return proposal-only candidates through one common evaluator that replays actions against the trusted M1 simulator and enforces hard constraints independently of weighted scores. An explainable router chooses a strategy from initial complexity/budget heuristics, and M4 B6 resource accounting tracks compute usage. Request fingerprints include semantic world/memory content and algorithm configuration so changed inputs cannot silently resume an old search.
 
-The names are intentionally qualified: ToT is an inspired structured action-path search, not a literal textual-thought reproduction; MCTS is RAP-inspired with a deterministic supply-chain world model, not faithful RAP. The default routing thresholds require M8 evaluation. Planner sessions currently use an in-memory reference store; durable transactional persistence and process-restart recovery are M7. LangGraph4j orchestration and LangChain4j provider wiring remain M6. No planner can authorize or execute an action.
+The names are intentionally qualified: ToT is an inspired structured action-path search, not a literal textual-thought reproduction; MCTS is RAP-inspired with a deterministic supply-chain world model, not faithful RAP. The default routing thresholds require M8 evaluation. Planner sessions currently use an in-memory reference store; durable transactional persistence and process-restart recovery are M7-B. LangGraph4j orchestration and LangChain4j provider wiring remain M6. No planner can authorize or execute an action.
 
 See [`docs/architecture/PLANNING-ARCHITECTURE.md`](docs/architecture/PLANNING-ARCHITECTURE.md), [`docs/adr/0005-independent-planning-strategies.md`](docs/adr/0005-independent-planning-strategies.md), [`docs/phase5/M5-STATUS.md`](docs/phase5/M5-STATUS.md), and [`docs/phase5/M5-TRACEABILITY.md`](docs/phase5/M5-TRACEABILITY.md). The supplied authoring report records 208/208 local framework-neutral tests; the user subsequently confirmed that GitHub Actions CI is green. The CI run log was not part of the uploaded archive.
 
-## M6 — LangGraph4j cognitive orchestration (graph core CI user-confirmed green; M6-A marked complete; M6-B delivered, full reactor acceptance pending)
+## M6 — LangGraph4j cognitive orchestration (accepted by GitHub Actions CI; user-confirmed green after M6-A and M6-B)
 
-M6 provides the actual LangGraph4j outer cognitive-cycle graph and connects it to the previously implemented CoALA, Fan & Lan and planning services. The graph controls request interpretation, evidence, workspace, planning/evaluation, B2 impasse subgraph, B4 intention governance, B6 meta-control, approval, execution, observation/reconciliation and learning. It does not implement CoT/ToT/MCTS search, CoALA memory stores or business-domain truth.
+M6 provides the actual LangGraph4j outer cognitive-cycle graph and connects it to the previously implemented CoALA, Fan & Lan and planning services. The user confirmed that the complete CI is green after both service-composition deliveries, so M6 is accepted. The graph controls request interpretation, evidence, workspace, planning/evaluation, B2 impasse subgraph, B4 intention governance, B6 meta-control, approval, execution, observation/reconciliation and learning. It does not implement CoT/ToT/MCTS search, CoALA memory stores or business-domain truth.
 
 The graph-core correction was confirmed green by the user. M6 is split into two service-composition deliveries:
 
 - **M6-A — decision services (user-confirmed complete/CI green):** actual M2 `MemoryRetrievalService`, B1 activation/utility selection, B3 workspace admission/broadcast, M5 `PlannerRouter`, world-model replay and deterministic candidate evaluation. Complete planner artifacts remain outside graph state.
-- **M6-B — lifecycle services (implementation delivered; post-delivery CI pending):** `CognitiveCycleServiceOperations` composes M6-A with actual M2 `WorkingMemoryService`/`EpisodicMemoryService`, B2 `ImpasseResolutionService`, B4 `RecoveryIntentionService`, B6 `MetaControlGovernor`, and M3 `ActionDispatcher`/`ActionRegistry`. `CognitiveCycleApplicationGraph.compileFull(...)` is the complete composition entry point.
+- **M6-B — lifecycle services (complete; user-confirmed full M6 CI green):** `CognitiveCycleServiceOperations` composes M6-A with actual M2 `WorkingMemoryService`/`EpisodicMemoryService`, B2 `ImpasseResolutionService`, B4 `RecoveryIntentionService`, B6 `MetaControlGovernor`, and M3 `ActionDispatcher`/`ActionRegistry`. `CognitiveCycleApplicationGraph.compileFull(...)` is the complete composition entry point.
 
 M6-B enforces stable scoped memory/intention identity; B2 delegated child capabilities and parent return validation; B4 protected objective/method governance and trusted termination; B6 execution-bound budget records; one-to-one typed M5-candidate/M3-command mapping; exact approval fingerprint binding and revalidation; authenticated action principal; idempotent action batches; reconciliation of unknown outcomes; optimistic working-memory observation writes; and idempotent unverified episodic recording. B4 objective completion requires a domain-supplied proof matching both the protected objective fingerprint and the reconciled observation.
 
 The supply-chain/domain and trusted-authority adapters remain explicit dependencies (`CognitiveCycleLifecyclePort`, `CognitiveCycleAuthorityPort`). They must provide authoritative records, M3 command translation, ERP/WMS/carrier reconciliation, human identity, durable approvals and scoped principals. No permissive adapter is invented. The repository currently has deterministic simulator and in-memory reference adapters, not a connected real ERP/WMS/supplier/carrier or enterprise identity deployment.
 
-M6-B adds 12 focused service-integration tests, locally executed against actual M2/M3/B2/B4/B6 classes. They passed in a lightweight Java 21 JUnit-compatible harness; this is not Maven/Surefire. Run `./mvnw -B -ntp -Dphase0.postgres=true clean verify` after applying the delivery and require the complete reactor to pass before accepting M6. In-memory memory/mechanism/action/artifact stores and child-step receipts are not crash-durable; M7 replaces them with transactional PostgreSQL repositories and defines restart reconciliation. M8 performs complete application evaluation and freeze. Chapters 19 and 20 remain unwritten until that freeze.
+M6-B's twelve focused lifecycle tests were supplemented by the fourteen graph tests and five M6-A integration tests. The user subsequently confirmed that the complete GitHub Actions run after M6-B is green; M6 is accepted. Its reference stores and child-step receipts are not crash-durable. M7 replaces them with transactional PostgreSQL repositories and defines restart reconciliation. M8 performs complete application evaluation and freeze. Chapters 19 and 20 remain unwritten until that freeze.
 
 See [`docs/architecture/COGNITIVE-CYCLE-ORCHESTRATION.md`](docs/architecture/COGNITIVE-CYCLE-ORCHESTRATION.md), [`docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md`](docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md), [`docs/architecture/COGNITIVE-CYCLE-LIFECYCLE-SERVICES.md`](docs/architecture/COGNITIVE-CYCLE-LIFECYCLE-SERVICES.md), [`docs/phase6/M6-STATUS.md`](docs/phase6/M6-STATUS.md), [`docs/phase6/M6A-STATUS.md`](docs/phase6/M6A-STATUS.md), and [`docs/phase6/M6B-STATUS.md`](docs/phase6/M6B-STATUS.md).
 ## Build and test
@@ -137,7 +138,7 @@ Basic build and all deterministic tests:
 ./mvnw -B -ntp clean verify
 ```
 
-Run the PostgreSQL checkpoint integration test when PostgreSQL is available:
+Run PostgreSQL checkpoint, schema-migration and durable-memory integration tests when PostgreSQL is available:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
@@ -159,4 +160,4 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0 framework compatibility, M1 domain/simulator, M2 CoALA memory, M3 internal/external actions, M4 Fan & Lan mechanisms, and M5 independent CoT/ToT/RAP-inspired MCTS planners are accepted by GitHub Actions CI. The user confirmed the corrected M6 graph-core CI and M6-A is complete. M6-B lifecycle service composition is delivered with 12 locally executed service-integration tests; its full Maven/GitHub Actions run remains pending. M6 is accepted only after the complete reactor and application-host integration pass. M7 adds durable production persistence/governance; M8 performs full integration/evaluation and freezes the application. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.
+M0 framework compatibility, M1 domain/simulator, M2 CoALA memory, M3 internal/external actions, M4 Fan & Lan mechanisms, and M5 independent CoT/ToT/RAP-inspired MCTS planners are accepted by GitHub Actions CI. The user confirmed the complete Maven/GitHub Actions CI is green after M6-A and M6-B; M6 is accepted. M7 adds durable production persistence/governance; M8 performs full integration/evaluation and freezes the application. Chapters 19 and 20 are written only after the complete application passes its acceptance gate.

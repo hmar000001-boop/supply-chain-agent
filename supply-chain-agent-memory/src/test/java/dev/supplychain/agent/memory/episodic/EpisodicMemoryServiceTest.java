@@ -45,6 +45,28 @@ class EpisodicMemoryServiceTest {
     }
 
     @Test
+    void idempotentRecordRetryAfterVerificationReturnsTheExistingReviewedEpisode() {
+        var start = MemoryFixtures.NOW.minusSeconds(300);
+        var completed = MemoryFixtures.NOW.minusSeconds(60);
+        var idempotency = new EvidenceReference("observation", "OBS-IDEMPOTENT-77");
+        var event = new EpisodeEvent("shipment-update", "Shipment delayed", completed,
+                List.of(MemoryFixtures.SOURCE_EVIDENCE));
+        var provenance = MemoryFixtures.provenance(ProvenanceSource.AUTHORITATIVE_SYSTEM,
+                "shipment-feed-77", MemoryFixtures.NOW);
+
+        Episode first = service.recordIdempotent(MemoryFixtures.SCOPE, "Shipment delayed", "Carrier delay",
+                EpisodeOutcome.PARTIAL_SUCCESS, start, completed, MemoryFixtures.NOW,
+                List.of(MemoryFixtures.SUPPLIER), List.of(event), List.of(), provenance, idempotency);
+        Episode verified = service.verify(first.id(), first.version(), "reviewer-77",
+                MemoryFixtures.REVIEW_EVIDENCE, MemoryFixtures.NOW.plusSeconds(10));
+        Episode retry = service.recordIdempotent(MemoryFixtures.SCOPE, "Shipment delayed", "Carrier delay",
+                EpisodeOutcome.PARTIAL_SUCCESS, start, completed, MemoryFixtures.NOW,
+                List.of(MemoryFixtures.SUPPLIER), List.of(event), List.of(), provenance, idempotency);
+
+        assertEquals(verified, retry, "retry after review must return the already reviewed episode");
+    }
+
+    @Test
     void unverifiedEpisodeCannotBePromotedWithoutReviewEvidence() {
         var episode = record();
         assertThrows(NullPointerException.class, () -> service.verify(episode.id(), 0, "reviewer-1", null,

@@ -59,11 +59,22 @@ public final class InMemoryEpisodeRepository implements EpisodeRepository {
                 && existing.completedAt().equals(proposed.completedAt())
                 && existing.entities().equals(proposed.entities())
                 && existing.events().equals(proposed.events())
-                && existing.evidence().equals(proposed.evidence())
+                && payloadEvidence(existing).equals(payloadEvidence(proposed))
                 && oldSource.source() == newSource.source()
                 && oldSource.sourceId().equals(newSource.sourceId())
                 && oldSource.observedAt().equals(newSource.observedAt())
                 && Objects.equals(oldSource.sourceVersion(), newSource.sourceVersion());
+    }
+
+    private static List<dev.supplychain.agent.memory.common.EvidenceReference> payloadEvidence(Episode episode) {
+        // Verification appends its review reference to Episode.evidence(); it is lifecycle metadata,
+        // not a change to the original idempotent observation payload.
+        if ((episode.status() != dev.supplychain.agent.memory.episodic.EpisodeStatus.VERIFIED
+                && episode.status() != dev.supplychain.agent.memory.episodic.EpisodeStatus.SUPERSEDED)
+                || episode.reviewEvidence() == null || !episode.evidence().contains(episode.reviewEvidence())) {
+            return episode.evidence();
+        }
+        return episode.evidence().stream().filter(reference -> !reference.equals(episode.reviewEvidence())).toList();
     }
 
     @Override

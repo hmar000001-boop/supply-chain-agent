@@ -1,6 +1,5 @@
--- M2 schema contract for the four CoALA memory responsibilities.
--- This file is intentionally not wired to an automatic migration runner yet.
--- M7 will add the selected migration dependency, migration execution and JDBC adapters.
+-- M2 schema for the four CoALA memory responsibilities.
+-- Applied by supply-chain-agent-infrastructure-postgres through the checksummed PostgreSQL migration runner.
 
 CREATE TABLE coala_working_memory (
     memory_id       varchar(128) PRIMARY KEY,
@@ -10,7 +9,7 @@ CREATE TABLE coala_working_memory (
     updated_at      timestamptz NOT NULL,
     expires_at      timestamptz NOT NULL,
     CHECK (updated_at >= created_at),
-    CHECK (expires_at > updated_at)
+    CHECK (expires_at >= updated_at)
 );
 CREATE INDEX ix_coala_working_memory_scope_expiry
     ON coala_working_memory (scope_id, expires_at);
@@ -276,7 +275,7 @@ CREATE UNIQUE INDEX ux_coala_procedure_one_active_version
 CREATE INDEX ix_coala_procedure_versions
     ON coala_procedure_version (scope_id, procedure_key, version_number DESC);
 
--- Important adapter contract for M7:
+-- Durable adapter contract:
 -- 1. Use transactions and optimistic version predicates for every lifecycle mutation.
 -- 2. Activate/replace semantic facts and procedural versions atomically.
 -- 3. Serialize conflicting semantic-key updates (e.g. transaction advisory lock or SERIALIZABLE retry)

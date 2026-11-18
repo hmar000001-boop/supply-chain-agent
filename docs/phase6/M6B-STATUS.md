@@ -42,7 +42,7 @@ B2 child read steps also need host-level `(executionId, caseId, stepId)` idempot
 
 - Java 21 production-source compilation of the M6-B changed classes and their actual project source dependencies: passed with `--release 21 -Xlint:all`.
 - Twelve focused M6-B tests: passed using a lightweight local JUnit-compatible harness against actual service classes. This is not Maven Surefire/JUnit Platform.
-- Full Maven reactor, actual LangGraph4j compilation of the application host and GitHub Actions run: pending.
+- Full Maven reactor, actual LangGraph4j compilation of the application host and GitHub Actions run: user-confirmed green after this delivery.
 
 Required acceptance command:
 
@@ -50,4 +50,4 @@ Required acceptance command:
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-M6 is not accepted until GitHub Actions validates the full reactor, including the earlier 14 graph tests, M6-A tests, M6-B tests and application-host compilation. M8 remains responsible for complete business evaluation and application freeze.
+The user subsequently confirmed that GitHub Actions CI is green after applying M6-B. M6 is accepted. M8 remains responsible for complete business evaluation and application freeze.

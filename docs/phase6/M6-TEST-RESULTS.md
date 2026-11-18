@@ -1,6 +1,6 @@
 # M6 test inventory and validation
 
-**Current status:** the user confirmed the corrected M6 graph-core CI run green and subsequently marked M6-A complete. The specific M6-A CI output was not included. M6-B adds 12 focused service-integration tests that passed in a local Java 21 lightweight JUnit-compatible harness. The full post-M6-B Maven/Surefire/GitHub Actions result remains pending.
+**Current status:** the user confirmed that the complete GitHub Actions CI is green after M6-A and M6-B. The final CI log was not included in the latest repository upload; therefore this record preserves test inventories and earlier authoring checks without inventing a new total.
 
 ## M6 graph-core tests — 14
 
@@ -45,4 +45,4 @@ See `M6B-TEST-RESULTS.md`. They exercise actual M2 working/episodic memory, M3 a
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-Require all M0–M5 regression tests, 14 graph tests, five M6-A tests, 12 M6-B tests, framework/PostgreSQL checkpoint compatibility and application-host compilation to pass. M6 is not fully accepted until this complete post-M6-B run is green.
+Require all M0–M5 regression tests, 14 graph tests, five M6-A tests, 12 M6-B tests, framework/PostgreSQL checkpoint compatibility and application-host compilation to pass. The user subsequently confirmed that this complete post-M6-B CI run is green; M6 is accepted.
