@@ -44,10 +44,10 @@ class PostgresMemoryPersistenceIntegrationTest {
         dataSource = PostgresDataSourceFactory.create(config);
         persistence = new PostgresMemoryPersistence(dataSource);
         PostgresMigrationRunner.MigrationResult result = persistence.migrate();
-        assertEquals(5, result.totalMigrations());
+        assertEquals(6, result.totalMigrations());
         PostgresMigrationRunner.MigrationResult second = persistence.migrate();
         assertEquals(0, second.appliedMigrations(), "migration rerun must be idempotent");
-        assertEquals(5, second.skippedMigrations());
+        assertEquals(6, second.skippedMigrations());
     }
 
     @Test void workingMemoryRoundTripsTypedValuesEvidenceOrderingAndHypothesesAcrossRepositoryInstances() {

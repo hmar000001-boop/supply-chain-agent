@@ -32,7 +32,8 @@ public final class PostgresMigrationRunner {
             new Migration(2, "episode_idempotency", "db/migration/V002__episode_idempotency.sql"),
             new Migration(3, "memory_collection_order", "db/migration/V003__memory_collection_order.sql"),
             new Migration(4, "episode_evidence_order", "db/migration/V004__episode_evidence_order.sql"),
-            new Migration(5, "ordered_memory_evidence_primary_keys", "db/migration/V005__ordered_memory_evidence_primary_keys.sql"));
+            new Migration(5, "ordered_memory_evidence_primary_keys", "db/migration/V005__ordered_memory_evidence_primary_keys.sql"),
+            new Migration(6, "planner_session_checkpoints", "db/migration/V006__planner_session_checkpoints.sql"));
 
     private final DataSource dataSource;
 

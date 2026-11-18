@@ -11,11 +11,16 @@
     </parent>
     <artifactId>supply-chain-agent-infrastructure-postgres</artifactId>
     <name>Supply Chain Agent — PostgreSQL Infrastructure</name>
-    <description>PostgreSQL migrations and durable CoALA memory repository adapters.</description>
+    <description>PostgreSQL migrations, durable CoALA memory repositories and resumable planner-session checkpoints.</description>
     <dependencies>
         <dependency>
             <groupId>dev.supplychain.agent</groupId>
             <artifactId>supply-chain-agent-memory</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-planning</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

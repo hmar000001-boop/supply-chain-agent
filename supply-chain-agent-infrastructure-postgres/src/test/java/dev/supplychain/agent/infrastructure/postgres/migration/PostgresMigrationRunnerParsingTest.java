@@ -27,4 +27,13 @@ class PostgresMigrationRunnerParsingTest {
         assertThrows(IllegalArgumentException.class,
                 () -> PostgresMigrationRunner.splitStatements("SELECT 1 /* unterminated"));
     }
+
+    @Test void plannerSessionMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
+        try (var stream = getClass().getClassLoader().getResourceAsStream(
+                "db/migration/V006__planner_session_checkpoints.sql")) {
+            assertNotNull(stream, "V006 planner-session migration must be packaged in the infrastructure module");
+            String sql = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals(5, PostgresMigrationRunner.splitStatements(sql).size());
+        }
+    }
 }
