@@ -1,0 +1,11 @@
+243191e03f2f86bc0d329cad11ea07e0c8ddbb2a37257d6ace8391ebbf189802  ./CHANGELOG_M7.md
+f07ead29921b60ba0da5c2433f0bd84e33cae8ca7d8dedfdad26713ad245250e  ./M7B1_CI_FAILURE_FIX_CHANGESET_README.md
+544a8f2a3e5afbe0563232cc1ccfc711dbdab8cd7cd425138275eebfbbb77452  ./M7B1_CI_FIX_CHANGE_MANIFEST.csv
+6601bea91385a568cc161774d8681061520da26742671e14a96f2b70955c0222  ./README.md
+ac3463fcf7a83d19c94f130e9d44813184bd3b0f5442d03fee00df3a18f52faf  ./docs/phase7/M7-STATUS.md
+76c05449046b039fa07fce919fc65741c1b0d49b6626f3eb5c60702aed096fcf  ./docs/phase7/M7B1-CI-FAILURE-ANALYSIS-2026-11-18.md
+5a3ceaa2ba12eb97670bf7070bf1b6b5bf7ed127f96dd5fb07cd8910fc3e3631  ./docs/phase7/M7B1-STATUS.md
+6dfe07ceb36c31a772293f006132bed28fc890c95d142283234a456a553e316e  ./docs/phase7/M7B1-TEST-RESULTS.md
+80e2c644536bcfee106d873c0b94b2e51e1fe805263176a4868a2b6119a4c757  ./supply-chain-agent-infrastructure-postgres/src/main/java/dev/supplychain/agent/infrastructure/postgres/memory/PostgresSemanticFactRepository.java
+b1f872a12c8c1c246e2d929520a42aa5ad96beb1d2554915da9572a574d1ea42  ./supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/PostgresM7B1PersistenceIntegrationTest.java
+1e30db7654efd8e57bed0db10c692ac7606564cba671476c838d548325cd6bfb  ./supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProceduralMemoryRepository.java

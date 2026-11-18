@@ -206,18 +206,23 @@ public final class PostgresSemanticFactRepository extends JdbcRepositorySupport 
 
     private void assertNoConflictingActiveFacts(java.sql.Connection connection, SemanticFact candidate,
                                                 Set<SemanticFactId> excluded) throws SQLException {
+        // Avoid a nullable "? IS NULL" predicate: PostgreSQL cannot infer the SQL type of
+        // an otherwise-unconstrained NULL parameter during Parse, even when JDBC binds a
+        // Timestamp at execution time. An unbounded candidate needs no upper-bound clause.
+        String candidateEndPredicate = candidate.validUntil() == null ? "" : "AND valid_from < ? ";
         String sql = "SELECT " + COLUMNS + " FROM coala_semantic_fact WHERE scope_id = ? AND subject_type = ? AND subject_id = ? "
                 + "AND predicate = ? AND status = 'ACTIVE' AND (valid_until IS NULL OR valid_until > ?) "
-                + "AND (? IS NULL OR valid_from < ?) FOR UPDATE";
+                + candidateEndPredicate + "FOR UPDATE";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, candidate.scopeId().value());
-            statement.setString(2, candidate.subject().entityType());
-            statement.setString(3, candidate.subject().entityId());
-            statement.setString(4, candidate.predicate());
-            statement.setTimestamp(5, timestamp(candidate.validFrom()));
-            Timestamp end = timestamp(candidate.validUntil());
-            if (end == null) { statement.setNull(6, Types.TIMESTAMP_WITH_TIMEZONE); statement.setNull(7, Types.TIMESTAMP_WITH_TIMEZONE); }
-            else { statement.setTimestamp(6, end); statement.setTimestamp(7, end); }
+            int parameter = 1;
+            statement.setString(parameter++, candidate.scopeId().value());
+            statement.setString(parameter++, candidate.subject().entityType());
+            statement.setString(parameter++, candidate.subject().entityId());
+            statement.setString(parameter++, candidate.predicate());
+            statement.setTimestamp(parameter++, timestamp(candidate.validFrom()));
+            if (candidate.validUntil() != null) {
+                statement.setTimestamp(parameter, timestamp(candidate.validUntil()));
+            }
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     SemanticFact existing = map(rows);

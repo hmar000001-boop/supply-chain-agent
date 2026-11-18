@@ -126,7 +126,15 @@ class PostgresM7B1PersistenceIntegrationTest {
 
         assertEquals(ProcedureStatus.RETIRED, procedural.findById(v1.id()).orElseThrow().status());
         assertEquals(active2, procedural.findActive(scope, key).orElseThrow());
-        assertEquals(active1, procedural.findActiveAt(scope, now.plusSeconds(3), 10).getFirst());
+        Instant historicalKnowledgeTime = now.plusSeconds(3);
+        ProcedureVersion historicallyActive = procedural.findActiveAt(scope, historicalKnowledgeTime, 10).getFirst();
+        // findActiveAt selects versions whose activation interval contains the requested time;
+        // the returned immutable record preserves its current lifecycle status (RETIRED), just
+        // like InMemoryProceduralMemoryRepository, rather than fabricating a historical snapshot.
+        assertEquals(active1.id(), historicallyActive.id());
+        assertTrue(historicallyActive.knownActiveAt(historicalKnowledgeTime));
+        assertEquals(ProcedureStatus.RETIRED, historicallyActive.status());
+        assertEquals(now.plusSeconds(5), historicallyActive.retiredAt());
         assertEquals(List.of(2, 1), procedural.findVersions(scope, key).stream().map(ProcedureVersion::versionNumber).toList());
         assertThrows(MemoryVersionConflictException.class, () -> procedural.activate(v2.id(), 0, "approver", now.plusSeconds(6)));
     }

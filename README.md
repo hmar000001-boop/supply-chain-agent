@@ -5,7 +5,7 @@ The user confirmed M6 CI green and subsequently confirmed M7-A CI green. M6 and 
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M7 — PostgreSQL persistence, transactional recovery and operations (M7-A CI-accepted; M7-B1 delivered, CI pending; M7-B2 not yet delivered)**
+**Current milestone: M7 — PostgreSQL persistence, transactional recovery and operations (M7-A CI-accepted; M7-B1 delivered with CI correction package pending rerun; M7-B2 not yet delivered)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 

@@ -24,7 +24,7 @@ The user confirmed M7-A GitHub Actions CI is green; M7-A is accepted and forms t
 - Added four PostgreSQL integration scenarios covering bitemporal semantics, conflicts, procedure version history and planner-session round-trip/CAS.
 - Added M7-B1 architecture, test and acceptance documentation and an explicit M7 closure matrix.
 
-M7-B1 is delivered; Maven/Surefire and live PostgreSQL CI are still required before acceptance.
+M7-B1 is delivered; the first GitHub Actions PostgreSQL run found two semantic SQL errors (both caused by an untyped nullable parameter) and one incorrect assertion about the current status of a historically active procedure. A focused correction removes the nullable SQL parameter and aligns the test with the shared in-memory/PostgreSQL `findActiveAt` contract. Full Maven/PostgreSQL CI rerun remains required before acceptance.
 
 ## Planned — M7-B2 (final M7 delivery; no third infrastructure phase)
 

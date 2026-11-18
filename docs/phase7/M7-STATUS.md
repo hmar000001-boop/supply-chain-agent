@@ -19,7 +19,7 @@ The application remains a modular Java monolith. PostgreSQL infrastructure imple
 
 ### M7-B1 — Durable semantic/procedural memory and planner sessions
 
-**Status: implementation delivered; full Maven/PostgreSQL CI pending.**
+**Status: implementation and CI correction delivered; full Maven/PostgreSQL CI rerun pending.**
 
 - `PostgresSemanticFactRepository` implements stage, lookup, activation, rejection, supersede-and-activate, multi-segment temporal replacement, bitemporal retrieval and retention.
 - Semantic conflict control uses a transaction-scoped advisory lock per scope/subject/predicate and validates overlapping valid-time intervals before activation.
@@ -29,6 +29,7 @@ The application remains a modular Java monolith. PostgreSQL infrastructure imple
 - `PostgresPlannerSessionStore` persists planner identity, request/config fingerprints, revisions, statuses, resource counters, elapsed duration, ordered ToT frontier and ordered MCTS tree nodes. Header and child rows save atomically; loads use repeatable-read isolation.
 - Migration V006 adds planner-session checkpoint tables; six ordered migrations are now installed by the migration runner.
 - `PostgresMemoryPersistence` now exposes all four CoALA repositories. `PostgresAgentPersistence` composes them and planner sessions over one DataSource.
+- First M7-B1 CI triage on 2026-11-18 corrected the PostgreSQL untyped-null overlap predicate and the procedural historical-lookup test expectation. See `docs/phase7/M7B1-CI-FAILURE-ANALYSIS-2026-11-18.md`; B1 remains pending until rerun is green.
 
 M7-B1 does not yet persist complete `PlanningRequest`/`PlanningResult` artifacts or M6 runtime records. Those are explicitly assigned to M7-B2.
 
