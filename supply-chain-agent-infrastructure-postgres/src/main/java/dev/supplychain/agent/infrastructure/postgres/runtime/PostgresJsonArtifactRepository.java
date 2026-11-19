@@ -52,7 +52,7 @@ public final class PostgresJsonArtifactRepository<T> {
                     insert.setString(1, scopeId); insert.setString(2, artifactKind); insert.setString(3, id);
                     insert.setString(4, execution); insert.setString(5, owner); insert.setLong(6, ownerVersion);
                     insert.setString(7, fingerprint); insert.setString(8, payload);
-                    insert.setObject(9, at); insert.setObject(10, at); insert.executeUpdate();
+                    PostgresJdbc.setInstant(insert, 9, at); PostgresJdbc.setInstant(insert, 10, at); insert.executeUpdate();
                 }
                 try (PreparedStatement select = connection.prepareStatement("""
                         SELECT execution_id, owner_id, owner_version, payload_fingerprint

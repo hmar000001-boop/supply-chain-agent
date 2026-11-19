@@ -41,7 +41,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                     VALUES(?,?,?,?,'CLAIMED',?,clock_timestamp() + (? * interval '1 millisecond'),1,?,?) ON CONFLICT(scope_id,case_id,step_id) DO NOTHING
                     """)) {
                 insert.setString(1,scopeId); insert.setString(2,caseKey); insert.setString(3,stepKey); insert.setString(4,fingerprint);
-                insert.setString(5,owner); insert.setLong(6,leaseDuration.toMillis()); insert.setObject(7,at); insert.setObject(8,at);
+                insert.setString(5,owner); insert.setLong(6,leaseDuration.toMillis()); PostgresJdbc.setInstant(insert, 7, at); PostgresJdbc.setInstant(insert, 8, at);
                 if (insert.executeUpdate()==1) return new StepClaim(Status.ACQUIRED,1,List.of(),"");
             }
             try (PreparedStatement select=connection.prepareStatement("""
@@ -76,7 +76,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                             UPDATE b2_child_step_receipt SET state='CLAIMED',lease_owner=?,lease_until=clock_timestamp() + (? * interval '1 millisecond'),fencing_token=?,
                                 failure_code=NULL,updated_at=? WHERE scope_id=? AND case_id=? AND step_id=? AND state='FAILED' AND fencing_token=?
                             """)) {
-                        retry.setString(1,owner); retry.setLong(2,leaseDuration.toMillis()); retry.setLong(3,next); retry.setObject(4,at);
+                        retry.setString(1,owner); retry.setLong(2,leaseDuration.toMillis()); retry.setLong(3,next); PostgresJdbc.setInstant(retry, 4, at);
                         retry.setString(5,scopeId); retry.setString(6,caseKey); retry.setString(7,stepKey); retry.setLong(8,token);
                         if(retry.executeUpdate()!=1) throw new IllegalStateException("B2 failed-step retry lost a fencing race");
                     }
@@ -96,7 +96,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                         lease_owner=NULL,lease_until=NULL,updated_at=? WHERE scope_id=? AND case_id=? AND step_id=? AND state='CLAIMED'
                         AND fencing_token=? AND lease_until>clock_timestamp()
                     """)) {
-                update.setString(1,json); update.setString(2,fingerprint); update.setObject(3,at); update.setString(4,scopeId);
+                update.setString(1,json); update.setString(2,fingerprint); PostgresJdbc.setInstant(update, 3, at); update.setString(4,scopeId);
                 update.setString(5,required(caseId)); update.setString(6,required(stepId)); update.setLong(7,fencingToken);
                 if(update.executeUpdate()!=1) throw new SecurityException("B2 step completion rejected: expired or superseded claim");
             }
@@ -111,7 +111,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                     UPDATE b2_child_step_receipt SET state=?,failure_code=?,lease_owner=NULL,lease_until=NULL,updated_at=?
                     WHERE scope_id=? AND case_id=? AND step_id=? AND state='CLAIMED' AND fencing_token=? AND lease_until>clock_timestamp()
                     """)) {
-                update.setString(1,outcomeUnknown?"UNKNOWN_OUTCOME":"FAILED"); update.setString(2,code); update.setObject(3,at);
+                update.setString(1,outcomeUnknown?"UNKNOWN_OUTCOME":"FAILED"); update.setString(2,code); PostgresJdbc.setInstant(update, 3, at);
                 update.setString(4,scopeId); update.setString(5,required(caseId)); update.setString(6,required(stepId)); update.setLong(7,fencingToken);
                 if(update.executeUpdate()!=1) throw new SecurityException("B2 step failure rejected: claim is no longer owned");
             }
@@ -127,7 +127,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                     UPDATE b2_child_step_receipt SET state='COMPLETED',result_payload=CAST(? AS jsonb),result_fingerprint=?,
                         failure_code=NULL,updated_at=? WHERE scope_id=? AND case_id=? AND step_id=? AND state='UNKNOWN_OUTCOME'
                     """)) {
-                update.setString(1,json); update.setString(2,PostgresJsonArtifactRepository.sha256(json)); update.setObject(3,at);
+                update.setString(1,json); update.setString(2,PostgresJsonArtifactRepository.sha256(json)); PostgresJdbc.setInstant(update, 3, at);
                 update.setString(4,scopeId); update.setString(5,required(caseId)); update.setString(6,required(stepId));
                 if(update.executeUpdate()!=1) throw new IllegalStateException("B2 step is not awaiting unknown-outcome reconciliation");
             }
@@ -142,7 +142,7 @@ public final class PostgresB2ChildStepReceiptStore implements ChildInvestigation
                     UPDATE b2_child_step_receipt SET state='FAILED',failure_code=?,updated_at=?
                     WHERE scope_id=? AND case_id=? AND step_id=? AND state='UNKNOWN_OUTCOME'
                     """)) {
-                update.setString(1,required(evidenceCode)); update.setObject(2,at); update.setString(3,scopeId);
+                update.setString(1,required(evidenceCode)); PostgresJdbc.setInstant(update, 2, at); update.setString(3,scopeId);
                 update.setString(4,required(caseId)); update.setString(5,required(stepId));
                 if(update.executeUpdate()!=1) throw new IllegalStateException("B2 step is not awaiting unknown-outcome reconciliation");
             }

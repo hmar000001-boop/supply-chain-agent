@@ -42,8 +42,8 @@ public final class PostgresMessagingStore {
             statement.setString(3, required(aggregateId));
             statement.setString(4, required(messageType));
             statement.setString(5, payload);
-            statement.setObject(6, createdAt);
-            statement.setObject(7, createdAt);
+            PostgresJdbc.setInstant(statement, 6, createdAt);
+            PostgresJdbc.setInstant(statement, 7, createdAt);
             statement.executeUpdate();
         } catch (SQLException ex) {
             if ("23505".equals(ex.getSQLState())) throw new SecurityException("outbox message ID already exists in this scope", ex);
@@ -180,9 +180,9 @@ public final class PostgresMessagingStore {
                 insert.setString(3, id);
                 insert.setString(4, fingerprint);
                 insert.setString(5, canonicalPayload);
-                insert.setObject(6, now);
-                insert.setObject(7, now);
-                insert.setObject(8, now);
+                PostgresJdbc.setInstant(insert, 6, now);
+                PostgresJdbc.setInstant(insert, 7, now);
+                PostgresJdbc.setInstant(insert, 8, now);
                 insert.executeUpdate();
             }
             String state;

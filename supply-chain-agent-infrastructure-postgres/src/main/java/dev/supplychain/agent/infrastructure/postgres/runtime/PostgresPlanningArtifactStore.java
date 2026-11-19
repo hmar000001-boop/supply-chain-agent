@@ -69,7 +69,7 @@ public final class PostgresPlanningArtifactStore implements PlanningArtifactStor
                     insert.setString(4, request.fingerprint()); insert.setString(5, result.plannerId().name());
                     insert.setString(6, result.sessionId()); insert.setString(7, configFingerprint);
                     insert.setString(8, request.workingMemory().id().value()); insert.setLong(9, request.workingMemory().version());
-                    insert.setString(10, payloadFingerprint); insert.setString(11, payload); insert.setObject(12, storedAt);
+                    insert.setString(10, payloadFingerprint); insert.setString(11, payload); PostgresJdbc.setInstant(insert, 12, storedAt);
                     insert.executeUpdate();
                 }
                 try (PreparedStatement select = connection.prepareStatement("""

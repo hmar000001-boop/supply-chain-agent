@@ -36,7 +36,7 @@ public final class PostgresImpasseCaseRepository implements ImpasseCaseRepositor
             statement.setString(1, value.scopeId().value()); statement.setString(2, value.id());
             statement.setString(3, value.executionId()); statement.setString(4, value.objectiveFingerprint());
             statement.setLong(5, value.version()); statement.setString(6, PostgresJsonArtifactRepository.sha256(payload));
-            statement.setString(7, payload); statement.setObject(8, value.openedAt()); statement.setObject(9, value.openedAt());
+            statement.setString(7, payload); PostgresJdbc.setInstant(statement, 8, value.openedAt()); PostgresJdbc.setInstant(statement, 9, value.openedAt());
             statement.executeUpdate();
         } catch (SQLException ex) {
             if ("23505".equals(ex.getSQLState())) throw new SecurityException("B2 case identity already exists", ex);

@@ -119,7 +119,7 @@ public final class PostgresActionExecutionLedger implements FencedActionExecutio
                 insert.setString(1, scopeId); insert.setString(2, key.principalId());
                 insert.setString(3, key.actionId().value()); insert.setString(4, key.key());
                 insert.setString(5, request); insert.setString(6, proposedOperation); insert.setString(7, owner);
-                insert.setLong(8, leaseDuration.toMillis()); insert.setObject(9, startedAt); insert.setObject(10, startedAt);
+                insert.setLong(8, leaseDuration.toMillis()); PostgresJdbc.setInstant(insert, 9, startedAt); PostgresJdbc.setInstant(insert, 10, startedAt);
                 int inserted = insert.executeUpdate();
                 if (inserted == 1) {
                     return new FencedClaim(new ActionLedgerClaim(ActionLedgerClaim.Status.ACQUIRED, proposedOperation, null, null), 1L);
@@ -154,7 +154,7 @@ public final class PostgresActionExecutionLedger implements FencedActionExecutio
                             WHERE scope_id=? AND principal_id=? AND action_id=? AND idempotency_key=? AND state='FAILED' AND fencing_token=?
                             """)) {
                         retry.setString(1, owner); retry.setLong(2, leaseDuration.toMillis()); retry.setLong(3, nextFence);
-                        retry.setObject(4, startedAt); retry.setString(5, scopeId); bindKey(retry, 6, key); retry.setLong(9, row.fencingToken());
+                        PostgresJdbc.setInstant(retry, 4, startedAt); retry.setString(5, scopeId); bindKey(retry, 6, key); retry.setLong(9, row.fencingToken());
                         if (retry.executeUpdate() != 1) throw new IllegalStateException("M3 retry acquisition lost a fencing race");
                     }
                     yield new FencedClaim(new ActionLedgerClaim(ActionLedgerClaim.Status.ACQUIRED,row.operationId(),null,null),nextFence);

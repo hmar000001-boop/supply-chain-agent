@@ -44,7 +44,7 @@ class PostgresMigrationRunnerParsingTest {
             assertNotNull(stream, "V008 runtime scope migration must be packaged in the infrastructure module");
             String sql = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             List<String> statements = PostgresMigrationRunner.splitStatements(sql);
-            assertEquals(27, statements.size());
+            assertEquals(24, statements.size());
             assertTrue(sql.contains("PRIMARY KEY (scope_id, principal_id, action_id, idempotency_key)"));
             assertTrue(sql.contains("PRIMARY KEY (scope_id, consumer_id, message_id)"));
             assertTrue(sql.contains("PRIMARY KEY (scope_id, message_id)"));

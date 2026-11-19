@@ -39,7 +39,7 @@ public final class PostgresApprovalStore {
                 s.setString(5,binding.candidateSetId());s.setString(6,binding.candidateId());s.setString(7,binding.intentionId());
                 s.setLong(8,binding.intentionVersion());s.setString(9,binding.actionPlanFingerprint());s.setString(10,required(requesterPrincipalId));
                 s.setString(11,caps);s.setString(12,resources);s.setString(13,required(evidenceReference));s.setString(14,required(policyVersion));
-                s.setObject(15,expiresAt);s.setObject(16,createdAt);s.executeUpdate();
+                PostgresJdbc.setInstant(s, 15, expiresAt);PostgresJdbc.setInstant(s, 16, createdAt);s.executeUpdate();
             }
             return find(scope,id).orElseThrow();
         }catch(SQLException ex){if("23505".equals(ex.getSQLState()))throw new SecurityException("approval ID already exists",ex);throw new PostgresPersistenceException("PostgreSQL approval creation failed",ex);}
@@ -80,8 +80,8 @@ public final class PostgresApprovalStore {
                     WHERE scope_id=? AND approval_id=? AND status='PENDING' AND revision=? AND expires_at>?
                     """)){
                 s.setString(1,approved?"APPROVED":"DENIED");s.setString(2,principal);s.setString(3,response);
-                s.setString(4,optional(reason));s.setObject(5,at);s.setString(6,scope);s.setString(7,required(approvalId));
-                s.setLong(8,expectedRevision);s.setObject(9,at);
+                s.setString(4,optional(reason));PostgresJdbc.setInstant(s, 5, at);s.setString(6,scope);s.setString(7,required(approvalId));
+                s.setLong(8,expectedRevision);PostgresJdbc.setInstant(s, 9, at);
                 if(s.executeUpdate()!=1)throw new IllegalStateException("approval decision lost a race or expired");
             }
             return lock(c,scope,approvalId).orElseThrow();
@@ -95,7 +95,7 @@ public final class PostgresApprovalStore {
                     UPDATE runtime_approval SET status='REVOKED',approver_principal_id=?,reason=?,decided_at=?,revision=revision+1
                     WHERE scope_id=? AND approval_id=? AND revision=? AND status IN ('PENDING','APPROVED')
                     """)){
-                s.setString(1,required(actorId));s.setString(2,required(reason));s.setObject(3,at);s.setString(4,scope);
+                s.setString(1,required(actorId));s.setString(2,required(reason));PostgresJdbc.setInstant(s, 3, at);s.setString(4,scope);
                 s.setString(5,required(approvalId));s.setLong(6,expectedRevision);return s.executeUpdate()==1;
             }
         });
@@ -109,7 +109,7 @@ public final class PostgresApprovalStore {
             ApprovalRecord record=value.get();
             if(record.status()==ApprovalRecord.Status.PENDING&&!record.expiresAt().isAfter(now)){
                 try(PreparedStatement s=c.prepareStatement("UPDATE runtime_approval SET status='EXPIRED',reason='approval expiry reached',decided_at=?,revision=revision+1 WHERE scope_id=? AND approval_id=? AND status='PENDING' AND revision=?")){
-                    s.setObject(1,now);s.setString(2,scope);s.setString(3,approvalId);s.setLong(4,record.revision());s.executeUpdate();
+                    PostgresJdbc.setInstant(s, 1, now);s.setString(2,scope);s.setString(3,approvalId);s.setLong(4,record.revision());s.executeUpdate();
                 }
                 return false;
             }

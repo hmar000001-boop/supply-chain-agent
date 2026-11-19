@@ -37,7 +37,7 @@ public final class PostgresActionExecutionBatchStore implements ActionExecutionB
                     """)) {
                 insert.setString(1, scopeId); insert.setString(2, id); insert.setString(3, plan.executionId());
                 insert.setString(4, principal); insert.setString(5, plan.candidateSetId()); insert.setString(6, plan.candidateId());
-                insert.setString(7, plan.fingerprint()); insert.setObject(8, at); insert.setObject(9, at); insert.executeUpdate();
+                insert.setString(7, plan.fingerprint()); PostgresJdbc.setInstant(insert, 8, at); PostgresJdbc.setInstant(insert, 9, at); insert.executeUpdate();
             }
             ActionExecutionBatch current = load(connection, id, true).orElseThrow();
             if (!current.executionId().equals(plan.executionId()) || !current.principalId().equals(principal)
@@ -72,13 +72,13 @@ public final class PostgresActionExecutionBatchStore implements ActionExecutionB
                 insert.setString(6, nullable(item.operationId())); insert.setString(7, nullable(item.resultReference()));
                 insert.setString(8, nullable(item.failureCode())); insert.setString(9, nullable(item.failureMessage()));
                 insert.setBoolean(10, item.outcomeUnknown()); insert.setString(11, PostgresJsonArtifactRepository.sha256(item.toString()));
-                insert.setObject(12, at); insert.executeUpdate();
+                PostgresJdbc.setInstant(insert, 12, at); insert.executeUpdate();
             }
             try (PreparedStatement update = connection.prepareStatement("""
                     UPDATE action_execution_batch SET status=?,updated_at=?,revision=revision+1
                     WHERE scope_id=? AND batch_id=? AND revision=?
                     """)) {
-                update.setString(1, status.name()); update.setObject(2, at); update.setString(3, scopeId);
+                update.setString(1, status.name()); PostgresJdbc.setInstant(update, 2, at); update.setString(3, scopeId);
                 update.setString(4, id); update.setLong(5, current.revision());
                 if (update.executeUpdate() != 1) throw new IllegalStateException("action batch revision conflict");
             }
@@ -96,7 +96,7 @@ public final class PostgresActionExecutionBatchStore implements ActionExecutionB
                     UPDATE action_execution_batch SET status='SUCCEEDED',updated_at=?,revision=revision+1
                     WHERE scope_id=? AND batch_id=? AND revision=?
                     """)) {
-                update.setObject(1, at); update.setString(2, scopeId); update.setString(3, id); update.setLong(4, current.revision());
+                PostgresJdbc.setInstant(update, 1, at); update.setString(2, scopeId); update.setString(3, id); update.setLong(4, current.revision());
                 if (update.executeUpdate() != 1) throw new IllegalStateException("action batch revision conflict");
             }
             return load(connection, id, false).orElseThrow();

@@ -42,7 +42,7 @@ public final class PostgresRecoveryIntentionRepository implements RecoveryIntent
                     insert.setString(1, scope); insert.setString(2, intention.id().value());
                     insert.setString(3, intention.objectiveFingerprint()); insert.setLong(4, intention.version());
                     insert.setString(5, intention.status().name()); insert.setString(6, payload);
-                    insert.setObject(7, intention.createdAt()); insert.setObject(8, intention.updatedAt());
+                    PostgresJdbc.setInstant(insert, 7, intention.createdAt()); PostgresJdbc.setInstant(insert, 8, intention.updatedAt());
                     insert.executeUpdate();
                 }
                 appendHistory(connection, intention, payload);
@@ -87,7 +87,7 @@ public final class PostgresRecoveryIntentionRepository implements RecoveryIntent
                         WHERE scope_id=? AND intention_id=? AND version=? AND objective_fingerprint=?
                         """)) {
                     update.setLong(1, replacement.version()); update.setString(2, replacement.status().name());
-                    update.setString(3, payload); update.setObject(4, replacement.updatedAt());
+                    update.setString(3, payload); PostgresJdbc.setInstant(update, 4, replacement.updatedAt());
                     update.setString(5, replacement.scopeId().value()); update.setString(6, id.value());
                     update.setLong(7, expectedVersion); update.setString(8, replacement.objectiveFingerprint());
                     changed = update.executeUpdate();
@@ -106,7 +106,7 @@ public final class PostgresRecoveryIntentionRepository implements RecoveryIntent
                 """)) {
             statement.setString(1, value.scopeId().value()); statement.setString(2, value.id().value());
             statement.setLong(3, value.version()); statement.setString(4, value.objectiveFingerprint());
-            statement.setString(5, value.status().name()); statement.setString(6, payload); statement.setObject(7, value.updatedAt());
+            statement.setString(5, value.status().name()); statement.setString(6, payload); PostgresJdbc.setInstant(statement, 7, value.updatedAt());
             statement.executeUpdate();
         }
     }

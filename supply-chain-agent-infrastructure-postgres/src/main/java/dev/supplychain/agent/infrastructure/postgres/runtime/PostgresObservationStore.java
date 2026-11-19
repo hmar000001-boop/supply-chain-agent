@@ -44,7 +44,7 @@ public final class PostgresObservationStore implements ObservationStore {
                     insert.setString(3, source.executionId()); insert.setString(4, source.principalId());
                     insert.setString(5, source.sourceReference()); insert.setString(6, observation.disposition().name());
                     insert.setString(7, observation.evidenceSetId().isBlank() ? null : observation.evidenceSetId());
-                    insert.setObject(8, source.observedAt()); insert.setString(9, fingerprint); insert.setString(10, payload);
+                    PostgresJdbc.setInstant(insert, 8, source.observedAt()); insert.setString(9, fingerprint); insert.setString(10, payload);
                     insert.executeUpdate();
                 }
                 try (PreparedStatement verify = connection.prepareStatement("""
