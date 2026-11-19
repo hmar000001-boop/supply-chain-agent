@@ -58,7 +58,7 @@ public final class PostgresObservationStore implements ObservationStore {
                                 || !source.sourceReference().equals(row.getString(3))
                                 || !observation.disposition().name().equals(row.getString(4))
                                 || !Objects.equals(observation.evidenceSetId().isBlank() ? null : observation.evidenceSetId(), row.getString(5))
-                                || !source.observedAt().equals(row.getTimestamp(6).toInstant())
+                                || !PostgresJdbc.normalizeInstant(source.observedAt()).equals(row.getTimestamp(6).toInstant())
                                 || !fingerprint.equals(row.getString(7).trim())) {
                             throw new SecurityException("observation ID was reused with different provenance or content");
                         }

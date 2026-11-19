@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 /**
@@ -18,6 +19,15 @@ import java.util.Objects;
 final class PostgresJdbc {
     private PostgresJdbc() { }
 
+    /**
+     * PostgreSQL timestamps have microsecond precision by default. Normalize before binding so
+     * a write followed by a read has stable equality semantics instead of comparing a nanosecond
+     * Java value with a rounded/truncated database value.
+     */
+    static Instant normalizeInstant(Instant value) {
+        return value == null ? null : value.truncatedTo(ChronoUnit.MICROS);
+    }
+
     static void setInstant(PreparedStatement statement, int parameterIndex, Instant value)
             throws SQLException {
         Objects.requireNonNull(statement, "statement");
@@ -25,6 +35,6 @@ final class PostgresJdbc {
             statement.setNull(parameterIndex, Types.TIMESTAMP_WITH_TIMEZONE);
             return;
         }
-        statement.setObject(parameterIndex, value.atOffset(ZoneOffset.UTC));
+        statement.setObject(parameterIndex, normalizeInstant(value).atOffset(ZoneOffset.UTC));
     }
 }
