@@ -57,7 +57,7 @@ class PostgresM7B1PersistenceIntegrationTest {
     @BeforeAll static void initialize() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
         memory = new PostgresMemoryPersistence(dataSource);
-        assertEquals(6, memory.migrate().totalMigrations());
+        assertEquals(PostgresMigrationRunner.supportedMigrationCount(), memory.migrate().totalMigrations());
         semantic = new PostgresSemanticFactRepository(dataSource);
         procedural = new PostgresProceduralMemoryRepository(dataSource);
         plannerSessions = new PostgresPlannerSessionStore(dataSource);

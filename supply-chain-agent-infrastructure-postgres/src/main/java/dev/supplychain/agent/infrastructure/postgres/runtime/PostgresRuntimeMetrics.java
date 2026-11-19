@@ -13,19 +13,19 @@ import java.util.Objects;
 public final class PostgresRuntimeMetrics {
     private static final String QUERY = """
             SELECT
-              (SELECT COUNT(*) FROM action_operation_ledger WHERE state='UNKNOWN_OUTCOME') AS unknown_operations,
+              (SELECT COUNT(*) FROM action_operation_ledger WHERE scope_id=? AND state='UNKNOWN_OUTCOME') AS unknown_operations,
               (SELECT COUNT(*) FROM b2_child_step_receipt WHERE scope_id=? AND state='UNKNOWN_OUTCOME') AS unknown_child_steps,
               (SELECT COUNT(*) FROM action_execution_batch WHERE scope_id=? AND status='UNKNOWN_OUTCOME') AS unknown_batches,
               (SELECT COUNT(*) FROM runtime_approval WHERE scope_id=? AND status='PENDING' AND expires_at>clock_timestamp()) AS pending_approvals,
-              (SELECT COUNT(*) FROM outbox_message WHERE state='PENDING') AS pending_outbox,
-              (SELECT COUNT(*) FROM outbox_message WHERE state='IN_FLIGHT') AS in_flight_outbox,
-              (SELECT COUNT(*) FROM outbox_message WHERE state='DEAD_LETTER') AS dead_outbox,
-              (SELECT COUNT(*) FROM inbox_message WHERE state='PROCESSING') AS processing_inbox,
-              (SELECT COUNT(*) FROM inbox_message WHERE state='DEAD_LETTER') AS dead_inbox,
+              (SELECT COUNT(*) FROM outbox_message WHERE scope_id=? AND state='PENDING') AS pending_outbox,
+              (SELECT COUNT(*) FROM outbox_message WHERE scope_id=? AND state='IN_FLIGHT') AS in_flight_outbox,
+              (SELECT COUNT(*) FROM outbox_message WHERE scope_id=? AND state='DEAD_LETTER') AS dead_outbox,
+              (SELECT COUNT(*) FROM inbox_message WHERE scope_id=? AND state='PROCESSING') AS processing_inbox,
+              (SELECT COUNT(*) FROM inbox_message WHERE scope_id=? AND state='DEAD_LETTER') AS dead_inbox,
               COALESCE((SELECT GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-MIN(created_at))))
-                        FROM outbox_message WHERE state='PENDING'),0) AS oldest_pending_outbox_seconds,
+                        FROM outbox_message WHERE scope_id=? AND state='PENDING'),0) AS oldest_pending_outbox_seconds,
               COALESCE((SELECT GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-MIN(updated_at))))
-                        FROM action_operation_ledger WHERE state='UNKNOWN_OUTCOME'),0) AS oldest_unknown_operation_seconds
+                        FROM action_operation_ledger WHERE scope_id=? AND state='UNKNOWN_OUTCOME'),0) AS oldest_unknown_operation_seconds
             """;
 
     private final DataSource dataSource;
@@ -39,9 +39,7 @@ public final class PostgresRuntimeMetrics {
     public Snapshot read() {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(QUERY)) {
-            statement.setString(1, scopeId);
-            statement.setString(2, scopeId);
-            statement.setString(3, scopeId);
+            for (int index = 1; index <= 11; index++) statement.setString(index, scopeId);
             try (ResultSet row = statement.executeQuery()) {
                 if (!row.next()) throw new SQLException("runtime metrics query returned no row");
                 return new Snapshot(row.getLong("unknown_operations"), row.getLong("unknown_child_steps"),

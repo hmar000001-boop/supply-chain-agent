@@ -26,8 +26,13 @@ public final class PostgresAgentPersistence implements AutoCloseable {
         PostgresDatabaseConfig config = PostgresDatabaseConfig.fromEnvironment(environment);
         PostgresAgentPersistence persistence = new PostgresAgentPersistence(
                 PostgresPooledDataSourceFactory.create(config, PostgresPoolSettings.productionDefaults()));
-        persistence.migrate();
-        return persistence;
+        try {
+            persistence.migrate();
+            return persistence;
+        } catch (RuntimeException failure) {
+            persistence.close();
+            throw failure;
+        }
     }
 
     public PostgresAgentPersistence(DataSource dataSource) {

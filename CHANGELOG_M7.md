@@ -35,6 +35,6 @@ M7-B1 is delivered; the first GitHub Actions PostgreSQL run found two semantic S
 - Added the LangGraph4j PostgreSQL saver factory and stable execution thread IDs while keeping graph checkpoints distinct from business ledgers.
 - Added bounded HikariCP pool configuration, health/readiness, aggregate runtime metrics, the V007 migration and backup/isolated-restore scripts.
 - Added the operational runbook in `docs/phase7/M7B2-OPERATIONS-RUNBOOK.md`.
-- **Tests/build/verification not run or included** in this delivery, as explicitly requested. All M7-B2 acceptance rows remain pending separate test and CI evidence.
+- Added PostgreSQL integration acceptance coverage for the M7-B2 persistence, approval, recovery, messaging, scope-isolation and LangGraph4j saver-factory invariants. The two legacy migration-count assertions now use `PostgresMigrationRunner.supportedMigrationCount()`; V007 remains immutable and V008 applies the scope-key correction forward-only. **No Maven build, test execution or live PostgreSQL verification was run in the authoring environment.** Test-source inclusion is not evidence of a passing run; M7-B2 acceptance remains pending the corrected GitHub Actions result and deployment-specific recovery exercises.
 
 M7 is complete only when M7-A, M7-B1 and M7-B2 are all CI-green and every line in `docs/phase7/M7-STATUS.md`'s closure matrix has implementation and test evidence. M8 is business/algorithm evaluation and code freeze, not a place to defer M7 infrastructure gaps.

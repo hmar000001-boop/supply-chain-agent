@@ -57,9 +57,10 @@ public final class PostgresActionExecutionBatchStore implements ActionExecutionB
                 if (!existing.get().equals(item)) throw new SecurityException("action step receipt conflicts with committed receipt");
                 return current;
             }
-            if (current.status() == ActionExecutionBatch.BatchStatus.SUCCEEDED
-                    || current.status() == ActionExecutionBatch.BatchStatus.REJECTED
-                    || current.status() == ActionExecutionBatch.BatchStatus.FAILED) throw new IllegalStateException("terminal batch cannot accept steps");
+            if (current.status() != ActionExecutionBatch.BatchStatus.STARTED)
+                throw new IllegalStateException("only a STARTED batch can accept step receipts");
+            if (status == ActionExecutionBatch.BatchStatus.SUCCEEDED)
+                throw new IllegalArgumentException("use complete() to mark a batch SUCCEEDED after all receipts are persisted");
             if (at.isBefore(current.updatedAt())) throw new IllegalArgumentException("batch timestamp moved backwards");
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO action_execution_step(scope_id,batch_id,step_index,action_id,status,operation_id,result_reference,

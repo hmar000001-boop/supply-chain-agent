@@ -34,13 +34,20 @@ public final class PostgresMigrationRunner {
             new Migration(4, "episode_evidence_order", "db/migration/V004__episode_evidence_order.sql"),
             new Migration(5, "ordered_memory_evidence_primary_keys", "db/migration/V005__ordered_memory_evidence_primary_keys.sql"),
             new Migration(6, "planner_session_checkpoints", "db/migration/V006__planner_session_checkpoints.sql"),
-            new Migration(7, "durable_runtime_transactions_and_operations", "db/migration/V007__durable_runtime_transactions_and_operations.sql"));
+            new Migration(7, "durable_runtime_transactions_and_operations", "db/migration/V007__durable_runtime_transactions_and_operations.sql"),
+            new Migration(8, "scope_runtime_operation_and_messaging_keys", "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql"));
 
     private final DataSource dataSource;
 
     public PostgresMigrationRunner(DataSource dataSource) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
     }
+
+    /** Highest schema version understood by this binary. */
+    public static int latestSupportedVersion() { return MIGRATIONS.get(MIGRATIONS.size() - 1).version(); }
+
+    /** Number of ordered migrations bundled with this binary. */
+    public static int supportedMigrationCount() { return MIGRATIONS.size(); }
 
     public MigrationResult migrate() {
         try (Connection connection = dataSource.getConnection()) {
@@ -65,7 +72,7 @@ public final class PostgresMigrationRunner {
                     apply(connection, migration, checksum);
                     applied++;
                 }
-                return new MigrationResult(MIGRATIONS.size(), applied, skipped);
+                return new MigrationResult(supportedMigrationCount(), applied, skipped);
             } finally {
                 releaseLock(connection);
             }
@@ -106,7 +113,7 @@ public final class PostgresMigrationRunner {
     }
 
     private static void rejectNewerSchema(Connection connection) throws SQLException {
-        int latestSupported = MIGRATIONS.get(MIGRATIONS.size() - 1).version();
+        int latestSupported = latestSupportedVersion();
         try (Statement statement = connection.createStatement();
              ResultSet row = statement.executeQuery("SELECT COALESCE(MAX(version), 0) FROM agent_schema_history")) {
             if (row.next() && row.getInt(1) > latestSupported) {

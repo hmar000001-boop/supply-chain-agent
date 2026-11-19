@@ -15,6 +15,14 @@ if [[ "$PGRESTORE_TARGET_CONFIRM" != "$PGDATABASE" ]]; then
   echo "Refusing restore: PGRESTORE_TARGET_CONFIRM does not match PGDATABASE" >&2
   exit 65
 fi
+# Fail closed if the nominated restore database is not empty. This intentionally checks
+# user relations only; system catalogs and installed extensions are not treated as payload.
+USER_RELATIONS="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
+  --command "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND c.relkind IN ('r','p','v','m','S','f')")"
+if [[ "$USER_RELATIONS" != "0" ]]; then
+  echo "Refusing restore: target database $PGDATABASE contains $USER_RELATIONS user relations" >&2
+  exit 66
+fi
 BACKUP="$1"
 [[ -r "$BACKUP" ]] || { echo "Backup file is not readable: $BACKUP" >&2; exit 66; }
 if [[ -r "${BACKUP}.sha256" ]]; then
@@ -25,10 +33,20 @@ pg_restore --list "$BACKUP" >/dev/null
 pg_restore --exit-on-error --single-transaction --no-owner --no-acl --dbname "$PGDATABASE" "$BACKUP"
 SCHEMA_VERSION="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
   --command "SELECT COALESCE(MAX(version),0) FROM agent_schema_history")"
-if [[ "$SCHEMA_VERSION" != "7" ]]; then
-  echo "Restore verification failed: expected schema version 7, found $SCHEMA_VERSION" >&2
+if [[ "$SCHEMA_VERSION" != "8" ]]; then
+  echo "Restore verification failed: expected schema version 8, found $SCHEMA_VERSION" >&2
   exit 67
 fi
-psql --no-psqlrc --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
-  --command "SELECT to_regclass('public.action_operation_ledger') AS operation_ledger, to_regclass('public.outbox_message') AS outbox_message, to_regclass('public.planner_session') AS planner_session"
-echo "Restore verification passed for schema version $SCHEMA_VERSION on isolated target $PGDATABASE"
+MISSING_RUNTIME_TABLES="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
+  --command "SELECT COUNT(*) FROM (VALUES ('action_operation_ledger'),('outbox_message'),('inbox_message'),('planner_session'),('runtime_approval'),('action_execution_batch')) AS required(name) WHERE to_regclass('public.' || name) IS NULL")"
+if [[ "$MISSING_RUNTIME_TABLES" != "0" ]]; then
+  echo "Restore verification failed: $MISSING_RUNTIME_TABLES required M7 runtime tables are missing" >&2
+  exit 68
+fi
+MIGRATION_HISTORY_OK="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
+  --command "SELECT CASE WHEN COUNT(*)=8 AND COUNT(DISTINCT version)=8 AND MIN(version)=1 AND MAX(version)=8 THEN 'ok' ELSE 'bad' END FROM agent_schema_history")"
+if [[ "$MIGRATION_HISTORY_OK" != "ok" ]]; then
+  echo "Restore verification failed: migration history is incomplete or non-contiguous" >&2
+  exit 69
+fi
+echo "Restore verification passed for schema version $SCHEMA_VERSION and required runtime tables on isolated target $PGDATABASE"

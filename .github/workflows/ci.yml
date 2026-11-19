@@ -57,6 +57,27 @@ jobs:
         id: build
         run: ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 
+      - name: Verify PostgreSQL backup and isolated restore
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null || ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes postgresql-client-16
+          fi
+          BACKUP_PATH="$RUNNER_TEMP/supply-chain-agent-m7-backup.dump"
+          RESTORE_DATABASE="sca_m7_restore_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          ./scripts/postgres/backup.sh "$BACKUP_PATH"
+          createdb --maintenance-db=postgres "$RESTORE_DATABASE"
+          cleanup() {
+            dropdb --if-exists --maintenance-db=postgres "$RESTORE_DATABASE" || true
+            rm -f "$BACKUP_PATH" "$BACKUP_PATH.sha256"
+          }
+          trap cleanup EXIT
+          PGDATABASE="$RESTORE_DATABASE" PGRESTORE_TARGET_CONFIRM="$RESTORE_DATABASE" \
+            ./scripts/postgres/restore-verify.sh "$BACKUP_PATH"
+
       - name: Capture resolved dependency tree
         if: always() && steps.build.outcome == 'success'
         run: ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt

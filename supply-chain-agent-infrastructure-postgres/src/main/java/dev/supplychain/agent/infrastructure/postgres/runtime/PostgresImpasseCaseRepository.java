@@ -26,6 +26,7 @@ public final class PostgresImpasseCaseRepository implements ImpasseCaseRepositor
     }
     @Override public void saveNew(ImpasseResolutionCase value) {
         Objects.requireNonNull(value, "value");
+        if (scopeId != null && !scopeId.equals(value.scopeId().value())) throw new SecurityException("B2 case belongs to another persistence scope");
         String payload = PostgresJsonArtifactRepository.validJson(codec.encode(value));
         try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO runtime_artifact(scope_id,artifact_kind,artifact_id,execution_id,owner_id,owner_version,
@@ -52,7 +53,7 @@ public final class PostgresImpasseCaseRepository implements ImpasseCaseRepositor
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) return Optional.empty();
                 String json = rows.getString(1); ImpasseResolutionCase value = codec.decode(json);
-                verify(value, key, rows.getString(2), rows.getString(3), rows.getString(4), rows.getLong(5), json);
+                verify(value, key, rows.getString(2), rows.getString(3), rows.getString(4), rows.getLong(5));
                 if (rows.next()) throw new SecurityException("B2 case ID is ambiguous across scopes; use a scope-specific repository");
                 return Optional.of(value);
             }
@@ -83,11 +84,12 @@ public final class PostgresImpasseCaseRepository implements ImpasseCaseRepositor
             } catch (SQLException | RuntimeException failure) { try { connection.rollback(); } catch (SQLException ex) { failure.addSuppressed(ex); } throw failure; }
         } catch (SQLException ex) { throw new PostgresPersistenceException("PostgreSQL B2 case CAS failed", ex); }
     }
-    private static void verify(ImpasseResolutionCase v, String id, String fp, String execution, String objective,
-                               long memoryVersion, String payload) {
+    private void verify(ImpasseResolutionCase v, String id, String fp, String execution, String objective,
+                        long memoryVersion) {
+        String canonicalPayload = PostgresJsonArtifactRepository.validJson(codec.encode(v));
         if (!id.equals(v.id()) || !execution.equals(v.executionId()) || !objective.equals(v.objectiveFingerprint())
                 || memoryVersion != v.version()
-                || !fp.trim().equals(PostgresJsonArtifactRepository.sha256(payload))) {
+                || !fp.trim().equals(PostgresJsonArtifactRepository.sha256(canonicalPayload))) {
             throw new SecurityException("B2 case payload/header mismatch");
         }
     }

@@ -1,6 +1,7 @@
 package dev.supplychain.agent.infrastructure.postgres;
 
 import com.zaxxer.hikari.HikariDataSource;
+import dev.supplychain.agent.infrastructure.postgres.migration.PostgresMigrationRunner;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -11,7 +12,7 @@ import java.util.Objects;
 
 /** Safe liveness/readiness and bounded-pool observations for deployment probes/metrics adapters. */
 public final class PostgresOperationalHealth {
-    public static final int REQUIRED_SCHEMA_VERSION = 7;
+    public static final int REQUIRED_SCHEMA_VERSION = PostgresMigrationRunner.latestSupportedVersion();
     private final DataSource dataSource;
 
     public PostgresOperationalHealth(DataSource dataSource) {
@@ -21,14 +22,23 @@ public final class PostgresOperationalHealth {
     /** Liveness is process-local; transient database outages must not create restart storms. */
     public boolean liveness() { return true; }
 
-    /** Readiness requires a reachable database and the exact migration level supported by this build. */
+    /** Readiness requires a reachable database and a complete, contiguous migration history. */
     public HealthSnapshot readiness() {
+        String query = "SELECT COUNT(*) AS migration_count,COUNT(DISTINCT version) AS distinct_count,"
+                + "COALESCE(MIN(version),0) AS minimum_version,COALESCE(MAX(version),0) AS maximum_version "
+                + "FROM agent_schema_history";
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
-             ResultSet result = statement.executeQuery("SELECT COALESCE(MAX(version),0) FROM agent_schema_history")) {
+             ResultSet result = statement.executeQuery(query)) {
             if (!result.next()) return snapshot(false, 0, "SCHEMA_QUERY_EMPTY");
-            int version = result.getInt(1);
-            if (version < REQUIRED_SCHEMA_VERSION) return snapshot(false, version, "SCHEMA_MIGRATION_REQUIRED");
+            int count = result.getInt("migration_count");
+            int distinct = result.getInt("distinct_count");
+            int minimum = result.getInt("minimum_version");
+            int version = result.getInt("maximum_version");
             if (version > REQUIRED_SCHEMA_VERSION) return snapshot(false, version, "SCHEMA_NEWER_THAN_APPLICATION");
+            if (version < REQUIRED_SCHEMA_VERSION) return snapshot(false, version, "SCHEMA_MIGRATION_REQUIRED");
+            if (minimum != 1 || count != PostgresMigrationRunner.supportedMigrationCount() || distinct != count) {
+                return snapshot(false, version, "SCHEMA_HISTORY_INCOMPLETE");
+            }
             return snapshot(true, version, "READY");
         } catch (SQLException ex) {
             return snapshot(false, 0, "DATABASE_UNAVAILABLE");

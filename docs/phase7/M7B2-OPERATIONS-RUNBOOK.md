@@ -6,8 +6,8 @@ This runbook accompanies the M7-B2 implementation patch. It documents operationa
 
 1. Provision PostgreSQL and a dedicated application role with only the privileges required by the deployment's migration and runtime policies. Keep migration privileges separate from the runtime role where the deployment requires stricter separation.
 2. Supply connection settings through the deployment secret/configuration system (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE`, `PGCONNECT_TIMEOUT`, `PGSOCKET_TIMEOUT`, and `PGAPPNAME`). Do not commit credentials. Prefer `verify-full` with correctly provisioned CA/trust configuration for production; `require` encrypts transport but does not by itself establish hostname identity.
-3. Start one or more application instances using the same migration-capable release. The migration runner obtains a PostgreSQL advisory lock, checks the installed schema version and checksums, and applies V007 transactionally. Concurrent starters serialize on that lock.
-4. Applied migrations are immutable. Do not edit V001–V007 after installation. Correct a schema defect with a new forward migration. A database schema newer than the application's supported migration version must be treated as incompatible and the application must not start against it.
+3. Start one or more application instances using the same migration-capable release. The migration runner obtains a PostgreSQL advisory lock, checks the installed schema version and checksums, and applies V007 and V008 transactionally. Concurrent starters serialize on that lock.
+4. Applied migrations are immutable. Do not edit V001–V008 after installation. Correct a schema defect with a new forward migration. A database schema newer than the application's supported migration version must be treated as incompatible and the application must not start against it.
 5. Before rollback of application binaries, verify that the older binary supports the already-applied schema. This release does not provide automatic destructive DDL rollback. Database rollback is a restore/PITR operation and must be planned separately.
 
 ## Connection pool and lifecycle
@@ -37,8 +37,8 @@ The script requires `PGHOST`, `PGDATABASE`, `PGUSER` and `PGPASSWORD`, creates a
 The repository provides `scripts/postgres/restore-verify.sh <backup.dump>`.
 
 1. Provision a new, empty, isolated restore target. Never point this script at production or a non-empty database.
-2. Set `PGDATABASE` to that target and set `PGRESTORE_TARGET_CONFIRM` to exactly the same database name. The script refuses to proceed if they differ.
-3. Provide the normal PostgreSQL connection environment and execute the script with a readable backup file. It checks the checksum sidecar when present, validates the dump catalog, restores in one transaction, and checks for schema version 7 plus representative runtime tables.
+2. Set `PGDATABASE` to that target and set `PGRESTORE_TARGET_CONFIRM` to exactly the same database name. The script refuses to proceed if they differ or if the target contains user relations.
+3. Provide the normal PostgreSQL connection environment and execute the script with a readable backup file. It checks the checksum sidecar when present, validates the dump catalog, restores in one transaction, and checks that the target is empty before restore, verifies schema version 8 and confirms representative runtime tables.
 4. Record restore duration, recovered schema version, backup timestamp, and any application-level smoke results in the deployment's recovery record. The script's schema/table check is a restore smoke check, not a full business-data integrity proof.
 
 For PITR, restore the base backup and WAL to a separate recovery instance using the PostgreSQL-version-specific documented procedure. Validate the target before redirecting application traffic.
@@ -53,4 +53,4 @@ For PITR, restore the base backup and WAL to a separate recovery instance using 
 
 ## Acceptance boundary
 
-This delivery intentionally contains no M7-B2 unit or integration tests and no build, migration, backup, restore, concurrency, crash, failure-injection or CI execution evidence. Those checks are the next acceptance step. Do not mark M7 complete until the closure matrix in `M7-STATUS.md` has test names and actual passing evidence for each applicable row.
+The M7-B2 integration tests are opt-in through `-Dphase0.postgres=true` and must run against the CI PostgreSQL service. Local implementation does not prove live PostgreSQL behavior. Do not mark M7 complete until the full CI job, migration upgrade path, backup/restore smoke, crash/failure-injection and multi-instance concurrency tests have actual passing evidence. Legacy unscoped records must be explicitly reconciled before any production tenant is allowed to reuse the same idempotency keys or message identities.

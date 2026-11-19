@@ -79,10 +79,11 @@ public final class PostgresObservationStore implements ObservationStore {
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) return Optional.empty();
                 String json = rows.getString(1);
-                if (!PostgresJsonArtifactRepository.sha256(json).equals(rows.getString(2).trim())) {
+                CognitiveCycleOperations.ExternalObservation observation = codec.decode(json);
+                String canonical = PostgresJsonArtifactRepository.validJson(codec.encode(observation));
+                if (!PostgresJsonArtifactRepository.sha256(canonical).equals(rows.getString(2).trim())) {
                     throw new SecurityException("persisted observation payload fingerprint mismatch");
                 }
-                CognitiveCycleOperations.ExternalObservation observation = codec.decode(json);
                 if (!id.equals(observation.observationId())) throw new SecurityException("observation payload identity mismatch");
                 return Optional.of(observation);
             }

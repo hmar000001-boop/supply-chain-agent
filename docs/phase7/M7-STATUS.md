@@ -27,7 +27,7 @@ The application remains a modular Java monolith. PostgreSQL infrastructure imple
 - `PostgresProceduralMemoryRepository` implements stage, lookup, append-only version history, draft lifecycle CAS, validation, activation, retirement of the previous active version and historical active-at-time retrieval.
 - Procedure version creation and activation are serialized by a transaction-scoped advisory lock per scope/procedure key; database uniqueness protects one active version.
 - `PostgresPlannerSessionStore` persists planner identity, request/config fingerprints, revisions, statuses, resource counters, elapsed duration, ordered ToT frontier and ordered MCTS tree nodes. Header and child rows save atomically; loads use repeatable-read isolation.
-- Migration V006 adds planner-session checkpoint tables; six ordered migrations are now installed by the migration runner.
+- Migration V006 adds planner-session checkpoint tables; at B1 acceptance, V006 was the sixth and latest installed migration. M7-B2 subsequently adds forward-only V007 and V008, bringing the supported schema to eight ordered migrations.
 - `PostgresMemoryPersistence` now exposes all four CoALA repositories. `PostgresAgentPersistence` composes them and planner sessions over one DataSource.
 - First M7-B1 CI triage on 2026-11-18 corrected the PostgreSQL untyped-null overlap predicate and the procedural historical-lookup test expectation. The user subsequently confirmed that the complete M7-B1 CI rerun is green; B1 is accepted.
 
@@ -37,7 +37,7 @@ M7-B1 does not persist complete `PlanningRequest`/`PlanningResult` artifacts or 
 
 ### M7-B2 — Durable runtime, transactions, recovery and production operations
 
-**Implementation delivery: prepared against the user-supplied `supply-chain-agent-main (2).zip` baseline.** The patch adds the runtime persistence and operational components listed below. Per the user's explicit instruction, no M7-B2 unit/integration tests, Maven build, or verification run is included in this delivery. The closure matrix remains pending until a separate test/acceptance pass.
+**Implementation: delivered as a change-only patch against the user-supplied `supply-chain-agent-main (2).zip` baseline.** The 2026-11-19 CI run found two stale migration-count assertions left over from B1; both have been changed to use the migration runner's supported count. The B2 patch now includes opt-in PostgreSQL integration coverage and a CI backup/restore smoke step. The current environment has no Maven distribution or PostgreSQL service, so no local build or live database execution is claimed; the revised GitHub Actions run remains the acceptance gate.
 
 Implemented in the M7-B2 patch:
 
@@ -62,8 +62,8 @@ Implemented in the M7-B2 patch:
 - Transactional inbox/outbox primitives with payload deduplication, leases, bounded exponential retry and dead-letter state. Delivery is at-least-once; consumers must remain idempotent.
 - Production LangGraph4j PostgreSQL saver factory with stable per-scope/per-execution thread identity. Checkpoints remain separate from business-operation records.
 - Bounded HikariCP pool settings/factory, schema-aware liveness/readiness, privacy-safe aggregate runtime metrics, and a single-DataSource composition entry point.
-- V007 forward migration and PostgreSQL custom-format backup plus isolated-target restore-verification scripts.
-- Operational instructions are in `docs/phase7/M7B2-OPERATIONS-RUNBOOK.md`.
+- V007 creates the runtime persistence tables. V008 adds tenant/scope keys to the M3 operation ledger and inbox/outbox without editing already-applied migrations; pre-scope rows are isolated in `__legacy_unscoped__`. PostgreSQL custom-format backup and isolated-target restore-verification scripts are included.
+- Operational instructions are in `docs/phase7/M7B2-OPERATIONS-RUNBOOK.md`. The CI workflow executes a backup, creates an isolated restore database, validates required M7 tables and the complete eight-migration history, and removes the temporary database.
 
 ## M7 closure matrix — must be all green after M7-B2
 
@@ -74,22 +74,22 @@ Implemented in the M7-B2 patch:
 | Semantic memory | M7-B1 | Bitemporal queries, overlapping-key conflict, atomic segment replacement |
 | Procedural memory | M7-B1 | Append-only versions, validation/activation, historical lookup, CAS |
 | Planner sessions | M7-B1 | ToT frontier/MCTS tree round-trip, fingerprints, CAS, two-instance race |
-| Planning artifacts | M7-B2 | Typed/versioned round-trip, ownership and stale-session rejection |
-| Authorized plans | M7-B2 | Exact approval/candidate/intention binding and expiry/revocation |
-| M6 execution batches/receipts | M7-B2 | Idempotent per-step receipt and crash recovery |
-| B2 child artifacts/step receipts | M7-B2 | Resume at last committed step without repeating completed step |
-| Observations | M7-B2 | Durable provenance, identity, verification and conflict handling |
-| Human approvals | M7-B2 | Auditable principal/decision/scope, expiry and resume revalidation |
-| B4 intention state | M7-B2 | Durable version lifecycle and objective fingerprint invariance |
-| M3 operation ledger | M7-B2 | Atomic claims, payload conflict, lease/fencing, unknown-outcome reconciliation |
-| Inbox/outbox | M7-B2 | Atomic outbox, deduped inbox, retry, dead-letter and idempotent consumer |
-| LangGraph4j checkpoint | M7-B2 | PostgreSQL saver factory; restart/resume with separate business ledgers |
+| Planning artifacts | M7-B2 | `PostgresM7B2CoreIntegrationTest.planningArtifactsAuthorizedPlansAndExecutionReceiptsSurviveRepositoryReplacement`; typed/versioned round-trip, scope/ownership and session fingerprint checks |
+| Authorized plans | M7-B2 | `PostgresM7B2CoreIntegrationTest.approvalsAreBoundToExactScopeAndDecisionAndCannotBeReadThroughAnotherTenantStore`; exact candidate/intention binding, expiry, stale revision and revocation |
+| M6 execution batches/receipts | M7-B2 | `PostgresM7B2CoreIntegrationTest.planningArtifactsAuthorizedPlansAndExecutionReceiptsSurviveRepositoryReplacement`; idempotent per-step receipt, terminal-state protection and reload |
+| B2 child artifacts/step receipts | M7-B2 | `PostgresM7B2CoreIntegrationTest.childStepReceiptsResumeCompletedWorkAndFenceExpiredClaims` and `.childArtifactsAndImpasseCasesSurviveRepositoryReplacementAndCas`; resume at last committed step, fencing and immutable child result |
+| Observations | M7-B2 | `PostgresM7B2CoreIntegrationTest.observationsVerifyTypedContentAfterJsonbCanonicalization`; durable provenance, identity, JSONB-safe fingerprint verification and conflict handling |
+| Human approvals | M7-B2 | `PostgresM7B2CoreIntegrationTest.approvalsAreBoundToExactScopeAndDecisionAndCannotBeReadThroughAnotherTenantStore`; audit trail, expiry, denial/revocation, exact binding and revision control |
+| B4 intention state | M7-B2 | `PostgresM7B2CoreIntegrationTest.recoveryIntentionsPersistVersionHistoryAndProtectObjectiveAcrossScopeAndCas`; version history, scope guard, CAS and protected objective fingerprint |
+| M3 operation ledger | M7-B2 | `PostgresM7B2CoreIntegrationTest.m3LedgerIsScopeBoundIdempotentAndRequiresReconciliationAfterLeaseExpiry`, `.m3LedgerFailsClosedOnPreScopeIdempotencyRows`, `.concurrentM3ClaimsAcquireExactlyOneFencingLease`; atomic claims, payload conflict, fencing, positive/negative reconciliation and legacy fail-closed |
+| Inbox/outbox | M7-B2 | `PostgresM7B2CoreIntegrationTest.inboxOutboxAreTenantScopedDeduplicatedRetriedAndTransactional`; scope dedupe, canonical JSONB payload hash, rollback, retries and dead-letter |
+| LangGraph4j checkpoint | M7-B2 | `PostgresLangGraph4jSaverFactoryIntegrationTest.productionSaverFactoryUsesSharedDataSourceForPauseAndRestartResume`; production saver factory, second-saver reload and resume. OS-level process kill is not simulated by this in-process test |
 | External effect safety | M7-B2 | No blind replay; idempotency plus reconciliation/compensation contract |
-| Concurrency | M7-B2 | Competing instances and rollback/race tests |
-| Connection pool | M7-B2 | Bounded size, timeout, close/lifecycle and metrics |
-| Health/observability | M7-B2 | Liveness/readiness and safe operational metrics |
-| Backup/restore | M7-B2 | Versioned runbook and successful restore-validation procedure |
-| Migrations | M7-A + B1 + B2 | All forward migrations checksummed, serialized, repeatable; newer schema rejected |
+| Concurrency | M7-B2 | `PostgresM7B2CoreIntegrationTest.concurrentM3ClaimsAcquireExactlyOneFencingLease` plus transactional outbox rollback; true multi-process stress remains a deployment-scale acceptance test |
+| Connection pool | M7-B2 | `PostgresM7B2CoreIntegrationTest.readinessMetricsAndPoolDefaultsAreBoundedAndScopeFiltered`; bounded production defaults, failed migration closes owned pool, readiness exposes pool state |
+| Health/observability | M7-B2 | `PostgresM7B2CoreIntegrationTest.readinessMetricsAndPoolDefaultsAreBoundedAndScopeFiltered`; schema-aware readiness, process liveness and scope-filtered aggregate metrics |
+| Backup/restore | M7-B2 | `.github/workflows/ci.yml` step `Verify PostgreSQL backup and isolated restore` runs `backup.sh` and `restore-verify.sh` against a fresh database; latest successful CI run is required as evidence. PITR/WAL activation remains deployment-specific |
+| Migrations | M7-A + B1 + B2 | `PostgresMigrationRunnerParsingTest.runtimeScopeMigrationIsRegisteredAndSplitsIntoExpectedStatements`; eight ordered forward migrations, checksum guard, advisory lock, rerun behavior and newer-schema rejection |
 | CI | all | Clean Java 21 Maven reactor with `-Dphase0.postgres=true`, all prior regressions and failure tests green |
 
 ## M7 final acceptance command
@@ -98,11 +98,11 @@ Implemented in the M7-B2 patch:
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-M7-B2 must update this document's matrix with actual test names and recorded evidence. M7 is not complete if a row is merely documented but lacks its implementation or acceptance proof. If a live external ERP/IAM/carrier endpoint is unavailable, the application must provide a strict port, a deterministic contract test adapter and deployment-specific acceptance criteria; it must not invent a production endpoint or claim a live integration.
+The named tests and CI restore step provide the acceptance hooks for this matrix. Their presence is not a passing result: record the actual GitHub Actions run and restore-smoke output before marking M7 complete. M7 is not complete if a row is merely documented but lacks its implementation or acceptance proof. If a live external ERP/IAM/carrier endpoint is unavailable, the application must provide a strict port, a deterministic contract test adapter and deployment-specific acceptance criteria; it must not invent a production endpoint or claim a live integration.
 
 ## Boundary with M8 and the book
 
 M8 owns business/algorithm evaluation, mechanism ablations, broader disruption corpus, quality/performance benchmarking and application freeze. M8 is not a substitute for the infrastructure closure criteria above. Chapters 19 and 20 remain unwritten until M8 freezes the application.
 
 
-**M7-B2 test/acceptance status:** intentionally not executed or included in this code-only delivery, per user instruction. No statement is made that compilation, migration application, PostgreSQL integration, failure injection, concurrency, backup/restore, or CI has passed. M7 is not yet declared complete.
+**M7-B2 test/acceptance status (2026-11-19):** PostgreSQL integration tests and the CI backup/restore smoke are now included. The earlier CI failure is corrected in source by replacing two hardcoded migration count assertions with `PostgresMigrationRunner.supportedMigrationCount()`. No local Maven build or live PostgreSQL run was possible in the authoring environment. The corrected GitHub Actions run is pending; M7 is not yet declared complete. A production deployment must additionally configure and test WAL archiving/PITR, reconcile pre-scope legacy ledger/inbox/outbox records, and run the multi-instance stress suite against its actual pool/connection budget.

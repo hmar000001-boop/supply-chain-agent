@@ -33,10 +33,12 @@ public final class PostgresRuntimePersistence {
     private final PostgresActionExecutionLedger actionLedger;
     private final PostgresMessagingStore messaging;
     private final PostgresRuntimeMetrics metrics;
+    private final String scopeId;
 
     public PostgresRuntimePersistence(DataSource dataSource, String scopeId, PostgresRuntimeCodecs codecs) {
         Objects.requireNonNull(dataSource, "dataSource");
         String scope = required(scopeId);
+        this.scopeId = scope;
         Objects.requireNonNull(codecs, "codecs");
         this.planningArtifacts = new PostgresPlanningArtifactStore(dataSource, scope,
                 codecs.planningArtifacts(), new dev.supplychain.agent.infrastructure.postgres.planning.PostgresPlannerSessionStore(dataSource));
@@ -48,10 +50,10 @@ public final class PostgresRuntimePersistence {
         this.observations = new PostgresObservationStore(dataSource, scope, codecs.observations(), codecs.observationProvenance());
         this.recoveryIntentions = new PostgresRecoveryIntentionRepository(dataSource, scope, codecs.recoveryIntentions());
         this.impasseCases = new PostgresImpasseCaseRepository(dataSource, scope, codecs.impasseCases());
-        this.approvals = new PostgresApprovalStore(dataSource);
-        this.actionLedger = new PostgresActionExecutionLedger(dataSource, codecs.actionReceipts(),
+        this.approvals = new PostgresApprovalStore(dataSource, scope);
+        this.actionLedger = new PostgresActionExecutionLedger(dataSource, scope, codecs.actionReceipts(),
                 codecs.actionFailures(), codecs.operationLease());
-        this.messaging = new PostgresMessagingStore(dataSource);
+        this.messaging = new PostgresMessagingStore(dataSource, scope);
         this.metrics = new PostgresRuntimeMetrics(dataSource, scope);
     }
 
@@ -73,7 +75,8 @@ public final class PostgresRuntimePersistence {
     public void requireCurrentApproval(String scopeId, String approvalId,
                                        dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleAuthorityPort.ApprovalBinding binding,
                                        Instant now) {
-        if (!approvals.isCurrentlyValid(scopeId, approvalId, binding, now)) {
+        if (!this.scopeId.equals(required(scopeId))) throw new SecurityException("approval revalidation attempted outside runtime scope");
+        if (!approvals.isCurrentlyValid(this.scopeId, approvalId, binding, now)) {
             throw new SecurityException("no currently valid approval matches the exact candidate/intention/action-plan binding");
         }
     }

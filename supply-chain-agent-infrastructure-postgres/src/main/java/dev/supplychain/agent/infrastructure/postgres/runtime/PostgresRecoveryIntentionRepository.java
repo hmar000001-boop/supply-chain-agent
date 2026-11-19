@@ -29,8 +29,9 @@ public final class PostgresRecoveryIntentionRepository implements RecoveryIntent
 
     @Override public void saveNew(RecoveryIntention intention) {
         Objects.requireNonNull(intention, "intention");
-        String payload = PostgresJsonArtifactRepository.validJson(codec.encode(intention));
         String scope = intention.scopeId().value();
+        if (scopeId != null && !scopeId.equals(scope)) throw new SecurityException("recovery intention belongs to another persistence scope");
+        String payload = PostgresJsonArtifactRepository.validJson(codec.encode(intention));
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
