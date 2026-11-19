@@ -16,15 +16,15 @@
 | Delivery | Responsibility | Status |
 |---|---|---|
 | M8-B0 | Baseline reconstruction, architecture audit, test inventory, evaluation protocol and scenario register | **Complete** |
-| M8-B1 | 25-row corpus (11 request + 14 failure/adversarial fixtures), five proposal-only comparators, JSONL experiment harness with pruning/backtracking/resource counters, advancing fixture-clock budget enforcement and full-graph composition probe | **Implementation delivered; CI acceptance pending** |
-| M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router | Not started |
+| M8-B1 | 25-row corpus (11 request + 14 failure/adversarial fixtures), five proposal-only comparators, JSONL experiment harness with pruning/backtracking/resource counters, advancing fixture-clock budget enforcement and full-graph composition probe | **Accepted — user confirmed CI green** |
+| M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Implementation delivered; CI pending** |
 | M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments | Not started |
 | M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | Not started |
 | M8-B5 | Analyze results, perform final quality/security/architecture review and correct proven defects | Not started |
 | M8-B6 | Final application freeze and full repository checkpoint | Not started |
 | M8-B7 | Approve Chapter 19/20 outlines, then write against the frozen code | Not started |
 
-## M8-B1 implementation delivered — CI pending
+## M8-B1 implementation delivered and accepted — CI green
 
 - Added `supply-chain-agent-evaluation` scenario catalog and resource register `M8-B1-v1`: 11 request-family rows and 14 failure/adversarial/recovery/concurrency rows.
 - Added 25 independent immutable planning fixtures with stable request/world/corpus fingerprints, fixed per-scenario seeds, named budget profiles and explicit effect boundaries.
@@ -34,7 +34,18 @@
 - Added a moving fixture clock offset to the static corpus timestamp so hard deadlines and max-runtime guards continue to advance; the greedy comparator explicitly checks those limits.
 - Added `FullGraphEvaluationHost.compileFull(Ports)` using the actual application `CognitiveCycleApplicationGraph.compileFull(...)` entry point, explicit trusted adapter contracts, shared in-memory working/episodic repositories and no registered action handlers. Its default composition probe uses fail-closed ports and only verifies graph compilation.
 - Added M8-B1 evaluation architecture documentation and tests. The 25 fixtures are planner inputs, not 25 completed lifecycle workflows; approval, external timeout, duplicate delivery, restart and concurrency workflows remain M8-B4.
-- Maven was not executable in the authoring environment because Maven 3.9.16 was not cached and the wrapper could not resolve the Apache download host. Java 21 is present. GitHub Actions `clean verify` is the acceptance gate; no local green build is claimed.
+- Maven/CI acceptance was confirmed green by the user after the `GreedyDeterministicComparator` scope fix and regression assertion.
+
+## M8-B2 implementation delivered — CI pending
+
+- Added strict matched-matrix checks for the full 25-fixture × 5-comparator result matrix, including fixture/request/seed/budget parity, no duplicate or missing planner rows, planner-only boundary, and execution-order permutation.
+- Added rotating comparator execution order across scenarios to reduce systematic order effects.
+- Added overall and stratified aggregates by budget profile, scenario kind and fixture profile. Feasibility, best feasible quality, fulfillment, modeled cost/risk/robustness, candidate constraint violations, approval/deadline facts, termination reasons and resource-unit totals are separately reported.
+- Added all ten scenario-paired procedure comparisons with feasibility-first win/tie/loss rules, paired mean differences and deterministic scenario-level bootstrap percentile intervals (2,000 resamples).
+- Extended raw JSONL with compact candidate-evaluation detail and structured search trace nodes; no private reasoning or free-text rationale is recorded.
+- Added logical replay verification that excludes wall-clock runtime and execution-order position, and reports mismatched scenario/procedure IDs.
+- Added `scripts/run-m8-comparison.sh` to execute full reactor `clean install` with PostgreSQL phase-zero tests, then write raw, comparison and determinism JSONL artifacts.
+- No production planner, routing, simulator, action, authority, PostgreSQL or graph behavior changes. Tests were not executed during patch authoring at the user's direction; GitHub Actions is the acceptance gate.
 
 ## M8-B0 acceptance
 

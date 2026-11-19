@@ -11,12 +11,14 @@
 | M8-D007 | LangGraph4j/LangChain4j are part of the accepted M6 implementation despite an earlier draft's framework-free non-goal; the M6 decision supersedes that draft | User accepted M6 and its CI; actual POM/runtime composition | Accepted; document explicitly in chapters |
 | M8-D008 | Use deterministic simulator and strict test adapters for the pilot; do not invent live ERP/WMS/carrier/IAM integrations | Accepted lifecycle/authority ports and M6 status | Accepted |
 | M8-D009 | Add a deterministic/greedy planning comparator as an evaluation-only baseline before algorithm comparison; do not insert it into production routing unless evaluation justifies it | `GreedyDeterministicComparator`; shared simulator and hard-constraint evaluator | Implemented in M8-B1; comparative results M8-B2 |
-| M8-D010 | Lock scenario fixtures, evaluator/scoring version, seeds and budgets before comparative runs | `M8-B1-v1` register, fixture/request/world/evaluator/planner fingerprints and named budget profiles | Implemented for M8-B1 baseline; CI acceptance pending |
+| M8-D010 | Lock scenario fixtures, evaluator/scoring version, seeds and budgets before comparative runs | `M8-B1-v1` register, fixture/request/world/evaluator/planner fingerprints and named budget profiles | Implemented for M8-B1 baseline; user-confirmed CI green |
 | M8-D011 | Zero hard constraint violations, unauthorized dispatches, stale-approval dispatches and duplicate external effects are hard test gates; comparative performance thresholds are set before M8-B2 runs | Part III security and testing requirements | Required |
 | M8-D012 | Do not claim learning or mechanism contribution from presence/logging alone; require outcome attribution and a controlled ablation | Part III B1/B3/Fan & Lan traceability | Required |
 | M8-D013 | Chapters 19 and 20 cannot be drafted until M8-B6 freezes the application and the user approves their detailed outlines | Book chapter-writing gate | Required |
 
 | M8-D014 | Keep planner-only comparisons separate from full lifecycle graph execution; compile the complete graph with explicit ports, but fail closed by default and do not register external action handlers | `FullGraphEvaluationHost`; `CognitiveCycleApplicationGraph.compileFull(...)` | Accepted for M8-B1; lifecycle execution M8-B4 |
+| M8-D015 | Compare paired procedures scenario-by-scenario; determine wins feasibility-first and calculate score deltas only where both procedures return a feasible candidate | `MatchedComparisonAnalyzer`; scenario-level resampling with fixed seed material | Implemented in M8-B2; CI pending |
+| M8-D016 | Keep measured runtime descriptive; do not rank planner quality by elapsed wall-clock time from this finite local corpus | M8-B2 execution-order rotation and comparison protocol | Accepted for M8-B2 |
 
 ## Explicit non-decisions
 

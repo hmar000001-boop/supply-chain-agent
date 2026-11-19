@@ -27,7 +27,8 @@ public final class EvaluationPlannerFactory {
             "tot=beamWidth:4;branchingFactor:4;checkpointEveryDepth:1;deterministic-ranker:v1",
             "mcts=exploration:1.41;rolloutDepth:3;checkpointEveryIterations:1;seed=per-scenario",
             "greedy=one-step-best-feasible;action-id-tie-break;common-deterministic-evaluator-v1",
-            "hybrid=DefaultPlannerSelectionPolicy;complexity-budget-thresholds-v1");
+            "hybrid=DefaultPlannerSelectionPolicy;complexity-budget-thresholds-v1",
+            "comparison=rotating-execution-order-by-scenario-v1;matched-analysis-v1;paired-bootstrap-2000-v1");
     private final ScenarioFixtureFactory fixtures;
 
     public EvaluationPlannerFactory(ScenarioFixtureFactory fixtures) {

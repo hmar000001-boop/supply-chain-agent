@@ -33,8 +33,15 @@ public final class M8EvaluationRunner {
         List<ScenarioFixture> fixtures = fixtureFactory.createAll();
         List<String> plannerIds = plannerFactory.plannerIds();
         var results = new ArrayList<EvaluationRunRecord>(fixtures.size() * plannerIds.size());
-        for (ScenarioFixture fixture : fixtures) {
-            for (String plannerId : plannerIds) results.add(runOne(fixture, plannerId));
+        for (int scenarioIndex = 0; scenarioIndex < fixtures.size(); scenarioIndex++) {
+            ScenarioFixture fixture = fixtures.get(scenarioIndex);
+            // Rotate execution order per fixture to avoid systematically giving one comparator
+            // a warm JVM/cache or a more favorable position in the process timeline.
+            int rotation = scenarioIndex % plannerIds.size();
+            for (int orderIndex = 0; orderIndex < plannerIds.size(); orderIndex++) {
+                String plannerId = plannerIds.get((orderIndex + rotation) % plannerIds.size());
+                results.add(runOne(fixture, plannerId, scenarioIndex, orderIndex));
+            }
         }
         String corpusFingerprint = fingerprint(fixtures.stream()
                 .map(value -> value.definition().scenarioId() + "|" + value.fixtureFingerprint())
@@ -43,22 +50,22 @@ public final class M8EvaluationRunner {
                 ScenarioFixtureFactory.WORLD_MODEL_FINGERPRINT, ScenarioFixtureFactory.EVALUATOR_FINGERPRINT,
                 plannerFactory.configurationFingerprint(), plannerIds, fixtures.size(), results.size(), fixtures.stream().map(f -> f.definition().budgetProfile()).distinct().sorted().toList(),
                 "FIXED_PER_SCENARIO_SEED_FROM_M8_SCENARIO_REGISTER", ScenarioFixtureFactory.FIXTURE_AS_OF,
-                "DETERMINISTIC_PLANNER_ONLY_NO_EXTERNAL_EFFECTS;MOVING_FIXTURE_CLOCK;HARD_DEADLINE_ENFORCED");
+                "DETERMINISTIC_PLANNER_ONLY_NO_EXTERNAL_EFFECTS;MOVING_FIXTURE_CLOCK;HARD_DEADLINE_ENFORCED;ROTATING_COMPARATOR_ORDER");
         return new EvaluationBatch(manifest, results);
     }
 
     public EvaluationRunRecord runOne(String scenarioId, String plannerId) {
-        return runOne(fixtureFactory.create(scenarioId), plannerId);
+        return runOne(fixtureFactory.create(scenarioId), plannerId, 0, 0);
     }
 
     public List<String> plannerIds() { return plannerFactory.plannerIds(); }
 
-    private EvaluationRunRecord runOne(ScenarioFixture fixture, String plannerId) {
+    private EvaluationRunRecord runOne(ScenarioFixture fixture, String plannerId, int scenarioOrderIndex, int executionOrderIndex) {
         EvaluationPlanner planner = plannerFactory.create(fixture, plannerId);
         long started = System.nanoTime();
         var result = planner.plan(fixture.planningRequest());
         long elapsed = Math.max(0L, System.nanoTime() - started);
-        return EvaluationRunRecord.from(fixture, result, elapsed);
+        return EvaluationRunRecord.from(fixture, result, elapsed, scenarioOrderIndex, executionOrderIndex);
     }
 
     private static String fingerprint(String value) {

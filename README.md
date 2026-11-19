@@ -1,11 +1,11 @@
 
 ## Current milestone status — M8 (2026-11-19)
 
-M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 now adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe. Its Maven/CI acceptance is pending.
+M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched comparative analysis and remains subject to CI acceptance.
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M8 — Evaluation and application freeze (M7 accepted and frozen; M8-B0 complete; M8-B1 implementation delivered, CI acceptance pending)**
+**Current milestone: M8 — Evaluation and application freeze (M7 accepted and frozen; M8-B0 complete; M8-B1 accepted; M8-B2 implementation delivered, CI pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -161,7 +161,7 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0–M7 are accepted. The user confirmed the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract correction. M7 is closed and frozen, with no third infrastructure delivery. M8-B0 froze the accepted M7 baseline. M8-B1 delivers the 25-row scenario catalog (11 request families and 14 failure/adversarial cases), planner-only comparison harness, five comparators, moving fixture-clock budget enforcement, JSONL output and fail-closed full-graph composition probe. Its CI acceptance remains pending. M8-B2 onward will run the comparisons, perform mechanism ablations, validate full workflows and freeze the application. Chapters 19 and 20 are written only after M8-B6 and outline approval.
+M0–M7 are accepted. M8-B0 froze the accepted M7 baseline. M8-B1 delivers the 25-row scenario catalog (11 request families and 14 failure/adversarial cases), planner-only comparison harness, five comparators, moving fixture-clock budget enforcement, JSONL output and fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched analysis, stratified aggregates, ten paired comparisons, deterministic bootstrap intervals, structured candidate/trace output and logical replay verification. Its CI acceptance is pending. M8-B3 onward will run mechanism ablations, validate full workflows and freeze the application. Chapters 19 and 20 are written only after M8-B6 and outline approval.
 
 
 ## Running the M8 evaluation harness
