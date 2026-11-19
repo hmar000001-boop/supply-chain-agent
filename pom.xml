@@ -23,6 +23,7 @@
         <module>supply-chain-agent-runtime</module>
         <module>supply-chain-agent-infrastructure-postgres</module>
         <module>supply-chain-agent-app</module>
+        <module>supply-chain-agent-evaluation</module>
     </modules>
 
     <properties>

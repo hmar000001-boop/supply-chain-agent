@@ -16,18 +16,21 @@ No pilot result will be presented as proof that a historical mechanism migrated 
 
 ### 2.1 Request and failure corpus
 
-Use `M8-SCENARIO-REGISTER.csv` as the source-of-truth list. It contains exactly the ten request families in the approved Part III purpose statement, including the compound-disruption/resource-contention family, and the required failure/concurrency/recovery scenarios. Each scenario must receive a stable ID and a versioned fixture before comparative runs begin.
+The M8-B1 fixture baseline is a planner-only simulator corpus. It prepares 25 immutable request inputs and evaluates proposal generation under a shared inventory/supply-chain state model; it does **not** yet claim that every registered lifecycle fault is executed end to end. Stale approval, external unknown outcome, restart, concurrent observation, duplicate delivery, model outage, and intention lifecycle assertions remain gated for M8-B4. Scenario registration is not a passing test result.
+
+Use `M8-SCENARIO-REGISTER.csv` as the source-of-truth list. The current versioned register contains 11 request-family rows (including one compound-disruption family) and 14 failure, adversarial, concurrency, governance, recovery, restart, resource, planning, delivery and model-unavailability rows. The count is taken from the register itself; it is not inferred from the earlier narrative summary. Each scenario must receive a stable ID and a versioned fixture before comparative runs begin.
 
 A scenario fixture must record:
 
 1. scenario ID and fixture version;
-2. initial `SupplyChainSnapshot` and its canonical fingerprint;
-3. request contract, objective, hard constraints, soft preferences, deadline and authority scope;
-4. evidence items with source identity, source time, observation time, validity interval, provenance and trust classification;
-5. simulator/action configuration and the exact allowed action descriptors;
-6. expected hard invariants and acceptable terminal outcomes;
-7. deterministic random seed and procedure budget;
-8. expected approval and external-effect boundary (read-only, approval required, or no dispatch).
+2. deterministic random seed and named budget profile;
+3. initial `SupplyChainSnapshot` and its canonical fingerprint;
+4. request contract, objective, hard constraints, soft preferences, deadline and authority scope;
+5. evidence items with source identity, source time, observation time, validity interval, provenance and trust classification;
+6. simulator/action configuration and the exact allowed action descriptors;
+7. expected hard invariants and acceptable terminal outcomes;
+8. procedure budget parameters;
+9. expected approval and external-effect boundary (read-only, approval required, or no dispatch).
 
 Scenarios must be independent. A long narrative trace can be a teaching example but cannot stand in for the corpus.
 
@@ -39,7 +42,7 @@ Compare the following on matched scenario fixtures:
 |---|---|---|
 | CoT-style sequential | `SequentialReasoningPlanner` (`COT_SEQUENTIAL`) | One-path, low-branching baseline |
 | ToT-inspired bounded search | `ThoughtSearchPlanner` (`TOT_BOUNDED_SEARCH`) | Structured partial action-path branching, evaluation and pruning |
-| Deterministic/greedy heuristic | No separate planner ID exists in the accepted baseline; `DeterministicCandidateEvaluator` is a shared evaluator, not a planner | Add an explicit evaluation-only deterministic/greedy comparator in M8-B1 using the same candidate and hard-constraint contract |
+| Deterministic/greedy heuristic | `GreedyDeterministicComparator` in `supply-chain-agent-evaluation`; not registered in production `PlannerRouter` | Evaluation-only one-step greedy search using the same simulator, candidate evaluator and hard constraints |
 | RAP-inspired MCTS | `MctsSearchPlanner` (`RAP_INSPIRED_MCTS`) | Search over explicit simulator states/actions with bounded rollouts |
 | Custom hybrid | `PlannerRouter` + `DefaultPlannerSelectionPolicy` | Evaluate the initial routing thresholds and procedure selection policy |
 
@@ -60,7 +63,15 @@ For every matched comparison:
 
 The hybrid router is evaluated as a policy, not given a separate larger budget. Record why it selected a procedure and compare that choice against the strongest applicable individual baseline on the same fixture.
 
-### 2.4 Repetition and reproducibility
+### 2.4 M8-B1 fixture scope and workflow coverage
+
+The versioned M8-B1 register contains 25 rows: 11 request families and 14 failure/adversarial/recovery/concurrency scenarios. The planner-only harness runs every fixture against five comparators (125 rows per batch). This is input coverage for planning comparison, not proof that each lifecycle failure has been executed. Approval denial/expiry, unknown external outcomes, duplicate delivery, process restart, cross-execution concurrency and model-provider outages require M8-B4 lifecycle adapters and failure injection. The `MODEL_UNAVAILABLE` fixture does not invoke a model.
+
+The sequential comparator uses a deterministic structured decision provider, and the ToT comparator uses the deterministic action ranker. These are algorithm baselines with zero LLM calls; they do not compare prompt quality or a provider's chain-of-thought output. Every planner remains proposal-only.
+
+The batch manifest records a planner-configuration fingerprint in addition to corpus, world-model and evaluator fingerprints. A moving fixture clock is offset to the static fixture timestamp; it advances while the fixture's business timestamps remain fixed, so both hard deadline and max-runtime checks remain active. Runtime nanoseconds are measured observations and are not expected to be byte-identical across runs.
+
+### 2.5 Repetition and reproducibility
 
 - Deterministic simulator scenarios must reproduce the same state transitions for the same fixture and seed.
 - If a model/provider introduces nondeterminism, pin provider/model version and decoding configuration, record every request/response fingerprint, and repeat the run across a declared seed set.
@@ -100,9 +111,9 @@ For each metric, store numerator, denominator, missing/unknown count and per-sce
 |---|---|---|
 | B1 | B1 value/latency/maintenance-aware selection vs simpler retrieval/admission baseline | Relevant recall, stale-evidence rejection, decisive evidence retention, retrieval latency, context size/cost and downstream outcome attribution |
 | B2 | Typed bounded impasse/substate/typed return vs generic retry/error handling | Resolution success, parent-state integrity, child budget/deadline handling, stale result rejection, escalation and invalid-plan prevention |
-| B3 | Bounded typed workspace/broadcast/admission vs top-k/shared-context baseline | Capacity, decisive-evidence recall, distractor robustness, broadcast consumers/receipts and admission precision. Adaptive policy-update attribution is measured only if a versioned outcome-attributed update operator is implemented; otherwise mark learning as not evaluated. |
+| B3 | Bounded typed workspace/broadcast/admission vs top-k/shared-context baseline | Capacity, decisive-evidence recall, distractor robustness, broadcast consumers/receipts, admission precision and policy-update attribution |
 | B4 | Persistent intention/reconsideration vs plan-only baseline | Objective drift, method-switch correctness, stale-plan rejection, interruption/restart recovery, anti-oscillation and completion |
-| B6 | Uncertainty/resource-aware control vs fixed-budget execution | Uncertainty propagation, verification effort, budget use, safe stop, escalation and interruption/resume. The evaluation host must supply an authoritative budget owner; the current in-memory reference ledger is not itself durable or multi-instance. |
+| B6 | Uncertainty/resource-aware control vs fixed-budget execution | Uncertainty propagation, verification effort, budget use, safe stop, escalation and interruption/resume |
 
 ### 4.2 Required interaction experiments
 

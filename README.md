@@ -1,11 +1,11 @@
 
-## Current milestone status — M7 (2026-11-18)
+## Current milestone status — M8 (2026-11-19)
 
-The user confirmed M6 CI green and subsequently confirmed M7-A CI green. M6 and M7-A are accepted. M7 is being completed through exactly two further deliveries: **M7-B1** implements durable Semantic/Procedural memory and PostgreSQL-backed M5 planner-session checkpoints; **M7-B2** is the final closure delivery for every remaining M5/M6 runtime artifact, approval and action ledger, per-step receipts, transactional outbox/inbox, restart recovery/reconciliation, bounded pooling, health/metrics and backup/restore operations. M7 is complete only after M7-B1 and M7-B2 both pass the full Maven/PostgreSQL CI gate and the M7 closure matrix in `docs/phase7/M7-STATUS.md` is all green. See `docs/phase6/M6-STATUS.md` and `docs/phase7/`.
+M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 now adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe. Its Maven/CI acceptance is pending.
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M7 — PostgreSQL persistence, transactional recovery and operations (M7-A CI-accepted; M7-B1 delivered with CI correction package pending rerun; M7-B2 not yet delivered)**
+**Current milestone: M8 — Evaluation and application freeze (M7 accepted and frozen; M8-B0 complete; M8-B1 implementation delivered, CI acceptance pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -34,7 +34,8 @@ This is the reference application for Part III of *From Cognitive Architectures 
 - `supply-chain-agent-planning`: independent CoT-style sequential, ToT-inspired bounded search, and RAP-inspired domain-grounded MCTS strategies behind one planner contract; shared deterministic evaluator, explainable router, B6 budget integration and in-memory resumable planner sessions.
 - `supply-chain-agent-runtime`: LangGraph4j orchestration and LangChain4j model adapters; this is the only module that depends on model/framework APIs.
 - `supply-chain-agent-infrastructure-postgres`: PostgreSQL migrations, durable JDBC repositories and database configuration; depends inward on memory contracts, never the reverse.
-- `supply-chain-agent-app`: composition root.
+- `supply-chain-agent-app`: application composition root and complete cognitive-cycle graph assembly.
+- `supply-chain-agent-evaluation`: versioned M8 scenario catalog, deterministic simulator-backed fixtures, planner comparators, full-graph composition probe and JSONL experiment output.
 
 The domain must not depend on LangGraph4j, LangChain4j, PostgreSQL or provider classes. The simulator performs no network or database writes and does not authorize real operational actions. Graph state and graph checkpoints are not substitutes for CoALA's separate memory stores or the application's authoritative business records.
 
@@ -72,7 +73,7 @@ M2 introduces four distinct memory responsibilities:
 - **Semantic memory:** typed, provenance-controlled facts with separate valid-time and knowledge-time queries.
 - **Procedural memory:** immutable artifact references and append-only procedure versions with explicit validation and activation.
 
-The memory module is framework-neutral. `MemoryRetrievalService` provides exact deterministic retrieval and does not implement B1 activation/ranking; B1 is a separate mechanism. Graph state/checkpoints are not CoALA memory. In-memory adapters remain useful for deterministic tests. M7-A (CI-green, user-confirmed) supplies durable Working/Episodic JDBC repositories. M7-B1 adds durable Semantic/Procedural repositories. M7-B2 will complete durable runtime artifacts and operational stores; after B2's CI acceptance, all four CoALA memory types will have PostgreSQL adapters.
+The memory module is framework-neutral. `MemoryRetrievalService` provides exact deterministic retrieval and does not implement B1 activation/ranking; B1 is a separate mechanism. Graph state/checkpoints are not CoALA memory. In-memory adapters remain useful for deterministic tests. Accepted M7 supplies PostgreSQL repositories for all four CoALA memory types, planner sessions and the durable application runtime records described in `docs/phase7/M7-STATUS.md`. M7 is frozen; M8 validates application behavior without reopening that infrastructure.
 
 See [`docs/architecture/COALA-MEMORY-ARCHITECTURE.md`](docs/architecture/COALA-MEMORY-ARCHITECTURE.md), [`docs/adr/0002-coala-memory-boundaries.md`](docs/adr/0002-coala-memory-boundaries.md) and [`docs/phase2/M2-STATUS.md`](docs/phase2/M2-STATUS.md).
 
@@ -88,7 +89,7 @@ All actions use typed request/result contracts. The dispatcher checks action/inp
 
 `LangChain4jReasoningProvider` is an adapter in the runtime module. Its AI Service returns a typed assessment, has no tools, and cannot authorize or execute business actions. The current AI Service uses typed POJO parsing; provider-specific JSON Schema enforcement is not assumed unless the configured `ChatModel` supports and explicitly enables it. The adapter validates evidence citations against only the evidence references supplied by the caller. See the official [LangChain4j structured-output documentation](https://docs.langchain4j.dev/tutorials/structured-outputs/) and [AI Services documentation](https://docs.langchain4j.dev/tutorials/ai-services/).
 
-M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. The SQL-backed operation ledger, transactional outbox/inbox, production external adapters and remaining durable runtime stores are M7-B2 work. M3 exposes deterministic cross-memory lookup from M2; M4 adds B1 activation/accessibility, latency, downstream-utility and maintenance-aware selection on top of those contracts.
+M3's perception and grounding adapters are reference implementations over immutable snapshots and an in-memory simulator. They do not connect to a real ERP, WMS, supplier, carrier or procurement system. Accepted M7 adds the SQL-backed operation ledger, transactional outbox/inbox and durable runtime stores, but it does not invent production external adapters. M3 exposes deterministic cross-memory lookup from M2; M4 adds B1 activation/accessibility, latency, downstream-utility and maintenance-aware selection on top of those contracts.
 
 See [`docs/architecture/COALA-ACTION-ARCHITECTURE.md`](docs/architecture/COALA-ACTION-ARCHITECTURE.md), [`docs/adr/0003-coala-action-and-authority-boundaries.md`](docs/adr/0003-coala-action-and-authority-boundaries.md), and [`docs/phase3/M3-STATUS.md`](docs/phase3/M3-STATUS.md).
 
@@ -127,7 +128,7 @@ M6-B enforces stable scoped memory/intention identity; B2 delegated child capabi
 
 The supply-chain/domain and trusted-authority adapters remain explicit dependencies (`CognitiveCycleLifecyclePort`, `CognitiveCycleAuthorityPort`). They must provide authoritative records, M3 command translation, ERP/WMS/carrier reconciliation, human identity, durable approvals and scoped principals. No permissive adapter is invented. The repository currently has deterministic simulator and in-memory reference adapters, not a connected real ERP/WMS/supplier/carrier or enterprise identity deployment.
 
-M6-B's twelve focused lifecycle tests were supplemented by the fourteen graph tests and five M6-A integration tests. The user subsequently confirmed that the complete GitHub Actions run after M6-B is green; M6 is accepted. Its reference stores and child-step receipts are not crash-durable. M7 replaces them with transactional PostgreSQL repositories and defines restart reconciliation. M8 performs complete application evaluation and freeze. Chapters 19 and 20 remain unwritten until that freeze.
+M6-B's twelve focused lifecycle tests were supplemented by the fourteen graph tests and five M6-A integration tests. The user subsequently confirmed that the complete GitHub Actions run after M6-B is green; M6 is accepted. M7 subsequently replaced reference stores with transactional PostgreSQL repositories and defined restart reconciliation. M8 performs complete application evaluation and freeze. Chapters 19 and 20 remain unwritten until that freeze.
 
 See [`docs/architecture/COGNITIVE-CYCLE-ORCHESTRATION.md`](docs/architecture/COGNITIVE-CYCLE-ORCHESTRATION.md), [`docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md`](docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md), [`docs/architecture/COGNITIVE-CYCLE-LIFECYCLE-SERVICES.md`](docs/architecture/COGNITIVE-CYCLE-LIFECYCLE-SERVICES.md), [`docs/phase6/M6-STATUS.md`](docs/phase6/M6-STATUS.md), [`docs/phase6/M6A-STATUS.md`](docs/phase6/M6A-STATUS.md), and [`docs/phase6/M6B-STATUS.md`](docs/phase6/M6B-STATUS.md).
 ## Build and test
@@ -160,9 +161,19 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0–M6 are accepted. M7-A, M7-B1 and M7-B2 are accepted; the user confirmed the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract correction. M7 is closed, with no third infrastructure delivery. M8-B0 has frozen the accepted M7 baseline and established the architecture traceability matrix, scenario register and evaluation protocol. M8-B1 onward will evaluate multiple request families, compare decision procedures, run mechanism ablations, validate full workflows and freeze the application. Chapters 19 and 20 are written only after M8-B6 and outline approval.
+M0–M7 are accepted. The user confirmed the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract correction. M7 is closed and frozen, with no third infrastructure delivery. M8-B0 froze the accepted M7 baseline. M8-B1 delivers the 25-row scenario catalog (11 request families and 14 failure/adversarial cases), planner-only comparison harness, five comparators, moving fixture-clock budget enforcement, JSONL output and fail-closed full-graph composition probe. Its CI acceptance remains pending. M8-B2 onward will run the comparisons, perform mechanism ablations, validate full workflows and freeze the application. Chapters 19 and 20 are written only after M8-B6 and outline approval.
 
+
+## Running the M8 evaluation harness
+
+After applying the M8-B1 patch and confirming its CI run is green, generate the full planner-only baseline as JSONL:
+
+```bash
+./scripts/run-m8-evaluation.sh > m8-evaluation-results.jsonl
+```
+
+The script runs the Java 21 reactor tests/build before invoking the `M8EvaluationCli`; Maven logs go to standard error, while standard output contains the batch manifest and one result row per scenario/planner pair. Use `./scripts/run-m8-evaluation.sh --list` to list the versioned fixture IDs without running comparisons. See [`docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md`](docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md) for scope and reproducibility limits.
 
 ## M8 — Evaluation and application freeze
 
-M8-B0 freezes the M7-accepted source baseline and pre-registers the evaluation protocol. See [`docs/phase8/M8-STATUS.md`](docs/phase8/M8-STATUS.md), [`docs/phase8/M8-B0-BASELINE-AUDIT.md`](docs/phase8/M8-B0-BASELINE-AUDIT.md), and [`docs/phase8/M8-EVALUATION-PROTOCOL.md`](docs/phase8/M8-EVALUATION-PROTOCOL.md). M8 must demonstrate multi-request behavior, compare CoT-style, ToT-inspired, deterministic/greedy and RAP-inspired MCTS procedures, measure B1/B2/B3/B4/B6 contributions, and freeze the application before Chapters 19 and 20 are written.
+M8-B0 freezes the M7-accepted source baseline and pre-registers the evaluation protocol. M8-B1 builds versioned simulator-backed fixtures and a planner-only harness for CoT-style sequential, ToT-inspired bounded search, deterministic/greedy, RAP-inspired MCTS and the hybrid router. The actual lifecycle workflows and failure injection remain M8-B4; the planner-only corpus must not be confused with end-to-end coverage. See [`docs/phase8/M8-STATUS.md`](docs/phase8/M8-STATUS.md), [`docs/phase8/M8-B0-BASELINE-AUDIT.md`](docs/phase8/M8-B0-BASELINE-AUDIT.md), [`docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md`](docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md), and [`docs/phase8/M8-EVALUATION-PROTOCOL.md`](docs/phase8/M8-EVALUATION-PROTOCOL.md).
