@@ -23,6 +23,8 @@ class GreedyDeterministicComparatorTest {
 
         assertEquals(GreedyDeterministicComparator.ID, result.plannerId());
         assertFalse(result.candidates().isEmpty());
+        assertEquals(2, result.candidates().getFirst().actions().size(),
+                "REQ-01 requires two sequential reservations; the committed evaluation must follow the final state");
         assertTrue(result.candidates().stream().allMatch(c -> c.evaluation().feasible()));
         assertTrue(result.explanation().contains("No execution or dispatch"));
     }

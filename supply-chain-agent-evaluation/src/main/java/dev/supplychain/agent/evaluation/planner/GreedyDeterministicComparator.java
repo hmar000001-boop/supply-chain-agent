@@ -3,6 +3,7 @@ package dev.supplychain.agent.evaluation.planner;
 import dev.supplychain.agent.planning.api.CandidateEvaluator;
 import dev.supplychain.agent.planning.api.PlanCandidate;
 import dev.supplychain.agent.planning.api.PlanCandidateFactory;
+import dev.supplychain.agent.planning.api.PlanEvaluation;
 import dev.supplychain.agent.planning.api.PlannerTerminationReason;
 import dev.supplychain.agent.planning.api.PlannerTraceNode;
 import dev.supplychain.agent.planning.api.PlanningAction;
@@ -52,6 +53,7 @@ public final class GreedyDeterministicComparator implements EvaluationPlanner {
         long pruned = 0;
         PlannerTerminationReason termination = PlannerTerminationReason.COMPLETED;
         String parentId = null;
+        PlanEvaluation finalEvaluation = null;
 
         for (int depth = 0; depth < request.budget().maxDepth(); depth++) {
             if (deadlineExceeded(request, startedAt, startedNanos)) {
@@ -68,7 +70,7 @@ public final class GreedyDeterministicComparator implements EvaluationPlanner {
             PlanningState bestState = null;
             PlanningAction bestAction = null;
             double bestScore = -1.0;
-            dev.supplychain.agent.planning.api.PlanEvaluation finalEvaluation = null;
+            PlanEvaluation bestEvaluation = null;
             for (PlanningAction action : actions.stream()
                     .sorted(Comparator.comparing(PlanningAction::planningActionId)).toList()) {
                 if (deadlineExceeded(request, startedAt, startedNanos)) {
@@ -101,7 +103,7 @@ public final class GreedyDeterministicComparator implements EvaluationPlanner {
                     bestState = candidateState;
                     bestAction = action;
                     bestScore = score.score();
-                    finalEvaluation = score;
+                    bestEvaluation = score;
                 }
             }
             if (termination == PlannerTerminationReason.SEARCH_BUDGET_EXHAUSTED
@@ -111,7 +113,10 @@ public final class GreedyDeterministicComparator implements EvaluationPlanner {
                 termination = PlannerTerminationReason.NO_FEASIBLE_CANDIDATES;
                 break;
             }
+            // Keep the evaluation paired with the exact state committed as the current greedy path.
+            // If a later depth is interrupted, the last fully committed path remains a valid proposal.
             state = bestState;
+            finalEvaluation = bestEvaluation;
             parentId = PlanCandidateFactory.stateNodeId(request, state.actionPath());
             if (state.depth() == request.budget().maxDepth()) termination = PlannerTerminationReason.MAX_DEPTH_REACHED;
         }

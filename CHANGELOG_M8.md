@@ -20,3 +20,11 @@
 - Added explicit full-graph adapter injection via `FullGraphEvaluationHost.Ports`; the compile probe uses fail-closed ports, shared in-memory working/episodic repositories and an empty action registry.
 - Added focused evaluation tests and `docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md`.
 - No production planning/router, M7 persistence or external integration behavior was changed. Maven CI remains the acceptance gate.
+
+
+## M8-B1 CI correction — Greedy comparator evaluation scope
+
+- Corrected `GreedyDeterministicComparator` so the final candidate evaluation is retained outside the search loop and updated only when the corresponding best state is committed.
+- Added a regression assertion that REQ-01 retains its two sequential reservations.
+- No production planner, M7 PostgreSQL infrastructure, migration, or external-action execution path changed.
+- GitHub Actions reported the initial compile-time failure at `GreedyDeterministicComparator.java:121`; local Maven 3.9.16 bootstrap is unavailable in this environment, so the corrected patch must be re-run through the repository CI.
