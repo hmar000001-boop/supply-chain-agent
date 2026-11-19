@@ -24,9 +24,28 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-actions</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.supplychain.agent</groupId>
+            <artifactId>supply-chain-agent-mechanisms</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

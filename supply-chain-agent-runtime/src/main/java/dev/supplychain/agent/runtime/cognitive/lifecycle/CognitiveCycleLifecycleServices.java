@@ -68,6 +68,7 @@ public final class CognitiveCycleLifecycleServices {
     private final ImpasseChildArtifactStore childArtifacts;
     private final ActionExecutionBatchStore actionBatches;
     private final ObservationStore observations;
+    private final ChildInvestigationStepStore childSteps;
     private final Clock clock;
 
     public CognitiveCycleLifecycleServices(
@@ -87,6 +88,30 @@ public final class CognitiveCycleLifecycleServices {
             ActionExecutionBatchStore actionBatches,
             ObservationStore observations,
             Clock clock) {
+        this(workingMemory, episodicMemory, impasses, intentions, metaControl, actionDispatcher, actionRegistry,
+                interpreter, decisionServices, domain, authority, actionPlans, childArtifacts, actionBatches,
+                observations, null, clock);
+    }
+
+    /** Production constructor: inject a durable child-step receipt store for crash-safe B2 resume. */
+    public CognitiveCycleLifecycleServices(
+            WorkingMemoryService workingMemory,
+            EpisodicMemoryService episodicMemory,
+            ImpasseResolutionService impasses,
+            RecoveryIntentionService intentions,
+            MetaControlGovernor metaControl,
+            ActionDispatcher actionDispatcher,
+            ActionRegistry actionRegistry,
+            RequestInterpreter interpreter,
+            CognitiveCycleDecisionServices decisionServices,
+            CognitiveCycleLifecyclePort domain,
+            CognitiveCycleAuthorityPort authority,
+            AuthorizedActionPlanStore actionPlans,
+            ImpasseChildArtifactStore childArtifacts,
+            ActionExecutionBatchStore actionBatches,
+            ObservationStore observations,
+            ChildInvestigationStepStore childSteps,
+            Clock clock) {
         this.workingMemory = Objects.requireNonNull(workingMemory, "workingMemory");
         this.episodicMemory = Objects.requireNonNull(episodicMemory, "episodicMemory");
         this.impasses = Objects.requireNonNull(impasses, "impasses");
@@ -102,6 +127,7 @@ public final class CognitiveCycleLifecycleServices {
         this.childArtifacts = Objects.requireNonNull(childArtifacts, "childArtifacts");
         this.actionBatches = Objects.requireNonNull(actionBatches, "actionBatches");
         this.observations = Objects.requireNonNull(observations, "observations");
+        this.childSteps = childSteps;
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -239,13 +265,41 @@ public final class CognitiveCycleLifecycleServices {
             if (!resolutionCase.childCapabilities().contains(step.capability())) {
                 throw new SecurityException("B2 child investigation attempted an undelegated capability: " + step.capability());
             }
-            // The B2 service checks allow-list, current lifecycle and action budget before the adapter executes.
-            var updated = impasses.recordChildAction(caseId, version, step.capability(), clock.instant());
-            version = updated.version();
-            List<ResolutionFinding> stepFindings = Objects.requireNonNull(
-                    domain.executeChildInvestigationStep(context, updated, step, clock.instant()),
-                    "B2 child step returned null findings");
-            findings.addAll(stepFindings);
+            long fencingToken = 0L;
+            if (childSteps != null) {
+                String inputFingerprint = sha256(resolutionCase.id() + "|" + resolutionCase.executionId() + "|"
+                        + resolutionCase.parentWorkingMemoryVersion() + "|" + resolutionCase.objectiveFingerprint() + "|"
+                        + step.stepId() + "|" + step.capability() + "|" + step.description());
+                ChildInvestigationStepStore.StepClaim claim = childSteps.claim(caseId, step.stepId(), inputFingerprint, clock.instant());
+                if (claim.status() == ChildInvestigationStepStore.Status.COMPLETED) {
+                    findings.addAll(claim.findings());
+                    continue;
+                }
+                if (claim.status() == ChildInvestigationStepStore.Status.IN_PROGRESS) {
+                    throw new IllegalStateException("B2 child step is already being investigated by another worker: " + step.stepId());
+                }
+                if (claim.status() == ChildInvestigationStepStore.Status.UNKNOWN_OUTCOME) {
+                    throw new IllegalStateException("B2 child step outcome requires explicit reconciliation: " + step.stepId());
+                }
+                fencingToken = claim.fencingToken();
+            }
+            try {
+                // The domain lookup is read-only, but recordChildAction commits local case/budget state first.
+                // An interrupted step is therefore reconciled instead of blindly repeating that transition.
+                var updated = impasses.recordChildAction(caseId, version, step.capability(), clock.instant());
+                version = updated.version();
+                List<ResolutionFinding> stepFindings = Objects.requireNonNull(
+                        domain.executeChildInvestigationStep(context, updated, step, clock.instant()),
+                        "B2 child step returned null findings");
+                if (childSteps != null) childSteps.complete(caseId, step.stepId(), fencingToken, stepFindings, clock.instant());
+                findings.addAll(stepFindings);
+            } catch (RuntimeException failure) {
+                if (childSteps != null) {
+                    try { childSteps.fail(caseId, step.stepId(), fencingToken, safeMessage(failure), true, clock.instant()); }
+                    catch (RuntimeException receiptFailure) { failure.addSuppressed(receiptFailure); }
+                }
+                throw failure;
+            }
         }
         ResolutionDisposition disposition = plan.disposition();
         if (findings.isEmpty()) disposition = ResolutionDisposition.UNRESOLVED;

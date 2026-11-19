@@ -24,15 +24,17 @@ The user confirmed M7-A GitHub Actions CI is green; M7-A is accepted and forms t
 - Added four PostgreSQL integration scenarios covering bitemporal semantics, conflicts, procedure version history and planner-session round-trip/CAS.
 - Added M7-B1 architecture, test and acceptance documentation and an explicit M7 closure matrix.
 
-M7-B1 is delivered; the first GitHub Actions PostgreSQL run found two semantic SQL errors (both caused by an untyped nullable parameter) and one incorrect assertion about the current status of a historically active procedure. A focused correction removes the nullable SQL parameter and aligns the test with the shared in-memory/PostgreSQL `findActiveAt` contract. Full Maven/PostgreSQL CI rerun remains required before acceptance.
+M7-B1 is delivered; the first GitHub Actions PostgreSQL run found two semantic SQL errors (both caused by an untyped nullable parameter) and one incorrect assertion about the current status of a historically active procedure. A focused correction removes the nullable SQL parameter and aligns the test with the shared in-memory/PostgreSQL `findActiveAt` contract. The user confirmed the subsequent full Maven/PostgreSQL CI rerun is green; M7-B1 is accepted.
 
-## Planned — M7-B2 (final M7 delivery; no third infrastructure phase)
+## 2026-11-19 — M7-B2 implementation delivery (final M7 delivery; no third infrastructure phase)
 
-- Persist complete M5 planning artifacts and all M6 runtime stores: authorized plans, action batches/step receipts, B2 child artifacts/step receipts, observations, approvals/authority records and intention/runtime lifecycle data.
-- Implement the PostgreSQL M3 operation ledger, atomic claims/leases/fencing and unknown-outcome reconciliation.
-- Implement transactional outbox/inbox with deduplication, retry/backoff, dead-letter handling and idempotent consumers.
-- Add the production PostgreSQL LangGraph4j checkpoint saver bootstrap, restart/resume tests and strict separation from business-operation records.
-- Add bounded connection pooling, health/readiness, safe metrics, concurrency and failure-injection tests.
-- Add backup/restore/PITR, migration rollout, retention and operational recovery documentation with restore validation.
+- Added typed/versioned M5 planning-artifact storage and PostgreSQL runtime stores for authorized action plans, execution batches/steps, B2 child artifacts/step receipts, external observations, recovery intentions/history and impasse cases.
+- Added auditable approval records bound to candidate, intention version, plan fingerprint, principal, capability/resource scope, evidence/policy version and expiry/decision status.
+- Added the PostgreSQL M3 idempotency ledger with payload conflict detection, leases, fencing tokens, terminal receipts and explicit unknown-outcome handling.
+- Added transactional inbox/outbox operations with deduplication, leased claims, bounded retry/backoff and dead-letter handling; delivery semantics are explicitly at-least-once.
+- Added the LangGraph4j PostgreSQL saver factory and stable execution thread IDs while keeping graph checkpoints distinct from business ledgers.
+- Added bounded HikariCP pool configuration, health/readiness, aggregate runtime metrics, the V007 migration and backup/isolated-restore scripts.
+- Added the operational runbook in `docs/phase7/M7B2-OPERATIONS-RUNBOOK.md`.
+- **Tests/build/verification not run or included** in this delivery, as explicitly requested. All M7-B2 acceptance rows remain pending separate test and CI evidence.
 
 M7 is complete only when M7-A, M7-B1 and M7-B2 are all CI-green and every line in `docs/phase7/M7-STATUS.md`'s closure matrix has implementation and test evidence. M8 is business/algorithm evaluation and code freeze, not a place to defer M7 infrastructure gaps.

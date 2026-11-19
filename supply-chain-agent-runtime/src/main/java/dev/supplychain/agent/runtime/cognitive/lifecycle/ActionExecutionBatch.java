@@ -10,7 +10,7 @@ import java.util.Objects;
 public record ActionExecutionBatch(String batchId, String executionId, String principalId,
                                    String candidateSetId, String candidateId, String planFingerprint,
                                    BatchStatus status, List<ActionExecutionItem> items,
-                                   Instant createdAt, Instant updatedAt) {
+                                   Instant createdAt, Instant updatedAt, long revision) {
     public ActionExecutionBatch {
         batchId = required(batchId, "batchId");
         executionId = required(executionId, "executionId");
@@ -22,10 +22,19 @@ public record ActionExecutionBatch(String batchId, String executionId, String pr
         items = List.copyOf(Objects.requireNonNull(items, "items"));
         createdAt = Objects.requireNonNull(createdAt, "createdAt");
         updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
+        if (revision < 1) throw new IllegalArgumentException("revision must be positive");
         if (updatedAt.isBefore(createdAt)) throw new IllegalArgumentException("batch time moved backwards");
         if (items.stream().map(ActionExecutionItem::stepIndex).distinct().count() != items.size()) {
             throw new IllegalArgumentException("action batch contains duplicate step indexes");
         }
+    }
+
+    public ActionExecutionBatch(String batchId, String executionId, String principalId,
+                                String candidateSetId, String candidateId, String planFingerprint,
+                                BatchStatus status, List<ActionExecutionItem> items,
+                                Instant createdAt, Instant updatedAt) {
+        this(batchId, executionId, principalId, candidateSetId, candidateId, planFingerprint,
+                status, items, createdAt, updatedAt, 1);
     }
 
     public boolean hasStep(int index) { return items.stream().anyMatch(item -> item.stepIndex() == index); }

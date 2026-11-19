@@ -68,6 +68,7 @@ public final class ActionDispatcher {
         String requestFingerprint = null;
         String operationId = UUID.randomUUID().toString();
         Instant startedAt = context.now();
+        long fencingToken = 0L;
         if (descriptor.idempotencyRequired()) {
             if (context.idempotencyKey() == null) {
                 return ActionResult.rejected(failure(ActionFailureCode.MISSING_IDEMPOTENCY_KEY,
@@ -104,7 +105,15 @@ public final class ActionDispatcher {
 
         if (ledgerKey != null) {
             ActionLedgerClaim claim;
-            try { claim = ledger.claim(ledgerKey, requestFingerprint, startedAt); }
+            try {
+                if (ledger instanceof FencedActionExecutionLedger fenced) {
+                    FencedActionExecutionLedger.FencedClaim acquired = fenced.claimFenced(ledgerKey, requestFingerprint, startedAt);
+                    claim = acquired.claim();
+                    fencingToken = acquired.fencingToken();
+                } else {
+                    claim = ledger.claim(ledgerKey, requestFingerprint, startedAt);
+                }
+            }
             catch (RuntimeException ex) {
                 return ActionResult.failed(failure(ActionFailureCode.PERMANENT_FAILURE,
                         "Idempotency ledger could not acquire the operation: " + safeMessage(ex), false, false));
@@ -119,30 +128,33 @@ public final class ActionDispatcher {
             ActionReceipt receipt = new ActionReceipt(descriptor.id(), operationId, context.principal().principalId(),
                     context.correlationId(), startedAt, context.now(), handler.resultReference(value),
                     descriptor.idempotencyRequired() ? java.util.Map.of("idempotent", "true") : java.util.Map.of());
-            if (ledgerKey != null) ledger.complete(ledgerKey, receipt);
+            if (ledgerKey != null) {
+                if (ledger instanceof FencedActionExecutionLedger fenced) fenced.completeFenced(ledgerKey, fencingToken, receipt);
+                else ledger.complete(ledgerKey, receipt);
+            }
             return ActionResult.success(value, receipt);
         } catch (ActionExecutionException ex) {
-            if (ledgerKey != null) ledger.fail(ledgerKey, ex.failure());
+            if (ledgerKey != null) recordFailure(ledgerKey, ex.failure(), fencingToken);
             return ActionResult.failed(ex.failure());
         } catch (DomainViolation ex) {
             ActionFailure failure = mapDomainViolation(ex);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.failed(failure);
         } catch (MemoryVersionConflictException | MemoryConflictException ex) {
             ActionFailure failure = failure(ActionFailureCode.CONFLICT, safeMessage(ex), false, false);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.failed(failure);
         } catch (MemoryNotFoundException ex) {
             ActionFailure failure = failure(ActionFailureCode.NOT_FOUND, safeMessage(ex), false, false);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.failed(failure);
         } catch (SecurityException ex) {
             ActionFailure failure = failure(ActionFailureCode.AUTHORIZATION_DENIED, safeMessage(ex), false, false);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.rejected(failure);
         } catch (IllegalArgumentException ex) {
             ActionFailure failure = failure(ActionFailureCode.INVALID_INPUT, safeMessage(ex), false, false);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.failed(failure);
         } catch (RuntimeException ex) {
             boolean mutating = descriptor.effect() != ActionEffect.READ_ONLY;
@@ -150,7 +162,7 @@ public final class ActionDispatcher {
                     ? failure(ActionFailureCode.UNKNOWN_OUTCOME,
                         "A state-changing action failed without a definitive outcome; reconcile before retrying", false, true)
                     : failure(ActionFailureCode.TRANSIENT_FAILURE, safeMessage(ex), true, false);
-            if (ledgerKey != null) ledger.fail(ledgerKey, failure);
+            if (ledgerKey != null) recordFailure(ledgerKey, failure, fencingToken);
             return ActionResult.failed(failure);
         }
     }
@@ -173,6 +185,11 @@ public final class ActionDispatcher {
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 is required by the Java runtime", impossible);
         }
+    }
+
+    private void recordFailure(IdempotencyLedgerKey key, ActionFailure failure, long fencingToken) {
+        if (ledger instanceof FencedActionExecutionLedger fenced) fenced.failFenced(key, fencingToken, failure);
+        else ledger.fail(key, failure);
     }
 
     private static ActionFailure mapDomainViolation(DomainViolation ex) {

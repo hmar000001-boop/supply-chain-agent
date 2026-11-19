@@ -1,6 +1,6 @@
 # M7 status — Production persistence, transactional recovery and operations
 
-**Scope:** Close all infrastructure, persistence, transaction, recovery and operational gaps left after M6. M7 is exactly three sequential deliveries: M7-A, M7-B1 and M7-B2. M7 is fully complete only after M7-A's accepted CI plus both M7-B deliveries pass the full Maven/JUnit/PostgreSQL CI gate and every closure criterion below is verified. No persistence or operations work is intentionally deferred to M8.
+**Scope:** Close all infrastructure, persistence, transaction, recovery and operational gaps left after M6. M7 is exactly three sequential deliveries: M7-A, M7-B1 and M7-B2. M7 is fully complete only after M7-A, M7-B1 and M7-B2 pass the full Maven/JUnit/PostgreSQL CI gate and every closure criterion below is verified. No persistence or operations work is intentionally deferred to M8.
 
 The application remains a modular Java monolith. PostgreSQL infrastructure implements ports owned by memory/planning/runtime/application modules; domain and cognitive modules do not depend on JDBC. The database is authoritative for durable business-operation records, while LangGraph4j checkpoints store execution position only.
 
@@ -19,7 +19,7 @@ The application remains a modular Java monolith. PostgreSQL infrastructure imple
 
 ### M7-B1 — Durable semantic/procedural memory and planner sessions
 
-**Status: implementation and CI correction delivered; full Maven/PostgreSQL CI rerun pending.**
+**Status: CI green and accepted, confirmed by the user on 2026-11-19.**
 
 - `PostgresSemanticFactRepository` implements stage, lookup, activation, rejection, supersede-and-activate, multi-segment temporal replacement, bitemporal retrieval and retention.
 - Semantic conflict control uses a transaction-scoped advisory lock per scope/subject/predicate and validates overlapping valid-time intervals before activation.
@@ -29,15 +29,17 @@ The application remains a modular Java monolith. PostgreSQL infrastructure imple
 - `PostgresPlannerSessionStore` persists planner identity, request/config fingerprints, revisions, statuses, resource counters, elapsed duration, ordered ToT frontier and ordered MCTS tree nodes. Header and child rows save atomically; loads use repeatable-read isolation.
 - Migration V006 adds planner-session checkpoint tables; six ordered migrations are now installed by the migration runner.
 - `PostgresMemoryPersistence` now exposes all four CoALA repositories. `PostgresAgentPersistence` composes them and planner sessions over one DataSource.
-- First M7-B1 CI triage on 2026-11-18 corrected the PostgreSQL untyped-null overlap predicate and the procedural historical-lookup test expectation. See `docs/phase7/M7B1-CI-FAILURE-ANALYSIS-2026-11-18.md`; B1 remains pending until rerun is green.
+- First M7-B1 CI triage on 2026-11-18 corrected the PostgreSQL untyped-null overlap predicate and the procedural historical-lookup test expectation. The user subsequently confirmed that the complete M7-B1 CI rerun is green; B1 is accepted.
 
-M7-B1 does not yet persist complete `PlanningRequest`/`PlanningResult` artifacts or M6 runtime records. Those are explicitly assigned to M7-B2.
+M7-B1 does not persist complete `PlanningRequest`/`PlanningResult` artifacts or M6 runtime records. Those were assigned to M7-B2.
 
-## Final delivery plan — no third M7 phase
+## Final delivery — no third M7 phase
 
 ### M7-B2 — Durable runtime, transactions, recovery and production operations
 
-This is the final M7 delivery. It must implement and test every remaining item in the closure matrix below:
+**Implementation delivery: prepared against the user-supplied `supply-chain-agent-main (2).zip` baseline.** The patch adds the runtime persistence and operational components listed below. Per the user's explicit instruction, no M7-B2 unit/integration tests, Maven build, or verification run is included in this delivery. The closure matrix remains pending until a separate test/acceptance pass.
+
+Implemented in the M7-B2 patch:
 
 1. **M5 planning artifacts:** durable, versioned `PlanningRequest`/`PlanningResult` artifacts and candidate-set associations. Validate execution, planner-session, request fingerprint, configuration fingerprint and memory-version ownership before reuse. No unsafe Java native deserialization or unrestricted polymorphic class loading.
 2. **M6 execution stores:** PostgreSQL repositories for authorized action plans, action execution batches, individual operation/step receipts, B2 child-resolution artifacts and per-child-step receipts, and external observations. Every store needs tenant/scope, identity, revision, retention and idempotency semantics where applicable.
@@ -52,6 +54,16 @@ This is the final M7 delivery. It must implement and test every remaining item i
 11. **Health and observability:** liveness/readiness checks, migration/schema compatibility status, safe persistence metrics and traces (latency, pool wait, lock/conflict, retries, outbox backlog, unknown outcomes, reconciliation age). Never log credentials or sensitive payloads.
 12. **Operations and recovery:** documented migration rollout/rollback policy (forward fix for applied DDL), backup/restore and PITR/WAL procedures, secret/SSL configuration, retention/partition/index maintenance, disaster-recovery targets and an executable restore verification procedure or CI/scripted smoke where feasible.
 13. **Failure-injection evidence:** restart/adapter replacement after committed and uncommitted writes; crash between external dispatch and receipt; duplicate message delivery; lease expiry; stale approval; concurrent action/resource claims; partial B2 child work; outbox publisher failure; inbox duplicate; database unavailable; migration contention. All ambiguous external effects route to reconciliation.
+
+- Versioned M5 planning-artifact persistence with candidate-set/execution/session ownership metadata and payload fingerprints.
+- PostgreSQL stores for authorized plans, execution batches and step receipts, B2 child artifacts and resumable child-step receipts, observations with provenance, recovery intentions/history, and impasse-case runtime state.
+- Durable approval records bound to exact candidate-set/candidate, intention version, action-plan fingerprint, principal, capability/resource scope, evidence/policy version and decision/expiry status. The host remains responsible for authenticating principals.
+- M3 operation ledger with idempotency payload fingerprints, leases, fencing tokens, terminal receipts and explicit `UNKNOWN_OUTCOME` state; unknown external effects are not automatically redispatched.
+- Transactional inbox/outbox primitives with payload deduplication, leases, bounded exponential retry and dead-letter state. Delivery is at-least-once; consumers must remain idempotent.
+- Production LangGraph4j PostgreSQL saver factory with stable per-scope/per-execution thread identity. Checkpoints remain separate from business-operation records.
+- Bounded HikariCP pool settings/factory, schema-aware liveness/readiness, privacy-safe aggregate runtime metrics, and a single-DataSource composition entry point.
+- V007 forward migration and PostgreSQL custom-format backup plus isolated-target restore-verification scripts.
+- Operational instructions are in `docs/phase7/M7B2-OPERATIONS-RUNBOOK.md`.
 
 ## M7 closure matrix — must be all green after M7-B2
 
@@ -91,3 +103,6 @@ M7-B2 must update this document's matrix with actual test names and recorded evi
 ## Boundary with M8 and the book
 
 M8 owns business/algorithm evaluation, mechanism ablations, broader disruption corpus, quality/performance benchmarking and application freeze. M8 is not a substitute for the infrastructure closure criteria above. Chapters 19 and 20 remain unwritten until M8 freezes the application.
+
+
+**M7-B2 test/acceptance status:** intentionally not executed or included in this code-only delivery, per user instruction. No statement is made that compilation, migration application, PostgreSQL integration, failure injection, concurrency, backup/restore, or CI has passed. M7 is not yet declared complete.
