@@ -38,3 +38,11 @@ M7-B1 is delivered; the first GitHub Actions PostgreSQL run found two semantic S
 - Added PostgreSQL integration acceptance coverage for the M7-B2 persistence, approval, recovery, messaging, scope-isolation and LangGraph4j saver-factory invariants. The two legacy migration-count assertions now use `PostgresMigrationRunner.supportedMigrationCount()`; V007 remains immutable and V008 applies the scope-key correction forward-only. **No Maven build, test execution or live PostgreSQL verification was run in the authoring environment.** Test-source inclusion is not evidence of a passing run; M7-B2 acceptance remains pending the corrected GitHub Actions result and deployment-specific recovery exercises.
 
 M7 is complete only when M7-A, M7-B1 and M7-B2 are all CI-green and every line in `docs/phase7/M7-STATUS.md`'s closure matrix has implementation and test evidence. M8 is business/algorithm evaluation and code freeze, not a place to defer M7 infrastructure gaps.
+
+
+## 2026-11-19 — M7-B2 dependency bootstrap and final concurrency hardening
+
+- Removed imported LangGraph4j and SLF4J BOM model dependencies after CI stopped before reactor scanning because Maven could not resolve those import POMs from Central. Explicitly pinned `langgraph4j-core`, `langgraph4j-postgres-saver` and `slf4j-api` using the existing shared version properties; no library version was changed.
+- Added an M3 fencing race across two independent Hikari pools to represent separate application instances contending through PostgreSQL rather than a shared in-process connection pool.
+- Changed the LangGraph4j checkpoint recovery integration to close the first application's pool and reload/resume through a separately-created replacement pool.
+- Updated M7 failure analysis and closure status. No Maven execution or live PostgreSQL acceptance is claimed from the offline authoring environment; the GitHub Actions rerun remains the formal release gate.

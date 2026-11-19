@@ -49,23 +49,27 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Keep every LangGraph4j module on one published, aligned release. -->
+            <!--
+              Manage only the LangGraph4j modules actually consumed by this reactor.
+              Explicit pins avoid requiring two imported BOM POMs to be resolved while
+              Maven builds the parent model, and keep the saver/core versions identical.
+            -->
             <dependency>
                 <groupId>org.bsc.langgraph4j</groupId>
-                <artifactId>langgraph4j-bom</artifactId>
+                <artifactId>langgraph4j-core</artifactId>
                 <version>${langgraph4j.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-postgres-saver</artifactId>
+                <version>${langgraph4j.version}</version>
             </dependency>
 
-
-            <!-- Align transitive SLF4J dependencies from LangGraph4j and LangChain4j. -->
+            <!-- Pin SLF4J's transitive API without importing a separate BOM model. -->
             <dependency>
                 <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-bom</artifactId>
+                <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>dev.langchain4j</groupId>

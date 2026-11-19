@@ -9,6 +9,7 @@ import dev.supplychain.agent.actions.api.FencedActionExecutionLedger;
 import dev.supplychain.agent.actions.api.IdempotencyLedgerKey;
 import dev.supplychain.agent.infrastructure.postgres.PostgresOperationalHealth;
 import dev.supplychain.agent.infrastructure.postgres.config.PostgresDataSourceFactory;
+import dev.supplychain.agent.infrastructure.postgres.config.PostgresPooledDataSourceFactory;
 import dev.supplychain.agent.infrastructure.postgres.config.PostgresPoolSettings;
 import dev.supplychain.agent.infrastructure.postgres.config.PostgresDatabaseConfig;
 import dev.supplychain.agent.infrastructure.postgres.migration.PostgresMigrationRunner;
@@ -221,6 +222,46 @@ class PostgresM7B2CoreIntegrationTest {
             assertEquals(7, statuses.stream().filter(value -> value == ActionLedgerClaim.Status.IN_PROGRESS).count());
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test void concurrentM3ClaimsAcrossIndependentApplicationPoolsAcquireExactlyOneFencingLease() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        var key = new IdempotencyLedgerKey("multi-instance-" + suffix,
+                new ActionId("test.multi-instance"), "key-" + suffix);
+        String scope = "multi-instance-scope-" + suffix;
+        var database = PostgresDatabaseConfig.fromEnvironment(System.getenv());
+        var poolSettings = new PostgresPoolSettings(4, 0, 5_000, 3_000, 30_000, 600_000, 0);
+
+        // Each pool represents an independently composed application instance. No Java-side
+        // lock or shared connection object is available to coordinate the claims.
+        try (var instanceA = PostgresPooledDataSourceFactory.create(database, poolSettings);
+             var instanceB = PostgresPooledDataSourceFactory.create(database, poolSettings)) {
+            int workers = 12;
+            CountDownLatch ready = new CountDownLatch(workers);
+            CountDownLatch start = new CountDownLatch(1);
+            var executor = Executors.newFixedThreadPool(workers);
+            try {
+                var tasks = java.util.stream.IntStream.range(0, workers).mapToObj(index -> executor.submit(() -> {
+                    DataSource instancePool = index % 2 == 0 ? instanceA : instanceB;
+                    var ledger = new PostgresActionExecutionLedger(instancePool, scope,
+                            registryCodec(), registryCodec(), Duration.ofSeconds(15));
+                    ready.countDown();
+                    if (!start.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("multi-instance start latch timed out");
+                    }
+                    return ledger.claimFenced(key, "e".repeat(64), NOW).claim().status();
+                })).toList();
+                assertTrue(ready.await(10, TimeUnit.SECONDS));
+                start.countDown();
+                List<ActionLedgerClaim.Status> statuses = new java.util.ArrayList<>();
+                for (var task : tasks) statuses.add(task.get(30, TimeUnit.SECONDS));
+                assertEquals(1, statuses.stream().filter(value -> value == ActionLedgerClaim.Status.ACQUIRED).count());
+                assertEquals(workers - 1L,
+                        statuses.stream().filter(value -> value == ActionLedgerClaim.Status.IN_PROGRESS).count());
+            } finally {
+                executor.shutdownNow();
+            }
         }
     }
 
