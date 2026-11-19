@@ -1,6 +1,6 @@
 # M7 status — Production persistence, transactional recovery and operations
 
-**Scope:** Close all infrastructure, persistence, transaction, recovery and operational gaps left after M6. M7 is exactly three sequential deliveries: M7-A, M7-B1 and M7-B2. M7 is fully complete only after M7-A, M7-B1 and M7-B2 pass the full Maven/JUnit/PostgreSQL CI gate and every closure criterion below is verified. No persistence or operations work is intentionally deferred to M8.
+**Scope and final status:** M7 closed the infrastructure, persistence, transaction, recovery and operational work left after M6. M7 consisted of exactly three deliveries: M7-A, M7-B1 and M7-B2. The user confirmed that the complete Java 21 Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 corrections on 2026-11-19. M7 is accepted and closed. No persistence or operations work is intentionally deferred to M8.
 
 The application remains a modular Java monolith. PostgreSQL infrastructure implements ports owned by memory/planning/runtime/application modules; domain and cognitive modules do not depend on JDBC. The database is authoritative for durable business-operation records, while LangGraph4j checkpoints store execution position only.
 
@@ -37,7 +37,7 @@ M7-B1 does not persist complete `PlanningRequest`/`PlanningResult` artifacts or 
 
 ### M7-B2 — Durable runtime, transactions, recovery and production operations
 
-**Implementation: delivered as change-only patches against the user-supplied `supply-chain-agent-main (2).zip` baseline.** The two stale B1 migration-count assertions now use the migration runner's supported count. The 2026-11-19 14:31 UTC CI run then failed before reactor scanning because Maven could not resolve the imported LangGraph4j and SLF4J BOM POMs; the follow-up patch removes those imports and explicitly manages the consumed modules. The B2 patch includes opt-in PostgreSQL integration coverage and a CI backup/restore smoke step. No local Maven build or live PostgreSQL execution is claimed; the exact-source GitHub Actions rerun remains the acceptance gate.
+**Implementation and acceptance: delivered as change-only patches against the user-supplied `supply-chain-agent-main (2).zip` baseline.** CI triage corrected the stale migration-count assertions, removed the unresolved imported BOM model dependency while pinning consumed LangGraph4j/SLF4J modules, bound Java `Instant` values through an explicit JDBC 4.2 conversion, normalized timestamp idempotency checks to PostgreSQL microsecond precision, and aligned the missing-batch exception contract. The final user-confirmed GitHub Actions workflow is green. It runs the Java 21 Maven reactor with PostgreSQL integration tests and the backup/isolated-restore smoke step. No separate local Maven build is claimed; hosted CI is the acceptance evidence.
 
 Implemented in the M7-B2 patch:
 
@@ -98,11 +98,11 @@ Implemented in the M7-B2 patch:
 ./mvnw -B -ntp -Dphase0.postgres=true clean verify
 ```
 
-The named tests and CI restore step provide the acceptance hooks for this matrix. Their presence is not a passing result: record the actual GitHub Actions run and restore-smoke output before marking M7 complete. M7 is not complete if a row is merely documented but lacks its implementation or acceptance proof. If a live external ERP/IAM/carrier endpoint is unavailable, the application must provide a strict port, a deterministic contract test adapter and deployment-specific acceptance criteria; it must not invent a production endpoint or claim a live integration.
+The named tests and CI restore step are the acceptance hooks for this matrix. The user confirmed that the complete GitHub Actions workflow is green after the final M7-B2 correction; because the restore step is part of that same successful job, the CI restore smoke is accepted. No run URL/ID was included in the supplied repository archive. The matrix is accepted for the implemented simulator/contract-adapter boundary. A live ERP/IAM/carrier deployment remains explicitly outside this repository snapshot; the application must use strict ports and deterministic contract test adapters until real deployment-specific adapters are supplied.
 
 ## Boundary with M8 and the book
 
 M8 owns business/algorithm evaluation, mechanism ablations, broader disruption corpus, quality/performance benchmarking and application freeze. M8 is not a substitute for the infrastructure closure criteria above. Chapters 19 and 20 remain unwritten until M8 freezes the application.
 
 
-**M7-B2 test/acceptance status (2026-11-19):** The stale migration-count assertions are corrected; the parent BOM resolution failure is addressed by explicit dependency management; and integration coverage now includes separate-pool M3 contention, checkpoint reload through a replacement pool, runtime persistence and backup/restore smoke. The authoring environment cannot execute Maven or live PostgreSQL. M7 is therefore implementation-complete in source but not formally accepted until the full GitHub Actions run is green. Production rollout still requires deployment-owned WAL/PITR settings, retention-policy approval and authoritative tenant mapping for any pre-scope records quarantined by V008; these values cannot safely be inferred by application code.
+**M7 final acceptance (2026-11-19):** The user confirmed the final GitHub Actions CI is green after the pgJDBC Instant-binding and PostgreSQL timestamp-precision/batch-contract fixes. M7-A, M7-B1 and M7-B2 are accepted; M7 is closed. Production rollout still requires deployment-owned WAL/PITR settings and RPO/RTO validation, retention-policy/legal-hold approval, and authoritative tenant mapping for pre-scope records quarantined by V008. These are deployment-owned controls, not deferred M7 source development and not reasons to create M7-B3.

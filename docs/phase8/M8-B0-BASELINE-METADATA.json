@@ -1,0 +1,24 @@
+{
+  "baseline_id": "M8-M7-ACCEPTED-2026-11-19",
+  "source_archive": "supply-chain-agent-main (2).zip",
+  "source_archive_sha256": "2fe8fb2efc95bb2081d6729c40aa1ed091e15ca3c97ef8849806d843aca8e596",
+  "applied_overlay_sha256": {
+    "M7B2_FINAL_CI_FIX_AND_CLOSURE_CHANGESET_ONLY.zip": "0afe79ea4b9184c2d3e0c26800ed967311d64c3a74a8049dd87178e2f769d256",
+    "M7B2_PGJDBC_INSTANT_BINDING_CI_FIX_CHANGESET_ONLY.zip": "7574f32f320adac9d2814428829a651d082651495142d09df483d27503a99d63",
+    "M7B2_OBSERVATION_TIMESTAMP_PRECISION_AND_BATCH_CONTRACT_FIX_CHANGESET_ONLY.zip": "78fcea7a875c988464147fa38c1b9e96b295bef89a13e499162be5e266814777"
+  },
+  "project_file_count": 556,
+  "production_java_files": 378,
+  "test_java_sources": 47,
+  "annotated_test_methods_or_factories": 269,
+  "test_classes_with_test_annotations": 42,
+  "support_fixture_or_helper_sources": 5,
+  "baseline_tree_manifest_sha256": "08e82ac250aab5ec01271ca9ccea624d8aa7c0ad7a13bad2c680393f31667a8c",
+  "checkpoint_zip": "SUPPLY_CHAIN_AGENT_M7_ACCEPTED_BASELINE_2026-11-19.zip",
+  "checkpoint_zip_sha256": "7bf42b69f3f3db48e944fef907f9aa805bacf60bfa8f9b24b95a0a4636cdec49",
+  "checkpoint_zip_size_bytes": 763252,
+  "maven_reactor_modules": 10,
+  "postgres_migrations": 8,
+  "ci_status": "User-confirmed green; exact hosted run URL/ID not present in uploaded source",
+  "local_build_executed_in_M8_B0": false
+}
