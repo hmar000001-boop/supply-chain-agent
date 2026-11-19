@@ -1,11 +1,11 @@
 
 ## Current milestone status — M8 (2026-11-19)
 
-M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched comparative analysis and remains subject to CI acceptance.
+M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched comparative analysis and the user confirmed its CI is green. M8-B3 adds mechanism ablations and a results clarification; its CI verification is pending.
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M8 — Evaluation and application freeze (M7 accepted and frozen; M8-B0 complete; M8-B1 accepted; M8-B2 implementation delivered, CI pending)**
+**Current milestone: M8 — Evaluation and application freeze (M7 accepted and frozen; M8-B0 complete; M8-B1 and M8-B2 accepted; M8-B3 implementation/experiments delivered, CI pending)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 
@@ -161,7 +161,7 @@ It uses a fixed `ChatModel` response and does not require provider credentials.
 
 ## Development sequence
 
-M0–M7 are accepted. M8-B0 froze the accepted M7 baseline. M8-B1 delivers the 25-row scenario catalog (11 request families and 14 failure/adversarial cases), planner-only comparison harness, five comparators, moving fixture-clock budget enforcement, JSONL output and fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched analysis, stratified aggregates, ten paired comparisons, deterministic bootstrap intervals, structured candidate/trace output and logical replay verification. Its CI acceptance is pending. M8-B3 onward will run mechanism ablations, validate full workflows and freeze the application. Chapters 19 and 20 are written only after M8-B6 and outline approval.
+M0–M7 are accepted. M8-B0 froze the accepted M7 baseline. M8-B1 delivers the 25-row scenario catalog (11 request families and 14 failure/adversarial cases), planner-only comparison harness, five comparators, moving fixture-clock budget enforcement, JSONL output and fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched analysis, stratified aggregates, ten paired comparisons, deterministic bootstrap intervals, structured candidate/trace output and logical replay verification; its CI is user-confirmed green. M8-B3 adds eight mechanism-ablation studies, 19 scenario units, 45 primary observations, 26 paired contrasts and 18 deterministic replay rows (excluded from primary analysis). The result clarification marks small-sample outcomes as descriptive only and identifies unimplemented learning/durability edges rather than claiming them. Chapters 19 and 20 are written only after M8-B6 and outline approval.
 
 
 ## Running the M8 evaluation harness
@@ -177,3 +177,14 @@ The script runs the Java 21 reactor tests/build before invoking the `M8Evaluatio
 ## M8 — Evaluation and application freeze
 
 M8-B0 freezes the M7-accepted source baseline and pre-registers the evaluation protocol. M8-B1 builds versioned simulator-backed fixtures and a planner-only harness for CoT-style sequential, ToT-inspired bounded search, deterministic/greedy, RAP-inspired MCTS and the hybrid router. The actual lifecycle workflows and failure injection remain M8-B4; the planner-only corpus must not be confused with end-to-end coverage. See [`docs/phase8/M8-STATUS.md`](docs/phase8/M8-STATUS.md), [`docs/phase8/M8-B0-BASELINE-AUDIT.md`](docs/phase8/M8-B0-BASELINE-AUDIT.md), [`docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md`](docs/phase8/M8-B1-EVALUATION-ARCHITECTURE.md), and [`docs/phase8/M8-EVALUATION-PROTOCOL.md`](docs/phase8/M8-EVALUATION-PROTOCOL.md).
+
+
+### M8-B3 mechanism ablations
+
+After applying the M8-B3 change-only patch and confirming GitHub Actions CI is green, reproduce the ablation run with:
+
+```bash
+./scripts/run-m8-ablations.sh
+```
+
+This script installs the evaluation reactor with tests skipped, then invokes the deterministic ablation CLI. It writes raw and paired-analysis JSONL beneath `target/m8-b3-results/`; set `M8_B3_OUTPUT_DIR` to override the output path. The runner does not invoke external actions or PostgreSQL. See [`docs/phase8/M8-B3-MECHANISM-ABLATIONS.md`](docs/phase8/M8-B3-MECHANISM-ABLATIONS.md), [`docs/phase8/M8-B3-RESULTS-CLARIFICATION.md`](docs/phase8/M8-B3-RESULTS-CLARIFICATION.md) and [`docs/phase8/M8-B3-ABLATION-REGISTER.csv`](docs/phase8/M8-B3-ABLATION-REGISTER.csv).

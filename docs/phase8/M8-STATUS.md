@@ -17,8 +17,8 @@
 |---|---|---|
 | M8-B0 | Baseline reconstruction, architecture audit, test inventory, evaluation protocol and scenario register | **Complete** |
 | M8-B1 | 25-row corpus (11 request + 14 failure/adversarial fixtures), five proposal-only comparators, JSONL experiment harness with pruning/backtracking/resource counters, advancing fixture-clock budget enforcement and full-graph composition probe | **Accepted — user confirmed CI green** |
-| M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Implementation delivered; CI pending** |
-| M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments | Not started |
+| M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Accepted — user confirmed CI green** |
+| M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Implementation and experiment execution delivered; CI pending** |
 | M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | Not started |
 | M8-B5 | Analyze results, perform final quality/security/architecture review and correct proven defects | Not started |
 | M8-B6 | Final application freeze and full repository checkpoint | Not started |
@@ -36,7 +36,22 @@
 - Added M8-B1 evaluation architecture documentation and tests. The 25 fixtures are planner inputs, not 25 completed lifecycle workflows; approval, external timeout, duplicate delivery, restart and concurrency workflows remain M8-B4.
 - Maven/CI acceptance was confirmed green by the user after the `GreedyDeterministicComparator` scope fix and regression assertion.
 
-## M8-B2 implementation delivered — CI pending
+## M8-B2 implementation accepted — CI green
+
+- User confirmed the complete M8-B2 GitHub Actions workflow is green. The 25-fixture × 5-procedure matched comparison harness and deterministic replay analysis are accepted.
+
+## M8-B3 mechanism ablations — implementation and experiment execution delivered; CI pending
+
+- Added eight focused studies: B1, B2, B3, B4, B6, B2+B4, B1+B3+B6 and B4+B6.
+- Registered 19 scenario units, 45 primary condition observations, 26 within-scenario contrasts and 18 selected deterministic replay rows (63 raw rows total). Replay rows are excluded from primary counts and interpretation; scenario is the experimental unit.
+- Executed the Java 21 ablation CLI against the accepted production mechanism services using in-memory fixtures; recorded raw JSONL and descriptive paired summaries.
+- Main fixture-level observations: B2 consolidated 3 raw signals to 2 resolution units; B3 covered all 3 required tags with the same 7 capacity units and 3 admitted candidates as top-k; B4 preserved the objective while reconsidering the method; B6 interrupted one high-uncertainty case while allowing a low-uncertainty case to continue.
+- B1 results are mixed/negative for the current selector parameters: utility top-k reached mean recall 1.0/precision 0.5625, versus B1 mean recall 0.8333/precision 0.4375. B1 also exposes estimated maintenance cost and the downstream-use edge. No B1 outcome-attributed learning update exists, so that ablation is not evaluable.
+- Selected compositions B2+B4, B1+B3+B6 and B4+B6 are included. B4 restart durability, B6 durable budget authority, B3 outcome-attributed learning and full all-mechanism composition remain explicitly not evaluated.
+- 18/18 selected logical replays matched. No external action was invoked and no PostgreSQL connection was used.
+- Results are deterministic fixture-level descriptions, not population estimates or statistical significance claims. Maven/JUnit were not run during authoring; GitHub Actions is the acceptance gate.
+
+## M8-B2 detail — matched decision-procedure analysis
 
 - Added strict matched-matrix checks for the full 25-fixture × 5-comparator result matrix, including fixture/request/seed/budget parity, no duplicate or missing planner rows, planner-only boundary, and execution-order permutation.
 - Added rotating comparator execution order across scenarios to reduce systematic order effects.

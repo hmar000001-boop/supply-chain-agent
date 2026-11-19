@@ -35,7 +35,7 @@
 - User confirmed the complete M8-B1 GitHub Actions workflow is green after the greedy comparator scope correction and sequential-reservation regression assertion.
 - M8-B1 is accepted; the M7 baseline remains frozen.
 
-## 2026-11-19 — M8-B2 matched comparative analysis (implementation delivered; CI pending)
+## 2026-11-19 — M8-B2 matched comparative analysis (accepted; user-confirmed CI green)
 
 - Added complete matched-matrix validation for all scenario/procedure pairs and rotating per-scenario comparator execution order.
 - Added overall and stratified comparative aggregates and ten pairwise feasibility-first comparisons with deterministic scenario-level bootstrap intervals.
@@ -43,3 +43,13 @@
 - Added logical replay determinism verification excluding wall-clock runtime and execution-order position.
 - Added `scripts/run-m8-comparison.sh` and the M8-B2 comparative analysis specification.
 - No production planner, router, simulator, action, authority, PostgreSQL or graph behavior changed. Tests were intentionally not executed during authoring at the user's request; CI acceptance is pending.
+
+
+## 2026-11-19 — M8-B3 mechanism ablations and results clarification (implementation delivered; CI pending)
+
+- Added eight ablation studies across B1, B2, B3, B4, B6 and the B2+B4, B1+B3+B6 and B4+B6 interactions.
+- Registered 19 scenario units and generated 45 primary arm observations, 26 within-scenario paired contrasts and 18 deterministic replay rows (63 raw rows total). Replay rows are excluded from inference; all reported averages/deltas are descriptive.
+- Exercised the accepted production mechanism services with fixed in-memory fixtures. No production mechanism, planner, action, authority, simulator, PostgreSQL or migration code was changed.
+- Clarified the mixed B1 retrieval result, B2 duplicate consolidation, B3 workspace coverage, B4 objective-preserving method reconsideration, B6 uncertainty interruption, and the three selected compositions in `docs/phase8/M8-B3-RESULTS-CLARIFICATION.md`.
+- Marked B1/B3 outcome-attributed learning updates, B4 restart durability, B6 durable budget authority and full all-mechanism composition as not evaluated; B5/GraSP remains closed.
+- Executed the standalone Java 21 ablation CLI against production mechanism classes; 18/18 deterministic replay fingerprints matched. Maven/JUnit were not run; GitHub Actions remains the CI acceptance gate.

@@ -1,0 +1,20 @@
+study_id,scenario_id,seed,control_condition,treatment_conditions,primary_metrics,expected_invariant,determinism_replay_selected,experimental_unit
+B1,B1-01,20261119,TOP_K_NO_STATE,B1_LOG_ONLY;B1_FULL,recall;precision;downstream use;maintenance estimate,"Compare no-state top-k, selector-without-use edge, and selector with downstream use",YES,PRIMARY_SCENARIO_UNIT
+B1,B1-02,20261120,TOP_K_NO_STATE,B1_LOG_ONLY;B1_FULL,recall;precision;downstream use;maintenance estimate,"Compare no-state top-k, selector-without-use edge, and selector with downstream use",YES,PRIMARY_SCENARIO_UNIT
+B1,B1-03,20261121,TOP_K_NO_STATE,B1_LOG_ONLY;B1_FULL,recall;precision;downstream use;maintenance estimate,"Compare no-state top-k, selector-without-use edge, and selector with downstream use",YES,PRIMARY_SCENARIO_UNIT
+B1,B1-04,20261122,TOP_K_NO_STATE,B1_LOG_ONLY;B1_FULL,recall;precision;downstream use;maintenance estimate,"Compare no-state top-k, selector-without-use edge, and selector with downstream use",NO,PRIMARY_SCENARIO_UNIT
+B2,B2-01,20261123,GENERIC_RETRY,B2_TYPED_IMPASSE,resolution units;typed substates;parent integrity,Consolidate duplicate typed signals without mutating parent context,YES,PRIMARY_SCENARIO_UNIT
+B2,B2-02,20261124,GENERIC_RETRY,B2_TYPED_IMPASSE,resolution units;typed substates;parent integrity,Consolidate duplicate typed signals without mutating parent context,NO,PRIMARY_SCENARIO_UNIT
+B2,B2-03,20261125,GENERIC_RETRY,B2_TYPED_IMPASSE,resolution units;typed substates;parent integrity,Consolidate duplicate typed signals without mutating parent context,NO,PRIMARY_SCENARIO_UNIT
+B3,B3-01,20261126,TOP_K_SHARED_CONTEXT,B3_BOUNDED_BROADCAST,required-tag coverage;capacity;broadcast receipt,"Cover supplier, inventory and route within equal candidate/unit budget",YES,PRIMARY_SCENARIO_UNIT
+B3,B3-02,20261127,TOP_K_SHARED_CONTEXT,B3_BOUNDED_BROADCAST,required-tag coverage;capacity;broadcast receipt,"Cover supplier, inventory and route within equal candidate/unit budget",NO,PRIMARY_SCENARIO_UNIT
+B3,B3-03,20261128,TOP_K_SHARED_CONTEXT,B3_BOUNDED_BROADCAST,required-tag coverage;capacity;broadcast receipt,"Cover supplier, inventory and route within equal candidate/unit budget",NO,PRIMARY_SCENARIO_UNIT
+B4,B4-01,20261129,PLAN_ONLY,B4_INTENTION_LIFECYCLE,lifecycle transitions;method change;objective fingerprint,Reconsider method while preserving objective and protected constraints,YES,PRIMARY_SCENARIO_UNIT
+B4,B4-02,20261130,PLAN_ONLY,B4_INTENTION_LIFECYCLE,lifecycle transitions;method change;objective fingerprint,Reconsider method while preserving objective and protected constraints,NO,PRIMARY_SCENARIO_UNIT
+B6,B6-01,20261131,FIXED_BUDGET_ONLY,B6_UNCERTAINTY_RESOURCE_GOVERNOR,governor action;uncertainty;remaining resource,Contrast high versus low uncertainty under equal budget snapshot,YES,PRIMARY_SCENARIO_UNIT
+B6,B6-02,20261132,FIXED_BUDGET_ONLY,B6_UNCERTAINTY_RESOURCE_GOVERNOR,governor action;uncertainty;remaining resource,Contrast high versus low uncertainty under equal budget snapshot,NO,PRIMARY_SCENARIO_UNIT
+B2+B4,B2B4-01,20261133,GENERIC_RETRY_PLAN_ONLY,B2_TYPED_B4_DELEGATION,typed groups;bounded child action;parent objective,Resolve via bounded read-only child and return intention,YES,PRIMARY_SCENARIO_UNIT
+B2+B4,B2B4-02,20261134,GENERIC_RETRY_PLAN_ONLY,B2_TYPED_B4_DELEGATION,typed groups;bounded child action;parent objective,Resolve via bounded read-only child and return intention,NO,PRIMARY_SCENARIO_UNIT
+B1+B3+B6,B1B3B6-01,20261135,TOP_K_FIXED_BUDGET,B1_B3_FIXED_BUDGET;B1_B3_B6_COMPOSED,selected memories;workspace coverage;B6 action,"Compare top-k baseline, B1→B3, and B1→B3→B6 composition",YES,PRIMARY_SCENARIO_UNIT
+B1+B3+B6,B1B3B6-02,20261136,TOP_K_FIXED_BUDGET,B1_B3_FIXED_BUDGET;B1_B3_B6_COMPOSED,selected memories;workspace coverage;B6 action,"Compare top-k baseline, B1→B3, and B1→B3→B6 composition",NO,PRIMARY_SCENARIO_UNIT
+B4+B6,B4B6-01,20261137,PLAN_ONLY,B4_INTENTION_ONLY;B4_B6_SUSPEND_ON_GOVERNOR,B6 interruption;B4 intention status;objective,Propagate B6 human interruption into B4 intention suspension,NO,PRIMARY_SCENARIO_UNIT

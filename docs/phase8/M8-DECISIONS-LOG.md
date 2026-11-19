@@ -17,7 +17,7 @@
 | M8-D013 | Chapters 19 and 20 cannot be drafted until M8-B6 freezes the application and the user approves their detailed outlines | Book chapter-writing gate | Required |
 
 | M8-D014 | Keep planner-only comparisons separate from full lifecycle graph execution; compile the complete graph with explicit ports, but fail closed by default and do not register external action handlers | `FullGraphEvaluationHost`; `CognitiveCycleApplicationGraph.compileFull(...)` | Accepted for M8-B1; lifecycle execution M8-B4 |
-| M8-D015 | Compare paired procedures scenario-by-scenario; determine wins feasibility-first and calculate score deltas only where both procedures return a feasible candidate | `MatchedComparisonAnalyzer`; scenario-level resampling with fixed seed material | Implemented in M8-B2; CI pending |
+| M8-D015 | Compare paired procedures scenario-by-scenario; determine wins feasibility-first and calculate score deltas only where both procedures return a feasible candidate | `MatchedComparisonAnalyzer`; scenario-level resampling with fixed seed material | Implemented in M8-B2; user-confirmed CI green |
 | M8-D016 | Keep measured runtime descriptive; do not rank planner quality by elapsed wall-clock time from this finite local corpus | M8-B2 execution-order rotation and comparison protocol | Accepted for M8-B2 |
 
 ## Explicit non-decisions
@@ -26,3 +26,7 @@
 - No numeric quality/performance target is invented for service level, recovery time or cost. M8-B1 must produce a baseline and M8-B2 thresholds must be approved before comparisons are run.
 - No new real-world supplier, ERP, WMS, carrier or identity endpoint is assumed.
 - No B5 residual mechanism is claimed; B5/GraSP remains a closed negative case unless a narrowly justified closest-baseline comparison is included.
+
+| M8-D017 | Treat scenario as the experimental unit; exclude deterministic replay rows from primary observations and do not infer significance from the finite fixture corpus | M8-B3 manifest, 19 scenario IDs, 45 primary observations and 18 replay rows | Accepted for M8-B3 reporting |
+| M8-D018 | Do not claim B1 selector learning, B3 admission-policy learning, B4 process-restart durability or B6 durable budget authority until those code paths are implemented and separately evaluated | Accepted production APIs and explicit M8-B3 limitations | Accepted; not evaluated in M8-B3 |
+| M8-D019 | Report negative/mixed B1 retrieval results without tuning the parameters after seeing the runs; retain the current scoring policy as a measured baseline for later review | M8-B3 matched fixture observations; B1 selection policy fingerprint/configuration | Accepted for M8-B3; any retuning requires a new versioned experiment |
