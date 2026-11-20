@@ -28,7 +28,7 @@ A numeric signal in [0,1] is not automatically a calibrated probability. The cur
 
 - The first assessment in an execution-scoped series is revision 1.
 - A refresh preserves the assessment series ID and advances the revision by exactly one.
-- A trigger ID makes assessment creation idempotent across graph-node retries and checkpoint replay.
+- The lifecycle service derives an opaque idempotency key from the logical trigger, execution/scope and exact predecessor assessment reference. Replaying the same graph checkpoint therefore reuses the same request key, while a later refresh that encounters the same logical trigger after the predecessor revision has advanced receives a distinct key and can create the next revision.
 - A reference for another execution or memory scope is rejected.
 - A missing, expired, future-dated, provenance-free or mismatched assessment is rejected at any stage that requires it.
 - A caller cannot silently substitute the latest host revision for the precise revision stored in graph state. The host must resolve the exact referenced revision.
@@ -67,7 +67,7 @@ The B3 workspace remains cycle-bounded. This increment does not turn its live wo
 ## 6. Validation added or extended
 
 - `MetaControlGovernorTest`: assessment validity/scope and calibration metadata constraints.
-- `CognitiveCycleLifecycleServicesTest`: trigger idempotence, exact scope/revision matching, expiry rejection and rejection of a skipped revision number.
+- `CognitiveCycleLifecycleServicesTest`: predecessor-scoped trigger idempotence (including a repeated logical trigger across successive revisions), exact scope/revision matching, expiry rejection and rejection of a skipped revision number.
 - `CognitiveCycleDecisionServicesTest`: B3 and M5 request builders must carry the exact assessment reference.
 - `CognitiveCycleGraphTest`: B2 opens and investigates under the parent revision, refreshes once after child investigation, validates parent return under the next revision and returns that reference to the parent before reload.
 - `PlanningRequestFingerprintTest`: changing only the assessment revision changes the planner-session fingerprint.

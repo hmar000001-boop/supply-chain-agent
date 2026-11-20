@@ -410,10 +410,13 @@ public final class CognitiveCycleLifecycleServices {
         Objects.requireNonNull(context, "context");
         String stableTriggerId = required(triggerId, "triggerId");
         Instant now = clock.instant();
-        UncertaintyAssessment assessment = Objects.requireNonNull(
-                domain.assessUncertainty(context, stableTriggerId, now), "domain returned null uncertainty assessment");
-        requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), now);
         var previous = context.uncertaintyAssessmentReference();
+        String requestIdempotencyKey = uncertaintyAssessmentRequestKey(
+                stableTriggerId, context.executionId(), context.memoryScopeId(), previous);
+        UncertaintyAssessment assessment = Objects.requireNonNull(
+                domain.assessUncertainty(context, requestIdempotencyKey, now),
+                "domain returned null uncertainty assessment");
+        requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), now);
         if (previous == null) {
             if (assessment.reference().version() != 1L) {
                 throw new IllegalStateException("first uncertainty assessment revision must be version 1");
@@ -848,6 +851,29 @@ public final class CognitiveCycleLifecycleServices {
     private static String batchId(AuthorizedActionPlan plan) {
         return "action-batch:" + sha256(plan.executionId() + "|" + plan.candidateSetId() + "|"
                 + plan.candidateId() + "|" + plan.fingerprint());
+    }
+
+    /**
+     * Makes a logical refresh trigger idempotent only for the exact predecessor revision.
+     * A checkpoint replay carries the same predecessor and therefore reuses the same host key;
+     * a later cycle may encounter the same logical trigger after the assessment has advanced,
+     * and must then create the next revision rather than receive an older cached result.
+     */
+    private static String uncertaintyAssessmentRequestKey(
+            String triggerId, String executionId, String memoryScopeId,
+            UncertaintyAssessment.Reference previous) {
+        String predecessor = previous == null
+                ? "initial"
+                : previous.assessmentId().length() + ":" + previous.assessmentId()
+                        + "|" + previous.version()
+                        + "|" + previous.executionId().length() + ":" + previous.executionId()
+                        + "|" + previous.memoryScopeId().length() + ":" + previous.memoryScopeId();
+        String canonical = "uncertainty-assessment-request:v1|"
+                + triggerId.length() + ":" + triggerId
+                + "|" + executionId.length() + ":" + executionId
+                + "|" + memoryScopeId.length() + ":" + memoryScopeId
+                + "|" + predecessor;
+        return "uncertainty-assessment:v1:" + sha256(canonical);
     }
 
     private static String shortHash(String canonical) { return sha256(canonical).substring(0, 32); }

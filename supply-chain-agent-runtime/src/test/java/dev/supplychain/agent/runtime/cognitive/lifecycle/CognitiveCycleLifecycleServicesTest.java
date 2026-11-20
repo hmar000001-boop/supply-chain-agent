@@ -378,6 +378,28 @@ final class CognitiveCycleLifecycleServicesTest {
     }
 
     @Test
+    void b6SameLogicalTriggerRefreshesAgainOnlyWhenItsPredecessorRevisionAdvances() {
+        Fixture fixture = new Fixture();
+        CycleContext initial = context("", 0, "", 0, "");
+        String logicalTrigger = "post-retrieval:evidence-1";
+
+        var first = fixture.lifecycle.assessUncertainty(initial, logicalTrigger);
+        var firstRetry = fixture.lifecycle.assessUncertainty(initial, logicalTrigger);
+        CycleContext afterFirst = withUncertaintyReference(initial, first);
+        var second = fixture.lifecycle.assessUncertainty(afterFirst, logicalTrigger);
+        var secondRetry = fixture.lifecycle.assessUncertainty(afterFirst, logicalTrigger);
+
+        assertEquals(first, firstRetry,
+                "replaying the same trigger from the same checkpoint must resolve the same revision");
+        assertEquals(2L, first.version());
+        assertEquals(3L, second.version(),
+                "the same logical trigger from a newer predecessor must create the next revision");
+        assertNotEquals(first, second);
+        assertEquals(second, secondRetry,
+                "replaying the second checkpoint must not create a fourth revision");
+    }
+
+    @Test
     void b6AssessmentRefreshRejectsSkippedRevisionNumbers() {
         Fixture fixture = new Fixture();
         fixture.domain.assessmentVersionIncrement = 2L;
@@ -573,6 +595,20 @@ final class CognitiveCycleLifecycleServicesTest {
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, value, "test evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, value, "test hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, value, "test plan", 1)));
+    }
+
+    private static CycleContext withUncertaintyReference(
+            CycleContext source, UncertaintyAssessment.Reference reference) {
+        return new CycleContext(source.requestId(), source.executionId(), source.memoryScopeId(),
+                source.request(), source.normalizedIntent(), source.summary(), source.clarificationContext(),
+                source.clarificationRound(), source.workingMemoryId(), source.workingMemoryVersion(),
+                source.evidenceSetId(), source.evidenceRequestCount(), source.evidenceResponseId(),
+                source.workspaceSnapshotId(), source.intentionId(), source.intentionVersion(),
+                source.plannerId(), source.plannerSessionId(), source.candidateSetId(), source.planningRound(),
+                source.selectedCandidateId(), source.impasseCaseId(), source.impasseInvestigationReference(),
+                source.approvalId(), source.approvalResponseId(), source.approverId(),
+                source.humanControlResponseId(), source.humanControlActorId(), source.executionOperationId(),
+                source.observationId(), source.lastReason(), reference);
     }
 
     private static CycleContext context(String memoryId, long memoryVersion, String intentionId,

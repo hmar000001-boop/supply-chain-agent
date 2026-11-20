@@ -25,7 +25,7 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-actions": (57, 5, 28, 4, 1),
     "supply-chain-agent-mechanisms": (86, 6, 72, 6, 0),
     "supply-chain-agent-planning": (51, 8, 37, 7, 1),
-    "supply-chain-agent-runtime": (35, 11, 72, 11, 0),
+    "supply-chain-agent-runtime": (35, 11, 73, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (38, 12, 44, 11, 1),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
     "supply-chain-agent-evaluation": (20, 7, 26, 7, 0),
@@ -156,5 +156,5 @@ if failures:
 print(f"M8-B5 architecture verification: PASS ({len(modules)} modules; acyclic internal dependency graph)")
 print("Direct framework dependencies: PASS (all imports declared by their owning modules)")
 print("Framework-neutral module boundary: PASS")
-print("Source/test inventory: PASS (403 production Java files; 62 test sources; 357 test annotations/factories)")
+print("Source/test inventory: PASS (403 production Java files; 62 test sources; 358 test annotations/factories)")
 print("CI workflow mirror and M8-B2 artifact capture: PASS")

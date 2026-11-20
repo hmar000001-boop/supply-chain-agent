@@ -81,9 +81,13 @@ public interface CognitiveCycleLifecyclePort {
     /**
      * Creates and durably stores the next immutable assessment revision. The first call must return
      * version 1; subsequent calls for the same execution must preserve assessmentId and increment
-     * the version by exactly one. The trigger ID must make the operation idempotent across graph retries.
+     * the version by exactly one. The lifecycle service supplies an opaque, deterministic
+     * idempotency key derived from the logical graph trigger, execution/scope and exact predecessor
+     * assessment reference. Implementations must deduplicate by this complete key, not by a logical
+     * trigger label alone: the same logical event can recur after the assessment has advanced, while
+     * a checkpoint retry from the same predecessor must return the same immutable revision.
      */
-    UncertaintyAssessment assessUncertainty(CognitiveCycleOperations.CycleContext context, String triggerId, Instant at);
+    UncertaintyAssessment assessUncertainty(CognitiveCycleOperations.CycleContext context, String requestIdempotencyKey, Instant at);
 
     /**
      * Resolves the exact reference carried by CycleContext; implementations must not return a newer
