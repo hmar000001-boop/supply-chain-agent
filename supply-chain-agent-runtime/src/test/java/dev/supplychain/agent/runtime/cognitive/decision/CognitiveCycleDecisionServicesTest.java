@@ -5,7 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.supplychain.agent.memory.common.EvidenceReference;
+import dev.supplychain.agent.memory.common.EntityReference;
+import dev.supplychain.agent.memory.common.Provenance;
+import dev.supplychain.agent.memory.common.ProvenanceSource;
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
+import dev.supplychain.agent.memory.working.WorkingMemoryService;
+import dev.supplychain.agent.memory.working.WorkingMemoryId;
+import dev.supplychain.agent.memory.semantic.FactKey;
+import dev.supplychain.agent.memory.semantic.FactValue;
+import dev.supplychain.agent.memory.semantic.SemanticFact;
 import dev.supplychain.agent.domain.catalog.Product;
 import dev.supplychain.agent.domain.catalog.ProductId;
 import dev.supplychain.agent.domain.common.Quantity;
@@ -37,6 +45,8 @@ import dev.supplychain.agent.memory.inmemory.InMemoryWorkingMemoryRepository;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalQuery;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalService;
 import dev.supplychain.agent.mechanisms.b1.B1CandidateFeatureProvider;
+import dev.supplychain.agent.mechanisms.b1.B1CandidateFeatures;
+import dev.supplychain.agent.mechanisms.b1.MaintenanceProfile;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateFactory;
 import dev.supplychain.agent.mechanisms.b1.B1RetrievalSelector;
 import dev.supplychain.agent.mechanisms.b1.B1ScoringPolicy;
@@ -114,6 +124,126 @@ final class CognitiveCycleDecisionServicesTest {
         assertNotNull(port.selected);
         assertTrue(port.retrieved.verifiedEpisodes().isEmpty());
         assertTrue(port.selected.selectedCandidates().isEmpty());
+    }
+
+    @Test
+    void selectedLongTermMemoryIsProjectedAsVersionedEvidenceReferencesIntoWorkingMemory() {
+        var port = new TestDecisionPort();
+        var workingRepository = new InMemoryWorkingMemoryRepository();
+        var workingService = new WorkingMemoryService(workingRepository, Duration.ofDays(1));
+        var initialWorkingMemory = workingService.open(SCOPE, NOW);
+        var semanticRepository = new InMemorySemanticFactRepository();
+        var subject = new EntityReference("supplier", "supplier:acme");
+        Instant recordedAt = NOW.minusSeconds(60);
+        var proposed = semanticRepository.stage(SemanticFact.proposed(
+                new FactKey(SCOPE, subject, "lead-time-days"), new FactValue.Decimal(java.math.BigDecimal.valueOf(7)),
+                recordedAt, null, recordedAt,
+                new Provenance(ProvenanceSource.AUTHORITATIVE_SYSTEM, "erp:supplier:acme", recordedAt, recordedAt, "erp-v1")));
+        semanticRepository.activate(proposed.id(), proposed.version(), "reviewer:1",
+                new EvidenceReference("approval", "semantic-fact-approved"), NOW.minusSeconds(30));
+
+        port.retrievalEntity = subject;
+        port.retrievalPredicate = "lead-time-days";
+        port.featureProvider = ignored -> new B1CandidateFeatures(List.of(), Map.of(), 10.0, 1,
+                Duration.ofMillis(1), new MaintenanceProfile(0.0, 0.0, 0.0, Duration.ofDays(1), NOW));
+        var retrieval = new MemoryRetrievalService(workingRepository, new InMemoryEpisodeRepository(),
+                semanticRepository, new InMemoryProceduralMemoryRepository());
+        var services = composedServices(port, workspaceBroadcast(), new EmptyWorldModel(), unusedEvaluator(),
+                null, retrieval, workingService);
+
+        var result = services.retrieveEvidence(context(initialWorkingMemory, ""));
+
+        assertEquals(CognitiveCycleOperations.EvidenceDisposition.READY, result.disposition());
+        assertEquals(initialWorkingMemory.id().value(), result.workingMemoryId());
+        assertEquals(1L, result.workingMemoryVersion());
+        var updated = workingService.load(initialWorkingMemory.id());
+        var projected = updated.values().get(CognitiveCycleDecisionServices.COALA_RETRIEVED_MEMORY_REFERENCES_KEY);
+        assertNotNull(projected);
+        assertEquals(new dev.supplychain.agent.memory.working.MemoryValue.TextList(List.of(
+                "@projection:v1|execution=execution:test|basedOnWorkingMemoryVersion=0",
+                "semantic:" + proposed.id().value() + "@1")), projected.value());
+        assertEquals(List.of(new EvidenceReference("coala-selected-memory",
+                "semantic:" + proposed.id().value() + "@1")), projected.evidence());
+        assertEquals(projected.evidence(), updated.sourceEvidence());
+    }
+
+    @Test
+    void selectedLongTermMemoryProjectionIsIdempotentAfterGraphCheckpointInterruption() {
+        var port = new TestDecisionPort();
+        var workingRepository = new InMemoryWorkingMemoryRepository();
+        var workingService = new WorkingMemoryService(workingRepository, Duration.ofDays(1));
+        var initialWorkingMemory = workingService.open(SCOPE, NOW);
+        var semanticRepository = new InMemorySemanticFactRepository();
+        seedSemanticFact(semanticRepository);
+        port.retrievalEntity = new EntityReference("supplier", "supplier:acme");
+        port.retrievalPredicate = "lead-time-days";
+        port.featureProvider = ignored -> new B1CandidateFeatures(List.of(), Map.of(), 10.0, 1,
+                Duration.ofMillis(1), new MaintenanceProfile(0.0, 0.0, 0.0, Duration.ofDays(1), NOW));
+        var retrieval = new MemoryRetrievalService(workingRepository, new InMemoryEpisodeRepository(),
+                semanticRepository, new InMemoryProceduralMemoryRepository());
+        var services = composedServices(port, workspaceBroadcast(), new EmptyWorldModel(), unusedEvaluator(),
+                null, retrieval, workingService);
+        var originalContext = context(initialWorkingMemory, "");
+
+        var first = services.retrieveEvidence(originalContext);
+        var replay = services.retrieveEvidence(originalContext);
+
+        assertEquals(CognitiveCycleOperations.EvidenceDisposition.READY, first.disposition());
+        assertEquals(CognitiveCycleOperations.EvidenceDisposition.READY, replay.disposition());
+        assertEquals(1L, first.workingMemoryVersion());
+        assertEquals(1L, replay.workingMemoryVersion());
+        assertEquals(1L, workingService.load(initialWorkingMemory.id()).version(),
+                "exact replay must not increment working-memory version again");
+    }
+
+    @Test
+    void selectedLongTermMemoryCannotBeProjectedAcrossWorkingMemoryVersionConflict() {
+        var port = new TestDecisionPort();
+        var workingRepository = new InMemoryWorkingMemoryRepository();
+        var workingService = new WorkingMemoryService(workingRepository, Duration.ofDays(1));
+        var initialWorkingMemory = workingService.open(SCOPE, NOW);
+        var semanticRepository = new InMemorySemanticFactRepository();
+        seedSemanticFact(semanticRepository);
+        port.retrievalEntity = new EntityReference("supplier", "supplier:acme");
+        port.retrievalPredicate = "lead-time-days";
+        port.featureProvider = ignored -> new B1CandidateFeatures(List.of(), Map.of(), 10.0, 1,
+                Duration.ofMillis(1), new MaintenanceProfile(0.0, 0.0, 0.0, Duration.ofDays(1), NOW));
+        // Advance working memory after the graph captured version zero.
+        workingService.put(initialWorkingMemory.id(), 0L, "concurrent-update",
+                new dev.supplychain.agent.memory.working.MemoryValue.Flag(true), List.of(), NOW);
+        var retrieval = new MemoryRetrievalService(workingRepository, new InMemoryEpisodeRepository(),
+                semanticRepository, new InMemoryProceduralMemoryRepository());
+        var services = composedServices(port, workspaceBroadcast(), new EmptyWorldModel(), unusedEvaluator(),
+                null, retrieval, workingService);
+
+        var result = services.retrieveEvidence(context(initialWorkingMemory, ""));
+
+        assertEquals(CognitiveCycleOperations.EvidenceDisposition.FAILED, result.disposition());
+        assertTrue(result.reason().contains("version changed"));
+        var current = workingService.load(initialWorkingMemory.id());
+        assertEquals(1L, current.version());
+        assertTrue(!current.values().containsKey(CognitiveCycleDecisionServices.COALA_RETRIEVED_MEMORY_REFERENCES_KEY));
+        assertEquals("evidence-set:test", port.persistedEvidenceSetId,
+                "the selected evidence set remains auditable even though stale WM projection failed closed");
+    }
+
+    private static void seedSemanticFact(InMemorySemanticFactRepository repository) {
+        Instant recordedAt = NOW.minusSeconds(60);
+        var proposed = repository.stage(SemanticFact.proposed(
+                new FactKey(SCOPE, new EntityReference("supplier", "supplier:acme"), "lead-time-days"),
+                new FactValue.Decimal(java.math.BigDecimal.valueOf(7)), recordedAt, null, recordedAt,
+                new Provenance(ProvenanceSource.AUTHORITATIVE_SYSTEM, "erp:supplier:acme", recordedAt, recordedAt, "v1")));
+        repository.activate(proposed.id(), proposed.version(), "reviewer:1",
+                new EvidenceReference("approval", "approved"), NOW.minusSeconds(30));
+    }
+
+    private static CandidateEvaluator unusedEvaluator() {
+        return new CandidateEvaluator() {
+            @Override public String configurationFingerprint() { return "decision-test-unused-evaluator-v1"; }
+            @Override public PlanEvaluation evaluate(PlanningRequest request, PlanningState state) {
+                throw new UnsupportedOperationException("planning evaluation is not part of these tests");
+            }
+        };
     }
 
     @Test
@@ -372,6 +502,14 @@ final class CognitiveCycleDecisionServicesTest {
         var semantic = new InMemorySemanticFactRepository();
         var procedural = new InMemoryProceduralMemoryRepository();
         var retrieval = new MemoryRetrievalService(working, episodic, semantic, procedural);
+        var workingMemoryService = new WorkingMemoryService(working, Duration.ofDays(1));
+        return composedServices(port, broadcast, world, evaluator, budgetGuard, retrieval, workingMemoryService);
+    }
+
+    private static CognitiveCycleDecisionServices composedServices(TestDecisionPort port,
+                    WorkspaceBroadcastService broadcast, PlanningWorldModel world, CandidateEvaluator evaluator,
+                    ResourceBudgetExecutionGuard budgetGuard, MemoryRetrievalService retrieval,
+                    WorkingMemoryService workingMemoryService) {
         var selector = new B1RetrievalSelector(
                 new RecencyFrequencyActivationEstimator(0.5, 1.0),
                 new ExponentialActivationLatencyModel(100.0, 0.5, 1, 10_000));
@@ -383,7 +521,7 @@ final class CognitiveCycleDecisionServicesTest {
         return new CognitiveCycleDecisionServices(retrieval, new B1MemoryCandidateFactory(), selector,
                 workspaceAdmission, broadcast, router, world, evaluator,
                 new InMemoryPlanningArtifactStore(), port,
-                Clock.fixed(NOW, ZoneOffset.UTC), budgetGuard);
+                Clock.fixed(NOW, ZoneOffset.UTC), budgetGuard, workingMemoryService);
     }
 
     private static WorkspaceBroadcastService workspaceBroadcast() {
@@ -436,12 +574,17 @@ final class CognitiveCycleDecisionServicesTest {
         private dev.supplychain.agent.mechanisms.b1.B1SelectionResult selected;
         private WorkspaceBroadcastReport broadcastReport;
         private PlanningRequest planningRequest;
+        private EntityReference retrievalEntity;
+        private String retrievalPredicate;
+        private B1CandidateFeatureProvider featureProvider;
+        private String persistedEvidenceSetId = "";
         private java.util.function.Function<PlanningRequest, PlanningResult> plannerResultFactory;
         private final List<PlannerId> plannerInvocations = new java.util.ArrayList<>();
 
         @Override public MemoryScopeId memoryScope(CognitiveCycleOperations.CycleContext context) { return SCOPE; }
         @Override public MemoryRetrievalQuery retrievalQuery(CognitiveCycleOperations.CycleContext context, Instant at) {
-            query = new MemoryRetrievalQuery(SCOPE, null, null, null, at, at, 20);
+            query = new MemoryRetrievalQuery(SCOPE, retrievalEntity, retrievalPredicate,
+                    context.workingMemoryId().isBlank() ? null : new WorkingMemoryId(context.workingMemoryId()), at, at, 20);
             return query;
         }
         @Override public B1SelectionRequest b1SelectionRequest(CognitiveCycleOperations.CycleContext context, Instant at) {
@@ -449,6 +592,7 @@ final class CognitiveCycleDecisionServicesTest {
                     100, 20, Duration.ofDays(7), new B1ScoringPolicy(0.0, 0.0, 0.0, 0.0));
         }
         @Override public B1CandidateFeatureProvider b1FeatureProvider(CognitiveCycleOperations.CycleContext context) {
+            if (featureProvider != null) return featureProvider;
             return reference -> { throw new AssertionError("no candidates exist in the empty-memory test"); };
         }
         @Override public CognitiveCycleOperations.EvidenceRetrieved persistEvidenceSelection(
@@ -457,6 +601,7 @@ final class CognitiveCycleDecisionServicesTest {
                 dev.supplychain.agent.mechanisms.b1.B1SelectionResult selected, Instant at) {
             this.retrieved = retrieved;
             this.selected = selected;
+            this.persistedEvidenceSetId = "evidence-set:test";
             return new CognitiveCycleOperations.EvidenceRetrieved(
                     CognitiveCycleOperations.EvidenceDisposition.READY, "evidence-set:test", 0.1,
                     "empty but valid evidence set persisted");

@@ -32,7 +32,12 @@ public interface CognitiveCycleDecisionPort {
 
     B1CandidateFeatureProvider b1FeatureProvider(CognitiveCycleOperations.CycleContext context);
 
-    /** Persist the M2 result and B1 selection as a provenance-bearing evidence-set record. */
+    /**
+     * Persist the M2 result and B1 selection as a provenance-bearing evidence-set record.
+     * Implementations must make this write idempotent for a replayed execution/retrieval identity:
+     * graph checkpoint interruption may cause the same selection to be persisted again before
+     * the working-memory projection version is checkpointed.
+     */
     CognitiveCycleOperations.EvidenceRetrieved persistEvidenceSelection(
             CognitiveCycleOperations.CycleContext context,
             MemoryRetrievalResult retrieved,

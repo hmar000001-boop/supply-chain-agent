@@ -1,6 +1,12 @@
 package dev.supplychain.agent.runtime.cognitive.decision;
 
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalService;
+import dev.supplychain.agent.memory.common.EvidenceReference;
+import dev.supplychain.agent.memory.common.MemoryVersionConflictException;
+import dev.supplychain.agent.memory.working.MemoryValue;
+import dev.supplychain.agent.memory.working.WorkingMemoryId;
+import dev.supplychain.agent.memory.working.WorkingMemoryService;
+import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateFactory;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidate;
 import dev.supplychain.agent.mechanisms.b1.B1RetrievalSelector;
@@ -28,6 +34,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,7 +55,11 @@ import static dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.W
  * evidence/artifact persistence remain explicit ports rather than graph-state payloads.</p>
  */
 public final class CognitiveCycleDecisionServices {
+    /** Stable active-context slot containing references, never copied source documents. */
+    public static final String COALA_RETRIEVED_MEMORY_REFERENCES_KEY = "coala.retrieval.selected.references";
+
     private final MemoryRetrievalService memoryRetrieval;
+    private final WorkingMemoryService workingMemory;
     private final B1MemoryCandidateFactory b1CandidateFactory;
     private final B1RetrievalSelector b1Selector;
     private final WorkspaceAdmissionService workspaceAdmission;
@@ -74,7 +85,7 @@ public final class CognitiveCycleDecisionServices {
             CognitiveCycleDecisionPort domainPort,
             Clock clock) {
         this(memoryRetrieval, b1CandidateFactory, b1Selector, workspaceAdmission, workspaceBroadcast,
-                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort, clock, null);
+                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort, clock, null, null);
     }
 
     /** Production composition constructor with the shared durable B6 execution guard. */
@@ -91,7 +102,28 @@ public final class CognitiveCycleDecisionServices {
             CognitiveCycleDecisionPort domainPort,
             Clock clock,
             ResourceBudgetExecutionGuard budgetGuard) {
+        this(memoryRetrieval, b1CandidateFactory, b1Selector, workspaceAdmission, workspaceBroadcast,
+                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort,
+                clock, budgetGuard, null);
+    }
+
+    /** Full composition shares the exact working-memory service used by lifecycle operations. */
+    public CognitiveCycleDecisionServices(
+            MemoryRetrievalService memoryRetrieval,
+            B1MemoryCandidateFactory b1CandidateFactory,
+            B1RetrievalSelector b1Selector,
+            WorkspaceAdmissionService workspaceAdmission,
+            WorkspaceBroadcastService workspaceBroadcast,
+            PlannerRouter plannerRouter,
+            PlanningWorldModel planningWorldModel,
+            CandidateEvaluator candidateEvaluator,
+            PlanningArtifactStore planningArtifacts,
+            CognitiveCycleDecisionPort domainPort,
+            Clock clock,
+            ResourceBudgetExecutionGuard budgetGuard,
+            WorkingMemoryService workingMemory) {
         this.memoryRetrieval = Objects.requireNonNull(memoryRetrieval, "memoryRetrieval");
+        this.workingMemory = workingMemory;
         this.b1CandidateFactory = Objects.requireNonNull(b1CandidateFactory, "b1CandidateFactory");
         this.b1Selector = Objects.requireNonNull(b1Selector, "b1Selector");
         this.workspaceAdmission = Objects.requireNonNull(workspaceAdmission, "workspaceAdmission");
@@ -126,7 +158,113 @@ public final class CognitiveCycleDecisionServices {
         if (persisted.disposition() == EvidenceDisposition.READY && persisted.evidenceSetId().isBlank()) {
             throw new IllegalStateException("ready evidence result must reference the persisted evidence set");
         }
-        return persisted;
+        if (persisted.disposition() != EvidenceDisposition.READY) return persisted;
+
+        WorkingMemorySnapshot projected;
+        try {
+            projected = projectSelectedMemoryReferences(context, scope, candidates,
+                    selected.selectedCandidates(), at);
+        } catch (RuntimeException projectionFailure) {
+            return new EvidenceRetrieved(EvidenceDisposition.FAILED, persisted.evidenceSetId(),
+                    Math.max(persisted.maximumUncertainty(), 1.0),
+                    "CoALA retrieval-to-working-memory projection failed closed: "
+                            + safeMessage(projectionFailure), context.workingMemoryId(), context.workingMemoryVersion());
+        }
+        if (projected == null) return new EvidenceRetrieved(persisted.disposition(), persisted.evidenceSetId(),
+                persisted.maximumUncertainty(), persisted.reason(), context.workingMemoryId(), context.workingMemoryVersion());
+        return new EvidenceRetrieved(persisted.disposition(), persisted.evidenceSetId(),
+                persisted.maximumUncertainty(), persisted.reason() + "; selected long-term memory references projected to CoALA working memory",
+                projected.id().value(), projected.version());
+    }
+
+    /**
+     * Projects selected M2 long-term memories into the active CoALA working-memory snapshot.
+     * Only stable, scope-bound references are copied; source records remain in their authoritative
+     * episodic/semantic/procedural repositories. A stale graph version is never merged silently.
+     */
+    private WorkingMemorySnapshot projectSelectedMemoryReferences(
+            CognitiveCycleOperations.CycleContext context,
+            dev.supplychain.agent.memory.common.MemoryScopeId expectedScope,
+            List<B1MemoryCandidate> retrievedCandidates,
+            List<B1MemoryCandidate> selectedCandidates,
+            Instant at) {
+        var selectedById = new java.util.HashMap<String, B1MemoryCandidate>();
+        for (B1MemoryCandidate candidate : retrievedCandidates) {
+            selectedById.put(candidate.candidateId(), candidate);
+        }
+        var longTerm = new ArrayList<B1MemoryCandidate>();
+        for (B1MemoryCandidate selected : selectedCandidates) {
+            if (!expectedScope.equals(selected.scopeId())) {
+                throw new SecurityException("selected B1 memory candidate belongs to a different scope");
+            }
+            if (!selected.equals(selectedById.get(selected.candidateId()))) {
+                throw new SecurityException("B1 selected a memory candidate that was not returned by M2 retrieval");
+            }
+            if (selected.kind() != dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateKind.WORKING) {
+                longTerm.add(selected);
+            }
+        }
+        longTerm.sort(Comparator.comparing((B1MemoryCandidate item) -> item.kind().name())
+                .thenComparing(B1MemoryCandidate::memoryReference));
+
+        // Existing callers that only exercise empty retrieval can use the compatibility
+        // constructor. The complete application host always supplies the shared service.
+        if (workingMemory == null) {
+            if (!longTerm.isEmpty()) {
+                throw new IllegalStateException("WorkingMemoryService is required when B1 selects long-term memory");
+            }
+            return null;
+        }
+        if (context.workingMemoryId().isBlank()) {
+            if (!longTerm.isEmpty()) {
+                throw new IllegalStateException("active working-memory identity is required to project selected memory");
+            }
+            return null;
+        }
+
+        WorkingMemoryId id = new WorkingMemoryId(context.workingMemoryId());
+        WorkingMemorySnapshot current = workingMemory.load(id);
+        if (!expectedScope.equals(current.scopeId())) {
+            throw new SecurityException("active working memory belongs to a different scope");
+        }
+        if (!current.expiresAt().isAfter(at)) {
+            throw new IllegalStateException("expired working memory cannot receive retrieved references");
+        }
+
+        String projectionMarker = "@projection:v1|execution="
+                + require(context.executionId(), "executionId")
+                + "|basedOnWorkingMemoryVersion=" + context.workingMemoryVersion();
+        var references = new ArrayList<String>();
+        references.add(projectionMarker);
+        longTerm.stream().map(B1MemoryCandidate::memoryReference).forEach(references::add);
+        List<EvidenceReference> evidence = longTerm.stream()
+                .map(item -> new EvidenceReference("coala-selected-memory", item.memoryReference()))
+                .toList();
+        MemoryValue.TextList value = new MemoryValue.TextList(references);
+        var existing = current.values().get(COALA_RETRIEVED_MEMORY_REFERENCES_KEY);
+        boolean alreadyProjected = existing != null && existing.value().equals(value)
+                && existing.evidence().equals(evidence);
+
+        if (current.version() != context.workingMemoryVersion()) {
+            if (current.version() == context.workingMemoryVersion() + 1L && alreadyProjected
+                    && existing.updatedAt().equals(at)) {
+                // The single version increment and exact operation timestamp identify the prior
+                // projection CAS after a graph-checkpoint interruption. Any later concurrent
+                // write changes the version again and is deliberately not treated as a replay.
+                return current;
+            }
+            throw new MemoryVersionConflictException("working-memory version changed during retrieval projection: current="
+                    + current.version() + ", expected=" + context.workingMemoryVersion());
+        }
+        if (longTerm.isEmpty() && existing == null) return current;
+        if (alreadyProjected) return current;
+        return workingMemory.put(id, context.workingMemoryVersion(), COALA_RETRIEVED_MEMORY_REFERENCES_KEY,
+                value, evidence, at);
+    }
+
+    private static String safeMessage(RuntimeException failure) {
+        String message = failure.getMessage();
+        return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
     }
 
     public WorkspacePrepared prepareWorkspace(CognitiveCycleOperations.CycleContext context) {

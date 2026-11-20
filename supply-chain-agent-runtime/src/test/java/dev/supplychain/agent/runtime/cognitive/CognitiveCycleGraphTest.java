@@ -44,6 +44,19 @@ class CognitiveCycleGraphTest {
     }
 
     @Test
+    void retrievalProjectionAdvancesTheWorkingMemoryVersionInGraphState() throws Exception {
+        var operations = new ScriptedOperations();
+        operations.projectWorkingMemoryOnRetrieval = true;
+        var graph = CognitiveCycleGraph.compile(operations, new MemorySaver());
+        var result = graph.invokeFinal(GraphInput.args(input()), config("cognitive-wm-projection"))
+                .orElseThrow(() -> new AssertionError("projected cognitive cycle produced no final output"));
+
+        assertEquals(END, result.node());
+        assertEquals("wm-1", result.state().text(CognitiveCycleState.WORKING_MEMORY_ID));
+        assertEquals(3L, result.state().number(CognitiveCycleState.WORKING_MEMORY_VERSION));
+    }
+
+    @Test
     void clarificationIsSuppliedByHostBeforeTheInterpretationCycleResumes() throws Exception {
         var operations = new ScriptedOperations();
         operations.needsClarificationOnce = true;
@@ -326,6 +339,7 @@ class CognitiveCycleGraphTest {
 
     private static final class ScriptedOperations implements CognitiveCycleOperations {
         private boolean needsClarificationOnce;
+        private boolean projectWorkingMemoryOnRetrieval;
         private boolean clarificationIssued;
         private int clarificationCalls;
         private boolean requireApproval;
@@ -382,6 +396,11 @@ class CognitiveCycleGraphTest {
                 externalEvidenceIssued = true;
                 return new EvidenceRetrieved(EvidenceDisposition.NEEDS_EXTERNAL_EVIDENCE, "", 0.7,
                         "Supplier confirmation is missing.");
+            }
+            if (projectWorkingMemoryOnRetrieval) {
+                return new EvidenceRetrieved(EvidenceDisposition.READY, "evidence-1", 0.1,
+                        "Evidence is sufficient and selected references were projected.",
+                        context.workingMemoryId(), context.workingMemoryVersion() + 1L);
             }
             return new EvidenceRetrieved(EvidenceDisposition.READY, "evidence-1", 0.1, "Evidence is sufficient.");
         }

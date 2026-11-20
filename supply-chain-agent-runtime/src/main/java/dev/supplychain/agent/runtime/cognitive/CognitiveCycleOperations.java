@@ -186,12 +186,23 @@ public interface CognitiveCycleOperations {
 
     enum EvidenceDisposition { READY, NEEDS_EXTERNAL_EVIDENCE, IMPASSE, FAILED }
     record EvidenceRetrieved(EvidenceDisposition disposition, String evidenceSetId,
-                             double maximumUncertainty, String reason) {
+                             double maximumUncertainty, String reason,
+                             String workingMemoryId, long workingMemoryVersion) {
+        /** Compatibility constructor for operation adapters that do not update working memory. */
+        public EvidenceRetrieved(EvidenceDisposition disposition, String evidenceSetId,
+                                 double maximumUncertainty, String reason) {
+            this(disposition, evidenceSetId, maximumUncertainty, reason, "", 0L);
+        }
+
         public EvidenceRetrieved {
             disposition = Objects.requireNonNull(disposition, "disposition");
             evidenceSetId = optional(evidenceSetId);
             reason = required(reason, "reason");
+            workingMemoryId = optional(workingMemoryId);
             unit(maximumUncertainty, "maximumUncertainty");
+            if (workingMemoryVersion < 0 || (workingMemoryId.isEmpty() && workingMemoryVersion != 0)) {
+                throw new IllegalArgumentException("working-memory identity/version must be supplied together");
+            }
             if (disposition == EvidenceDisposition.READY && evidenceSetId.isEmpty()) {
                 throw new IllegalArgumentException("ready retrieval requires an evidence-set reference");
             }

@@ -154,6 +154,7 @@ public final class FullGraphEvaluationHost {
     public CompiledGraph<CognitiveCycleState> compileFull(Ports ports) throws GraphStateException {
         Objects.requireNonNull(ports, "ports");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
+        var workingMemoryService = new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1));
         var episodicRepository = new InMemoryEpisodeRepository();
         var retrieval = new MemoryRetrievalService(workingMemoryRepository, episodicRepository,
                 new InMemorySemanticFactRepository(), new InMemoryProceduralMemoryRepository());
@@ -166,13 +167,13 @@ public final class FullGraphEvaluationHost {
                 new WorkspaceBroadcastService(ports.workspaceConsumers()),
                 new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
                 ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
-                ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard());
+                ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard(), workingMemoryService);
 
         // The same repository instances back write/read memory services and decision-side retrieval.
         // This prevents a test host from accidentally validating two disconnected in-memory stores.
         var actionRegistry = ports.actionRegistry();
         var lifecycleServices = new CognitiveCycleLifecycleServices(
-                new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1)),
+                workingMemoryService,
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),
                 new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository()),
                 new RecoveryIntentionService(new InMemoryRecoveryIntentionRepository()),

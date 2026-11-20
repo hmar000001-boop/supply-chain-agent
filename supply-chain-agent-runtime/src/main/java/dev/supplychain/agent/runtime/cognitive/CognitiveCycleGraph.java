@@ -109,9 +109,18 @@ public final class CognitiveCycleGraph {
 
         NodeAction<CognitiveCycleState> retrieve = state -> {
             var result = Objects.requireNonNull(operations.retrieveEvidence(state.context()), "evidence result");
+            if (result.workingMemoryId().isBlank()) {
+                return update("evidence-retrieval:" + result.disposition().name(),
+                        CognitiveCycleState.EVIDENCE_SET_ID, result.evidenceSetId(),
+                        CognitiveCycleState.EVIDENCE_MAXIMUM_UNCERTAINTY, result.maximumUncertainty(),
+                        CognitiveCycleState.DECISION_STATUS, result.disposition().name(),
+                        CognitiveCycleState.LAST_REASON, result.reason());
+            }
             return update("evidence-retrieval:" + result.disposition().name(),
                     CognitiveCycleState.EVIDENCE_SET_ID, result.evidenceSetId(),
                     CognitiveCycleState.EVIDENCE_MAXIMUM_UNCERTAINTY, result.maximumUncertainty(),
+                    CognitiveCycleState.WORKING_MEMORY_ID, result.workingMemoryId(),
+                    CognitiveCycleState.WORKING_MEMORY_VERSION, result.workingMemoryVersion(),
                     CognitiveCycleState.DECISION_STATUS, result.disposition().name(),
                     CognitiveCycleState.LAST_REASON, result.reason());
         };
