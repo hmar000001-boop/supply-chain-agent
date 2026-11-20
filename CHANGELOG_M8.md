@@ -113,3 +113,14 @@
 - Documented exact process/provider boundaries, lack of token-level provider usage, explicit production-host guard wiring, and the conservative active-reservation state left by a hard process kill. Automatic orphan reclamation is not implemented.
 - Updated M8 status, test inventory, traceability, README and B4-D scenario/production-composition documents. M7 migrations V001-V008 remain unchanged; B4-D adds no migration.
 - Java 21 parser-only validation covered all 465 Java source files with zero syntax errors after correcting an escaped-quote assertion found by that check. Maven 3.9.16 is not cached and the distribution host is unreachable in this authoring environment; no Maven/JUnit execution is claimed. GitHub Actions CI remains the acceptance gate.
+
+
+## 2026-11-20 — M8-B4-D accepted; M8-B5 final quality review prepared
+
+- The user confirmed the complete B4-D GitHub Actions CI workflow is green after the latest-repository correction. B4-A/B/C/D are now accepted; the B4-D test still represents a small LangGraph4j graph across two child JVMs with PostgreSQL adapters and a deterministic provider double, not a complete production application restart.
+- B5 source review found direct LangGraph4j imports in app, evaluation and PostgreSQL infrastructure without direct module-local POM dependencies. Added those dependencies and a direct PostgreSQL saver declaration to prevent reliance on transitive dependency leakage.
+- Corrected architecture documentation to 11 Maven modules and added `scripts/verify-m8-b5-architecture.py`, covering reactor DAG acyclicity, direct framework dependencies, framework-neutral boundaries, module test-inventory consistency and active/mirror workflow parity.
+- Removed the temporary B4-D troubleshooting check from the active workflow and synchronized `workflows/ci.yml` with `.github/workflows/ci.yml`.
+- The latest source archive contained the B2 runner but not its actual three JSONL result files. CI is now configured to clean-install the exact reactor, run the B2 CLI and upload raw runs, comparison analysis and determinism output with SHA-256 and source/run provenance for review. No empirical output is fabricated; B5 acceptance awaits the hosted artifact inspection.
+- Updated M8/B4 status, decisions, traceability and README. Deployment limitations (live ERP/WMS/carrier/IAM, production graph host, orphan B6 reservation recovery, trusted token accounting, PITR/RPO/RTO, retention and tenant reconciliation) remain open and are not implied complete by green CI.
+- Local checks for the B5 patch: Python guard execution, XML parsing, workflow YAML parsing, shell syntax and package overlay/integrity checks. Maven/JUnit/CI were not run locally; the next hosted GitHub Actions run is the acceptance gate.

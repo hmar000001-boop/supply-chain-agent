@@ -1,6 +1,6 @@
 # M8-B4-D — Adversarial, fault-injection and B6 lifecycle verification
 
-**Status:** Implemented in source; GitHub Actions CI validation pending. This slice is based on the user-confirmed green M8-B4-A/B/C repository. It does not reopen M7.
+**Status:** Implemented and accepted; user confirmed complete GitHub Actions CI green on 2026-11-20.
 
 ## Objective
 
@@ -48,6 +48,11 @@ Tests verify that a configured B6 guard rejects an unbudgeted registered `Reason
 
 ## Acceptance evidence and limits
 
-B4-D acceptance requires the full Java 21 Maven/PostgreSQL workflow to pass. The added forked-JVM and PostgreSQL budget tests are conditionally enabled by `-Dphase0.postgres=true`. The authoring environment does not have Maven 3.9.16 cached and cannot resolve the Maven distribution host, so no Maven/JUnit execution is claimed here.
+B4-D acceptance required the full Java 21 Maven/PostgreSQL workflow to pass. The user confirmed that the complete GitHub Actions workflow is green on 2026-11-20 after the latest-repository correction. The added forked-JVM and PostgreSQL budget tests are conditionally enabled by `-Dphase0.postgres=true`. The authoring environment did not run Maven/JUnit locally; the acceptance evidence is the user's hosted CI confirmation.
 
 The following remain outside this slice and must stay explicit in M8-B5/final documentation: live ERP/WMS/carrier/provider integrations; full OS-process restart of the entire application graph; automatic recovery/reclamation of an orphan B6 reservation after a hard process kill; provider token-level accounting; and deployment credentials, identity integration, PITR, tenant reconciliation and retention operations.
+
+
+## Acceptance update — 2026-11-20
+
+The user confirmed the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the latest-repository CI correction. B4-D is accepted. The test boundaries remain unchanged: independent JVMs exercise a small LangGraph4j test graph with PostgreSQL persistence and a deterministic provider double, not a complete production application process or live provider.

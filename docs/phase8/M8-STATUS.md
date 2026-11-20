@@ -19,10 +19,10 @@
 | M8-B1 | 25-row corpus (11 request + 14 failure/adversarial fixtures), five proposal-only comparators, JSONL experiment harness with pruning/backtracking/resource counters, advancing fixture-clock budget enforcement and full-graph composition probe | **Accepted — user confirmed CI green** |
 | M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Accepted — user confirmed CI green** |
 | M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Accepted — user confirmed CI green** |
-| M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **B4-A/B/C accepted — user-confirmed green CI; B4-D implemented in source, CI pending** |
-| M8-B5 | Analyze results, perform final quality/security/architecture review and correct proven defects | Not started |
-| M8-B6 | Final application freeze and full repository checkpoint | Not started |
-| M8-B7 | Approve Chapter 19/20 outlines, then write against the frozen code | Not started |
+| M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **Accepted — B4-A/B/C/D; user confirmed complete B4-D CI green on 2026-11-20** |
+| M8-B5 | Final quality, security and architecture review; reproducible experiment evidence | **In progress — static review/guardrails prepared; final CI and B2 artifact interpretation pending** |
+| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Not started — gated on B5 closure** |
+| M8-B7 | Approve Chapter 19/20 outlines and write chapters | **Not started — gated on B6 freeze and outline approval** |
 
 ## M8-B1 implementation delivered and accepted — CI green
 
@@ -69,19 +69,19 @@
 - Reconstructed the accepted M7 source from the exact uploaded repository archive and the three accepted M7-B2 overlays.
 - Verified the reconstructed 556-file project tree byte-for-byte against the staged accepted repository tree.
 - Created a full M7-accepted baseline ZIP and sorted per-file SHA-256 manifest.
-- Audited all ten Maven modules, their production Java sources, test sources and annotated test methods/factories.
+- Audited all eleven Maven modules, their production Java sources, test sources and annotated test methods/factories.
 - Recorded the architecture-to-code traceability matrix and the M8 evaluation protocol.
 - Registered the required request families and failure scenarios from the Part III pilot requirements.
 - No production Java, POM, migration, simulator or workflow code was changed in M8-B0. Only project documentation and phase status were updated.
 
-## M8-B4-D — adversarial, fault-injection and B6 lifecycle (implemented; CI pending)
+## M8-B4-D — adversarial, fault-injection and B6 lifecycle (accepted; user-confirmed CI green 2026-11-20)
 
 - Added a two-child-JVM process-boundary integration test. Process 1 checkpoints an interrupted LangGraph4j workflow after an externally committed but unacknowledged write; process 2 rebuilds the pool/graph/saver/repositories, restores intention/approval/B6/M3 state, blocks replay, verifies provider evidence and reconciles without a duplicate effect.
 - Added `ResourceBudgetExecutionGuard` as a shared host-owned identity for M5 planning, M3 reasoning and B6 meta-control. M5 reservations are bounded by planner request ceilings and committed from measured statistics. `BudgetedReasoningProvider` reserves model/evaluation usage before invocation, commits observable counts and conservatively charges a started failed invocation.
 - B6 meta-control reads the durable ledger snapshot. Complete operations composition requires the M5 decision and lifecycle services to share the same guard; a registered reasoning action must be bound to that guard. The evaluation full-graph host accepts the guard through explicit ports.
 - Added PostgreSQL integration coverage for shared M5/M3 accounting and for budget-store outage fail-closed behavior. Added tests for real supplier-message prompt injection, fake role labels, invented evidence citations, malformed/oversized model responses, unknown confidence, unbudgeted reasoning-action registration and divergent guard identities.
 - Important boundaries: the forked-JVM test uses a small LangGraph4j test graph, not the entire application graph; its external provider is a deterministic marker-file double. Provider tokens are not inferred. A hard process kill between B6 reserve and commit conservatively leaves an active reservation; automatic orphan reservation reclamation is not implemented. The current `Phase0Application` remains an intake smoke entry point; production full-graph hosts must wire the single guard explicitly as documented in `M8-B4-D-PRODUCTION-B6-COMPOSITION.md`.
-- The authoring environment could not bootstrap Maven 3.9.16 because the distribution host was unreachable. No Maven/JUnit execution is claimed for B4-D; the user's GitHub Actions workflow is the acceptance gate.
+- Acceptance: the user confirmed the complete GitHub Actions CI workflow is green on 2026-11-20. This confirms the configured build/test workflow, including the two-process PostgreSQL integration path; it does not establish the live external integrations or deployment-owned controls listed below.
 
 ## Phase boundaries
 
@@ -90,14 +90,12 @@ M8 evaluates the application and freezes it; it does not reopen M7 persistence i
 Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detailed outlines.
 
 
-## M8-B4 — end-to-end reliability and safety (in progress)
+## M8-B5 — final quality, security and architecture review (in progress)
 
-- Baseline is the user-uploaded accepted M8-B3 repository `supply-chain-agent-main (3).zip` (SHA-256 `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`). No Git commit is claimed because the supplied archive does not contain Git history.
-- B4-A adds a durable, scope-bound PostgreSQL implementation of the B6 computational `ResourceBudgetLedger`, exposed through `PostgresRuntimePersistence.resourceBudgets()`. Its account-row lock serializes reservations across hosts; actual usage overruns remain recorded; repeated commits are idempotent.
-- B4-A adds forward-only migration V009. Existing M7 migrations V001-V008 are untouched; this additive M8 capability does not reopen M7.
-- B4-A adds PostgreSQL-gated probes for budget restart/actual-usage persistence and multi-host oversubscription, reservation release/deadline, intention restart/objective preservation using stateless JSON codecs, approval binding/revocation/expiry, and unknown external outcomes with no blind redispatch/reconciliation. V009 parser coverage is also added. The first user CI run found one incorrect release-budget expectation (expected 2, actual/semantically correct 4); the cumulative patch corrects the assertion.
-- B4-B adds ten full-graph test methods for twelve deterministic fixture executions across eleven distinct scenario IDs through `CognitiveCycleApplicationGraph.compileFull(...)`: exact approved write and observation, proposal/denial, quality-held partial fulfilment without false completion, route and conflicting-evidence provenance, denied/revoked/stale approval, demand and observation invalidation/replanning, and read-only/no-feasible fail-closed exits.
-- B4-B tests use deterministic in-memory ports and explicit inventory-reservation handlers. B4-C adds a focused PostgreSQL-backed LangGraph4j host-replacement workflow with new pools/graphs/adapters, safe external-outcome reconciliation, safe retry after authoritative NOT_APPLIED, cross-pool idempotency race and intention CAS. B4-C does not claim an OS-level process kill/relaunch, real ERP/WMS/carrier integration, route rerouting, typed read-only success, or automatic production lifecycle wiring of the B6 budget adapter. See `M8-B4-STATUS.md`, `M8-B4-RELIABILITY-TEST-PLAN.md` and `M8-B4-C-RESTART-RECONCILIATION-PLAN.md`.
-- B4-C includes four PostgreSQL-gated integration methods. The safe-retry case required a narrow correction to `PostgresActionExecutionLedger.inspect`: definitively failed/retryable/not-unknown returns empty so the fenced retry path can run; UNKNOWN_OUTCOME remains visible and non-retriable. The B4-A release assertion now expects four remaining units after releasing a two-unit reservation from an initial four-unit budget.
-- The user subsequently confirmed GitHub Actions CI green after the cumulative B4-A/B/C fixes and the PostgreSQL restore-script permission fix. B4-A/B/C are accepted and form the immutable B4-D baseline. The earlier red runs are retained in the changelog as defect/fix history, not current status.
-- The user will validate the complete Java 21 Maven/PostgreSQL reactor in GitHub Actions. No Maven/JUnit run is asserted by the authoring delivery.
+- B4-D is accepted based on the user's confirmation that the complete GitHub Actions workflow is green on 2026-11-20. B4-A/B/C/D are closed.
+- Source audit found missing direct LangGraph4j dependency declarations in the app, evaluation and PostgreSQL infrastructure modules; B5 adds those explicit dependencies and a static guardrail for direct framework dependencies and the framework-neutral module boundary.
+- Corrected the reactor count from ten to eleven modules and verified the internal module dependency graph is acyclic. The test inventory matches 404 production Java files, 62 test sources and 334 test annotation occurrences (static counts, not CI execution totals).
+- Removed the temporary B4-D troubleshooting step from the active workflow and made `workflows/ci.yml` byte-identical to `.github/workflows/ci.yml`.
+- B2's comparison runner was present, but its three JSONL result outputs were absent from the latest repository archive. B5 makes CI clean-install the tested reactor, execute `M8ComparisonCli` against those installed artifacts, and upload raw runs, comparison report, replay-check JSONL, SHA-256 checksums and CI source/run provenance. The next CI artifact must be inspected before B5 empirical interpretation is closed.
+- Static security review found no obvious unsafe Java deserialization, production process execution, or hard-coded secret patterns in the inspected source. This is not a SAST/SCA scan or penetration test. See `M8-B5-FINAL-QUALITY-REVIEW.md` for detailed scope and limits.
+- B5 remains open until the architecture guard and full Java 21/PostgreSQL CI pass and the actual B2 JSONL artifact is reviewed.

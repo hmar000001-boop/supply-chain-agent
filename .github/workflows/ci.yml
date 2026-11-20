@@ -37,36 +37,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify M8-B4-D lifecycle source in this checkout
-        shell: bash
-        run: |
-          set -euo pipefail
-          FILE="supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java"
-          PORT="supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecyclePort.java"
-
-          echo "Checked-out commit: $(git rev-parse HEAD)"
-          echo "Checked-out branch/ref: ${GITHUB_REF} (${GITHUB_SHA})"
-          echo "Lifecycle source SHA-256:"
-          sha256sum "$FILE"
-
-          echo "Qualified B6 input references (expected exactly 2):"
-          grep -nF 'CognitiveCycleLifecyclePort.MetaControlInputs' "$FILE"
-          COUNT="$(grep -Fc 'CognitiveCycleLifecyclePort.MetaControlInputs' "$FILE")"
-          if [[ "$COUNT" -ne 2 ]]; then
-            echo "ERROR: expected 2 qualified MetaControlInputs references; found $COUNT" >&2
-            echo "All MetaControlInputs references in the checked-out source:" >&2
-            grep -n 'MetaControlInputs' "$FILE" >&2 || true
-            exit 1
-          fi
-
-          echo "Nested record declaration (expected 1):"
-          grep -nF 'record MetaControlInputs(' "$PORT"
-          DECLARATIONS="$(grep -Fc 'record MetaControlInputs(' "$PORT")"
-          if [[ "$DECLARATIONS" -ne 1 ]]; then
-            echo "ERROR: expected exactly one nested MetaControlInputs record declaration; found $DECLARATIONS" >&2
-            exit 1
-          fi
-
+      - name: Verify M8 architecture and direct framework dependencies
+        run: python3 scripts/verify-m8-b5-architecture.py
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -86,7 +58,46 @@ jobs:
 
       - name: Build and run all tests, including PostgreSQL checkpoint recovery
         id: build
-        run: ./mvnw -B -ntp -Dphase0.postgres=true clean verify
+        run: ./mvnw -B -ntp -Dphase0.postgres=true clean install
+
+      - name: Generate M8-B2 matched comparison and determinism artifacts
+        if: success()
+        run: >-
+          ./mvnw -B -ntp -pl supply-chain-agent-evaluation
+          org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+          -Dexec.mainClass=dev.supplychain.agent.evaluation.app.M8ComparisonCli
+          -Dexec.classpathScope=runtime
+          -Dexec.args="--output-dir $GITHUB_WORKSPACE/target/m8-b2-results"
+
+      - name: Record M8-B2 artifact provenance and checksums
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/target/m8-b2-results"
+          test -s "$ARTIFACT_DIR/m8-b2-raw-runs.jsonl"
+          test -s "$ARTIFACT_DIR/m8-b2-comparison-report.jsonl"
+          test -s "$ARTIFACT_DIR/m8-b2-determinism-check.jsonl"
+          (
+            cd "$ARTIFACT_DIR"
+            sha256sum \
+              m8-b2-raw-runs.jsonl \
+              m8-b2-comparison-report.jsonl \
+              m8-b2-determinism-check.jsonl > SHA256SUMS.txt
+          )
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'source_revision=%s\n' "$GITHUB_SHA"
+            printf 'ref=%s\n' "$GITHUB_REF"
+            printf 'workflow=%s\n' "$GITHUB_WORKFLOW"
+            printf 'workflow_run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'workflow_run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'workflow_run_url=https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'created_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'm8_b2_corpus_version=M8-B1-v1\n'
+            printf 'm8_b5_baseline_archive_sha256=8632ae0c2008b23253bb6582f2a55a33a6ed38c6f4445245ec4c42710418d4b9\n'
+            printf 'accepted_b4d_correction_zip_sha256=e2a20540b21cc584919fc87e1540dab4dece53edcba8977dab24e82602f46a32\n'
+          } > "$ARTIFACT_DIR/RUN-PROVENANCE.txt"
 
       - name: Verify PostgreSQL backup and isolated restore
         if: success()
@@ -117,8 +128,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase0-test-and-dependency-reports
+          name: phase0-test-evaluation-and-dependency-reports
           path: |
             **/target/surefire-reports/**
             target/dependency-tree.txt
+            target/m8-b2-results/**
           if-no-files-found: warn

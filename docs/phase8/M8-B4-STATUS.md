@@ -1,11 +1,12 @@
 # M8-B4 status — End-to-end reliability and safety evaluation
 
-**Overall status:** B4-A, B4-B and B4-C are accepted following the user's green GitHub Actions CI confirmation. B4-D is implemented in source and awaiting the next CI run. No Maven/JUnit execution is claimed by the B4-D authoring delivery.
+**Overall status:** B4-A, B4-B, B4-C and B4-D are accepted. The user confirmed the complete GitHub Actions CI workflow is green on 2026-11-20 after the latest-repository correction. This is user-reported hosted CI evidence; no local Maven execution is claimed by the authoring environment.
 
 ## Baseline
 
-- **Accepted source:** user-uploaded `supply-chain-agent-main (3).zip`, accepted M8-B3 repository after user-confirmed green CI.
-- **Upload ZIP SHA-256:** `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`.
+- **B4-A/B/C baseline:** user-uploaded `supply-chain-agent-main (3).zip`, accepted M8-B3 repository after user-confirmed green CI.
+- **B4-A/B/C source ZIP SHA-256:** `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`.
+- **B4-D latest-repository correction:** based on the user's subsequently uploaded `supply-chain-agent-main (4).zip`; the latest correction was accepted after the user confirmed complete CI green on 2026-11-20. The B4-D correction changes only the nested type references and the active CI diagnostic/workflow source; it does not change the D1-D6 behavior.
 - **Git metadata:** the supplied archive does not provide Git history; source identity is recorded by the uploaded archive hash and per-file manifests.
 - **M7:** remains frozen and accepted. M8 adds only migration V009; M7 migrations V001-V008 are byte-for-byte unchanged.
 
@@ -16,7 +17,7 @@
 | B4-A | Durable B6 computational budget store; PostgreSQL restart/authority/unknown-outcome probes; additive V009 | **Accepted — user confirmed cumulative CI green** |
 | B4-B | Full-graph request-to-terminal workflows using deterministic simulator and strict adapters | **Accepted — user confirmed cumulative CI green** |
 | B4-C | Graph-host replacement, durable resume, ambiguous external outcome reconciliation, safe retry after authoritative NOT_APPLIED, duplicate replay, independent-pool idempotency race and intention CAS | **Accepted — user confirmed cumulative CI green** |
-| B4-D | Actual JVM process boundary, shared M5/M3/B6 budget guard, adversarial reasoning evidence, malformed model output, dependency failure and composition/security regression | **Implemented in source; CI pending** |
+| B4-D | Actual JVM process boundary, shared M5/M3/B6 budget guard, adversarial reasoning evidence, malformed model output, dependency failure and composition/security regression | **Accepted — user confirmed complete CI green 2026-11-20** |
 
 ## B4-A — Durable B6 budget persistence
 
@@ -76,11 +77,6 @@ Tests cover provider failure after invocation (conservative charge), PostgreSQL 
 
 A production host must obtain `ResourceBudgetLedger` from `PostgresRuntimePersistence.resourceBudgets()`, construct one `ResourceBudgetExecutionGuard` for the execution budget provider and pass that *same object* to `CognitiveCycleDecisionServices`, `CognitiveCycleLifecycleServices`, and `BudgetedReasoningProvider` used by the registered `ReasoningAction`. The current `Phase0Application` remains a deterministic intake smoke entry point; it is not a production `compileFull` deployment host. Hosts using legacy constructors with a null guard do not receive durable B6 enforcement.
 
-## Acceptance gate for B4-D
+## Acceptance evidence for B4-D
 
-1. Apply the B4-D change-only ZIP over the accepted B4-A/B/C repository.
-2. Run the complete Java 21 Maven/PostgreSQL CI workflow with `-Dphase0.postgres=true`.
-3. Confirm the forked-JVM process test, PostgreSQL budget wiring/outage tests, model-boundary tests and all existing B4-A/B/C regressions pass.
-4. Preserve the evidence boundaries above; no green CI establishes a live ERP/provider deployment or production PITR/identity/retention configuration.
-
-The authoring environment does not have Maven 3.9.16 cached and cannot resolve the Maven distribution host. No Maven/JUnit execution is claimed for B4-D.
+The user confirmed that the complete Java 21 Maven/PostgreSQL GitHub Actions workflow is green on 2026-11-20, after applying the correction against the latest uploaded repository. This is the acceptance gate for the test paths listed above. Preserve the evidence boundaries: the forked-JVM scenario uses a small LangGraph4j test graph and a deterministic marker-file provider; CI does not establish a live ERP/provider deployment or production PITR/identity/retention configuration. The local authoring environment did not execute Maven/JUnit.
