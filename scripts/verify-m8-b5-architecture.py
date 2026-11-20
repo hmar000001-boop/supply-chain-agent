@@ -23,12 +23,12 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
     "supply-chain-agent-actions": (58, 5, 28, 4, 1),
-    "supply-chain-agent-mechanisms": (90, 6, 72, 6, 0),
+    "supply-chain-agent-mechanisms": (122, 9, 93, 9, 0),
     "supply-chain-agent-planning": (51, 8, 37, 7, 1),
     "supply-chain-agent-runtime": (36, 11, 84, 11, 0),
-    "supply-chain-agent-infrastructure-postgres": (38, 14, 51, 12, 2),
+    "supply-chain-agent-infrastructure-postgres": (40, 15, 54, 13, 2),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
-    "supply-chain-agent-evaluation": (20, 7, 27, 7, 0),
+    "supply-chain-agent-evaluation": (21, 8, 28, 8, 0),
 }
 failures: list[str] = []
 
@@ -146,6 +146,12 @@ if active.exists() and mirror.exists():
             "Active CI workflow must record source revision, run URL and B2 artifact checksums")
     require("Verify M8-B4-D lifecycle source in this checkout" not in workflow,
             "Temporary B4-D troubleshooting assertion must be removed after B4-D acceptance")
+    require("verify-m8-r2-evidence.py" in workflow and "M8R2OutcomeFeedbackEvidenceCli" in workflow,
+            "Active CI must run R2 guardrails and emit the R2 outcome-feedback evidence artifact")
+    require("github/codeql-action/init@v4" in workflow and "github/codeql-action/analyze@v4" in workflow,
+            "Active CI must produce CodeQL source-analysis evidence")
+    require("aquasecurity/trivy-action@v0.36.0" in workflow and "trivy-fs.sarif" in workflow,
+            "Active CI must produce Trivy filesystem SCA/secret/misconfiguration evidence")
 
 if failures:
     print("M8-B5 architecture verification: FAILED", file=sys.stderr)
@@ -156,5 +162,5 @@ if failures:
 print(f"M8-B5 architecture verification: PASS ({len(modules)} modules; acyclic internal dependency graph)")
 print("Direct framework dependencies: PASS (all imports declared by their owning modules)")
 print("Framework-neutral module boundary: PASS")
-print("Source/test inventory: PASS (409 production Java files; 64 test sources; 377 test annotations/factories)")
+print("Source/test inventory: PASS (444 production Java files; 69 test sources; 402 test annotations/factories; 63 annotated test sources; 6 helpers)")
 print("CI workflow mirror and M8-B2 artifact capture: PASS")

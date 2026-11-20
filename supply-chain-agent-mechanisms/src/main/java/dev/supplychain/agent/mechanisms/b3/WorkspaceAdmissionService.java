@@ -12,7 +12,14 @@ import java.util.UUID;
 /** Bounded admission with mandatory-content protection, explicit conflicts and complementary coverage. */
 public final class WorkspaceAdmissionService{
     private final WorkspaceRepository repository;
-    public WorkspaceAdmissionService(WorkspaceRepository repository){this.repository=Objects.requireNonNull(repository,"repository");}
+    private final dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment;
+    public WorkspaceAdmissionService(WorkspaceRepository repository){this(repository,dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment.neutral());}
+    /** Outcome feedback is opt-in; only a trusted activation service can mint the production overlay. */
+    public WorkspaceAdmissionService(WorkspaceRepository repository,
+            dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment){
+        this.repository=Objects.requireNonNull(repository,"repository");
+        this.outcomeAdjustment=Objects.requireNonNull(outcomeAdjustment,"outcomeAdjustment");
+    }
     public WorkspaceAdmissionOutcome admit(WorkspaceAdmissionRequest request){
         Objects.requireNonNull(request,"request");
         var selected=new ArrayList<WorkspaceEntry>();var selectedIds=new HashSet<String>();var covered=new LinkedHashSet<String>();int used=0;
@@ -22,7 +29,7 @@ public final class WorkspaceAdmissionService{
             if(conflicts(candidate,selected)) return failedMandatory("mandatory candidates conflict: "+candidate.id());
             if(candidate.contextUnits()>request.capacityUnits()-used)return failedMandatory("mandatory candidates exceed workspace capacity");
             var newTags=new LinkedHashSet<>(candidate.coverageTags());newTags.removeAll(covered);
-            selected.add(new WorkspaceEntry(candidate,request.scoringPolicy().baseScore(candidate),newTags));
+            selected.add(new WorkspaceEntry(candidate,adjustedBaseScore(candidate,request.scoringPolicy()),newTags));
             selectedIds.add(candidate.id());covered.addAll(candidate.coverageTags());used+=candidate.contextUnits();
         }
         var remaining=new ArrayList<>(request.candidates().stream().filter(c->!selectedIds.contains(c.id())&&!c.mandatory()).toList());
@@ -32,7 +39,7 @@ public final class WorkspaceAdmissionService{
                 if(candidate.contextUnits()>request.capacityUnits()-used||conflicts(candidate,selected))continue;
                 var fresh=new LinkedHashSet<>(candidate.coverageTags());fresh.removeAll(covered);
                 double bonus=fresh.stream().mapToDouble(tag->request.coverageValue().getOrDefault(tag,0.0)).sum()*request.scoringPolicy().coverageBonusPerUnit();
-                double score=request.scoringPolicy().baseScore(candidate)+bonus;
+                double score=adjustedBaseScore(candidate,request.scoringPolicy())+bonus;
                 if(score>bestScore||(Double.compare(score,bestScore)==0&&best!=null&&candidate.id().compareTo(best.id())<0)){best=candidate;bestScore=score;bestNew=Set.copyOf(fresh);}
             }
             if(best==null||bestScore<=0.0)break;
@@ -63,6 +70,14 @@ public final class WorkspaceAdmissionService{
         var closed=current.close(at);if(closed==current)return current;
         if(!repository.compareAndSet(id,expectedVersion,closed))throw new IllegalStateException("workspace changed concurrently");return closed;
     }
+
+    private double adjustedBaseScore(WorkspaceCandidate candidate,WorkspaceScoringPolicy policy){
+        double adjustment=outcomeAdjustment.adjustmentFor(candidate.scopeId(), candidate.id());
+        if(!Double.isFinite(adjustment)||Math.abs(adjustment)>5.0)
+            throw new SecurityException("B3 outcome feedback adjustment is non-finite or exceeds its safety bound");
+        return policy.baseScore(candidate)+adjustment;
+    }
+
     private static boolean conflicts(WorkspaceCandidate candidate,List<WorkspaceEntry> selected){
         return selected.stream().anyMatch(entry -> candidate.conflictsWith().contains(entry.candidate().id())
                 || entry.candidate().conflictsWith().contains(candidate.id()));

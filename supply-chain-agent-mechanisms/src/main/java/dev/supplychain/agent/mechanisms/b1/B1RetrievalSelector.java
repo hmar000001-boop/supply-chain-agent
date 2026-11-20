@@ -12,9 +12,16 @@ import java.util.Set;
 public final class B1RetrievalSelector {
     private final ActivationEstimator activationEstimator;
     private final CognitiveRetrievalLatencyModel latencyModel;
+    private final dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment;
     public B1RetrievalSelector(ActivationEstimator activationEstimator, CognitiveRetrievalLatencyModel latencyModel) {
+        this(activationEstimator, latencyModel, dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment.neutral());
+    }
+    /** Outcome feedback is opt-in and should be supplied only by the trusted activation boundary. */
+    public B1RetrievalSelector(ActivationEstimator activationEstimator, CognitiveRetrievalLatencyModel latencyModel,
+            dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment) {
         this.activationEstimator = Objects.requireNonNull(activationEstimator, "activationEstimator");
         this.latencyModel = Objects.requireNonNull(latencyModel, "latencyModel");
+        this.outcomeAdjustment = Objects.requireNonNull(outcomeAdjustment, "outcomeAdjustment");
     }
     public B1SelectionResult select(B1SelectionRequest request, List<B1MemoryCandidate> candidates) {
         Objects.requireNonNull(request, "request"); Objects.requireNonNull(candidates, "candidates");
@@ -34,7 +41,11 @@ public final class B1RetrievalSelector {
             double cognitivePenalty = durationMillis(cognitiveLatency) * request.policy().cognitiveLatencyPenaltyPerMillisecond();
             double infrastructurePenalty = durationMillis(candidate.measuredInfrastructureLatency())
                     * request.policy().infrastructureLatencyPenaltyPerMillisecond();
-            double net = probability * candidate.expectedDownstreamUtility() - cognitivePenalty - infrastructurePenalty - maintenance;
+            double adjustment = outcomeAdjustment.adjustmentFor(candidate.scopeId(), candidate.candidateId());
+            if (!Double.isFinite(adjustment) || Math.abs(adjustment) > 5.0) {
+                throw new SecurityException("B1 outcome feedback adjustment is non-finite or exceeds its safety bound");
+            }
+            double net = probability * candidate.expectedDownstreamUtility() - cognitivePenalty - infrastructurePenalty - maintenance + adjustment;
             if (!Double.isFinite(net)) throw new IllegalStateException("B1 score is not finite");
             raw.add(new B1CandidateScore(candidate.candidateId(), activation.totalActivation(), probability, cognitiveLatency,
                     candidate.measuredInfrastructureLatency(), candidate.expectedDownstreamUtility(), maintenance, net,

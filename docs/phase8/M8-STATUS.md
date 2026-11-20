@@ -21,7 +21,7 @@
 | M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Accepted — user confirmed CI green** |
 | M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **Accepted — B4-A/B/C/D; user confirmed complete B4-D CI green on 2026-11-20** |
 | M8-B5 | Final quality, security and architecture review; reproducible experiment evidence | **CI accepted — user confirmed the complete workflow is green on 2026-11-20; B2 artifact-content review remains open** |
-| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Source checkpoint packaged on 2026-11-20; final evidence freeze awaits B2 JSONL content review and companion-artifact archival** |
+| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Source checkpoint packaged on 2026-11-20; final evidence freeze awaits review of hosted B2/B3/R2 artifacts and source checkpoint refresh** |
 | M8-B7 | Approve Chapter 19/20 outlines and write chapters | **Not started — gated on B6 freeze and outline approval** |
 
 ## M8-B1 implementation delivered and accepted — CI green
@@ -111,12 +111,16 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 - The readiness register preserves open production/deployment gates: production `compileFull` host wiring, full production-graph OS restart, orphan B6 reservation recovery, trusted token-level usage, ERP/WMS/supplier/carrier adapters, production IAM, PITR/RPO/RTO, tenant reconciliation, retention/legal-hold operations and formal SAST/SCA/penetration testing.
 - M8-B6 does not convert a source archive into a production deployment certification. The source checkpoint is packaged; final evidence freeze is conditional on the companion B2 experiment artifact being archived/reviewed and no further source edits being introduced without a new checkpoint version.
 
-## M8-PreB7 status — 2026-11-20
+## M8-PreB7 — R1 accepted and grouped R2 implementation prepared
 
 - R0 is accepted.
-- R1-A and R1-B are accepted on user-confirmed green CI.
-- R1-C is accepted on user-confirmed green CI after the predecessor-scoped uncertainty idempotency correction (Fix 6).
-- R1-D/E/F are grouped as one integrated R1-DEF delivery. The implementation includes strict shared durable guard composition, PostgreSQL V010 fenced reservation leases and recovery, and a complete application graph PostgreSQL-checkpoint fresh-JVM pause/resume test. The package is prepared; hosted full Maven/PostgreSQL CI acceptance is pending.
-- The static architecture verifier reports 409 production Java files, 64 test sources and 377 test annotations/factories. These are source inventory counts, not executed test totals.
-- R1-DEF restart evidence is bounded to a safe clarification interrupt before external effects and uses deterministic test adapters. It does not certify durability of all production adapters or post-effect full-graph restart.
-- Next is one grouped R2 delivery: typed B2 recovery drafts, durable B3 outcome evidence, offline/held-out B1/B3 feedback evaluation, integrated ablations, SAST/SCA, conformance refresh and final pre-B7 evidence/source freeze. Separate R2/R3/R4 ZIP/CI cycles are not planned by default.
+- R1-A, R1-B and R1-C are accepted on project-owner-confirmed green CI.
+- R1-DEF is accepted: the project owner confirmed the complete 12-module Java 21/PostgreSQL CI green on 2026-11-20 after cumulative CI Fixes 1–5. The acceptance is limited to the tests and adapters exercised by that workflow; deployment-owned production controls remain open.
+- The grouped R2 delivery is implemented in one cumulative change-only package and is pending its single hosted CI acceptance cycle.
+- B2 now creates typed, scope/objective/version/evidence-bound procedure drafts from resolved child cases and registered action descriptors. Draft approval is a separate review-state transition, not an executable action plan or dispatch authorization.
+- B3 persists accepted consumer receipts and separately verified downstream outcomes through PostgreSQL V011. The live B3 workspace remains cycle-bounded and is not persisted. Repository replacement integration tests cover receipt/outcome reload, scope isolation and idempotent replay.
+- B1/B3 feedback is opt-in and defaults to neutral scoring. Training accepts only B3-minted verified-evidence capabilities, candidates are SHADOW-only, holdout scenarios must be disjoint from training cycles, and activation requires an exact report fingerprint plus separate host authorization. An active overlay is scope-bound.
+- The accepted inputs do not include a verified downstream-outcome corpus or an independent holdout dataset. The R2 evidence CLI deliberately records `NO_VERIFIED_OUTCOME_CORPUS`, zero holdout scenarios, `SHADOW`, `DISABLED`, and `baselinePreserved=true`. Unit-test observations verify control logic only; they are not empirical evidence. No adaptive advantage is claimed and the previous B1/top-k baseline remains unchanged.
+- Hosted CI now regenerates the existing M8-B3 mechanism ablation JSONL artifacts, emits the R2 evidence-status artifact with run/source provenance and checksums, and produces CodeQL and Trivy SARIF plus tool-version evidence. Findings must be reviewed and triaged before R2 acceptance.
+- Current static inventory: 444 production Java files, 69 test Java sources, 402 test annotation/factory occurrences, 63 annotated test sources and 6 helper sources. These are repository source counts, not executed test totals.
+- R1-DEF's full-graph restart proof remains bounded to a safe pre-effect clarification boundary with deterministic test adapters. It does not certify durability of all live business/authority adapters or post-effect full-graph restart.

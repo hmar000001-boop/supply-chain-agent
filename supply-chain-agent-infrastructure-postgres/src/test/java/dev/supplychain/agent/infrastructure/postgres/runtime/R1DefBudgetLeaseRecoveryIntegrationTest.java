@@ -36,7 +36,7 @@ class R1DefBudgetLeaseRecoveryIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(10, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(11, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test

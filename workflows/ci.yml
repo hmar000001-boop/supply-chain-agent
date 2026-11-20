@@ -40,6 +40,19 @@ jobs:
       - name: Verify M8 architecture and direct framework dependencies
         run: python3 scripts/verify-m8-b5-architecture.py
 
+      - name: Verify M8-R2 outcome-feedback and evidence guardrails
+        run: python3 scripts/verify-m8-r2-evidence.py
+
+      - name: Prepare security evidence directory
+        run: mkdir -p target/security
+
+      - name: Initialize CodeQL (Java/Kotlin, source analysis)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: none
+          queries: security-extended
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -59,6 +72,39 @@ jobs:
       - name: Build and run all tests, including PostgreSQL checkpoint recovery
         id: build
         run: ./mvnw -B -ntp -Dphase0.postgres=true clean install
+
+      - name: Analyze CodeQL results without requiring GitHub Security Events upload
+        if: success()
+        uses: github/codeql-action/analyze@v4
+        with:
+          output: ${{ github.workspace }}/target/security/codeql-results
+          upload: never
+
+      - name: Run Trivy filesystem SCA, secret and misconfiguration scan
+        if: success()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig,license
+          format: sarif
+          output: target/security/trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: '0'
+
+      - name: Record security tool versions
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'codeql_action=github/codeql-action@v4\n'
+            printf 'trivy_action=aquasecurity/trivy-action@v0.36.0\n'
+            trivy --version
+          } > target/security/TOOL-VERSIONS.txt
+          test -s target/security/trivy-fs.sarif
 
       - name: Generate M8-B2 matched comparison and determinism artifacts
         if: success()
@@ -99,6 +145,78 @@ jobs:
             printf 'accepted_b4d_correction_zip_sha256=e2a20540b21cc584919fc87e1540dab4dece53edcba8977dab24e82602f46a32\n'
           } > "$ARTIFACT_DIR/RUN-PROVENANCE.txt"
 
+
+      - name: Generate reproducible M8-B3 mechanism ablation artifacts
+        if: success()
+        run: >-
+          ./mvnw -B -ntp -pl supply-chain-agent-evaluation
+          org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+          -Dexec.mainClass=dev.supplychain.agent.evaluation.app.M8AblationCli
+          -Dexec.classpathScope=runtime
+          -Dexec.args="--output-dir $GITHUB_WORKSPACE/target/m8-b3-results"
+
+      - name: Record M8-B3 ablation provenance and checksums
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/target/m8-b3-results"
+          test -s "$ARTIFACT_DIR/m8-b3-raw-ablations.jsonl"
+          test -s "$ARTIFACT_DIR/m8-b3-paired-analysis.jsonl"
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'source_revision=%s\n' "$GITHUB_SHA"
+            printf 'workflow_run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'workflow_run_url=https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'ablation_protocol=M8-B3-registered-mechanism-ablation-v1\n'
+            printf 'R2_feedback_overlay=protocol-tested-in-mechanism-unit-tests\n'
+            printf 'verified_outcome_corpus=absent; no empirical feedback effect inferred\n'
+          } > "$ARTIFACT_DIR/RUN-PROVENANCE.txt"
+          (
+            cd "$ARTIFACT_DIR"
+            sha256sum m8-b3-raw-ablations.jsonl m8-b3-paired-analysis.jsonl RUN-PROVENANCE.txt > SHA256SUMS.txt
+            sha256sum -c SHA256SUMS.txt
+          )
+
+      - name: Generate M8-R2 outcome-feedback and final evidence artifact
+        if: success()
+        run: >-
+          ./mvnw -B -ntp -pl supply-chain-agent-evaluation
+          org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+          -Dexec.mainClass=dev.supplychain.agent.evaluation.app.M8R2OutcomeFeedbackEvidenceCli
+          -Dexec.classpathScope=runtime
+          -Dexec.args="--output-dir $GITHUB_WORKSPACE/target/m8-r2-results"
+
+      - name: Record M8-R2 evidence provenance and checksums
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/target/m8-r2-results"
+          test -s "$ARTIFACT_DIR/m8-r2-outcome-feedback-evidence.json"
+          test -s "$ARTIFACT_DIR/M8-R2-EVIDENCE-CONCLUSION.txt"
+          test -s "$ARTIFACT_DIR/SHA256SUMS.txt"
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'source_revision=%s\n' "$GITHUB_SHA"
+            printf 'ref=%s\n' "$GITHUB_REF"
+            printf 'workflow=%s\n' "$GITHUB_WORKFLOW"
+            printf 'workflow_run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'workflow_run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'workflow_run_url=https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'created_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'baseline_policy_version=b1-topk-v1+b3-required-aware-v1\n'
+            printf 'verified_outcome_corpus=absent\n'
+            printf 'holdout_dataset=absent\n'
+            printf 'adaptive_policy_activation=disabled\n'
+            printf 'interpretation=protocol-validity-only; no empirical advantage claimed\n'
+          } > "$ARTIFACT_DIR/RUN-PROVENANCE.txt"
+          (
+            cd "$ARTIFACT_DIR"
+            sha256sum m8-r2-outcome-feedback-evidence.json M8-R2-EVIDENCE-CONCLUSION.txt RUN-PROVENANCE.txt > SHA256SUMS.txt
+            sha256sum -c SHA256SUMS.txt
+          )
+
       - name: Verify PostgreSQL backup and isolated restore
         if: success()
         shell: bash
@@ -124,13 +242,16 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         run: ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt
 
-      - name: Upload test reports and dependency tree
+      - name: Upload test, evaluation, security and R2 evidence reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase0-test-evaluation-and-dependency-reports
+          name: m8-r2-test-evaluation-security-and-evidence
           path: |
             **/target/surefire-reports/**
             target/dependency-tree.txt
             target/m8-b2-results/**
+            target/m8-b3-results/**
+            target/m8-r2-results/**
+            target/security/**
           if-no-files-found: warn

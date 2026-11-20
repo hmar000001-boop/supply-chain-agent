@@ -54,6 +54,20 @@ public final class PostgresAgentPersistence implements AutoCloseable {
         return new PostgresRuntimePersistence(dataSource, scopeId, codecs);
     }
 
+    /** Scope-bound durable B2 typed recovery procedure drafts and version history. */
+    public dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRecoveryProcedureDraftRepository recoveryProcedureDrafts(
+            String scopeId, dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec<dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraft> codec) {
+        return new dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRecoveryProcedureDraftRepository(dataSource, scopeId, codec);
+    }
+
+    /** Scope-bound append-only B3 consumer receipts and separately verified downstream outcomes. */
+    public dev.supplychain.agent.infrastructure.postgres.runtime.PostgresB3OutcomeEvidenceRepository b3OutcomeEvidence(
+            String scopeId,
+            dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec<dev.supplychain.agent.mechanisms.b3.WorkspaceReceiptEvidence> receiptCodec,
+            dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec<dev.supplychain.agent.mechanisms.b3.DownstreamOutcomeEvidence> outcomeCodec) {
+        return new dev.supplychain.agent.infrastructure.postgres.runtime.PostgresB3OutcomeEvidenceRepository(dataSource, scopeId, receiptCodec, outcomeCodec);
+    }
+
     /** Closes the pool when this composition root owns a pooled DataSource. */
     @Override public void close() {
         if (dataSource instanceof HikariDataSource pool) pool.close();
