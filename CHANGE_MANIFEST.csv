@@ -1,2 +1,2 @@
-path,operation,reason
-supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,replace_complete_source,Fix local variable shadowing of java package and reference actual ObservationProvenanceResolver.ObservationProvenance record
+operation,path,reason
+replace,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,Declare checked Exception on resumeClarificationAfterRestart because CompiledGraph.updateState can throw and caller already propagates Exception

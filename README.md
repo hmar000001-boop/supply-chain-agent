@@ -1,26 +1,36 @@
-# M8 PRE-B7 R1-DEF CI Fix 4 — Evaluation Test Compilation
+# M8 PRE-B7 R1-DEF — CI Fix 5
 
-This is an incremental, changes-only source replacement for the R1-DEF branch.
+## Purpose
+
+Fixes the final evaluation-test compilation error reported by GitHub Actions:
+
+`M8B4FullGraphWorkflowTest.java:[546,44] unreported exception java.lang.Exception; must be caught or declared to be thrown`
+
+`CompiledGraph.updateState(...)` is a checked-exception operation. The helper `ScenarioRuntime.resumeClarificationAfterRestart()` invokes it, while its signature previously did not declare the checked exception. The caller `R1DefFullGraphForkedProbe.main(...)` already declares `throws Exception`.
+
+## Change
+
+The complete source replacement changes only this helper signature:
+
+```java
+TerminalOutput resumeClarificationAfterRestart() throws Exception
+```
+
+No graph logic, persistence behavior, state mutation, or production source is changed.
 
 ## Apply
 
-Extract this ZIP at the repository root and overwrite the matching file:
+Extract this ZIP at the repository root and overwrite the matching source file. This package is incremental and must be applied on top of R1-DEF and CI Fixes 1–4.
 
-`supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java`
+Then run:
 
-This package is intended to be applied on top of the R1-DEF base package and CI Fixes 1, 2, and 3. It does not contain or replace those earlier changes.
-
-## Corrections
-
-1. Renamed the local Java executable path variable from `java` to `javaExecutable`. This removes package-name shadowing so `java.util.Locale.ROOT` resolves to the JDK package.
-2. Corrected the provenance record reference to `ObservationProvenanceResolver.ObservationProvenance`. The record is nested in `ObservationProvenanceResolver`, not in `PostgresRuntimeCodecs`.
-3. Added the explicit import for `ObservationProvenanceResolver`.
-
-No production source, runtime behavior, persistence schema, or lease-security checks are changed.
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean install
+```
 
 ## Validation scope
 
-- Confirmed both reported compiler-error expressions are corrected.
-- Confirmed the referenced provenance record declaration in the production PostgreSQL module.
-- Confirmed the archive contains one complete Java source replacement and no patch-only files.
-- Full Maven reactor / PostgreSQL CI was not run in the authoring environment. GitHub Actions remains the acceptance gate.
+- Verified the exact compiler-error call path and that the existing caller propagates `Exception`.
+- Verified the complete replacement contains the expected signature exactly once.
+- Verified ZIP integrity and SHA-256 manifest.
+- Full Maven reactor/test compilation was not run locally; GitHub Actions remains the acceptance gate.

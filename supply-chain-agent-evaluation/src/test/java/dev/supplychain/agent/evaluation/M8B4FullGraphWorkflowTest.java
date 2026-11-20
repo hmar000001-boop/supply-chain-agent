@@ -539,7 +539,7 @@ class M8B4FullGraphWorkflowTest {
             assertEquals(0, effects.get(), "no external action may run before clarification and subsequent authorization");
         }
 
-        TerminalOutput resumeClarificationAfterRestart() {
+        TerminalOutput resumeClarificationAfterRestart() throws Exception {
             var checkpoint = graph.getState(config).state();
             assertEquals("NEEDS_CLARIFICATION", checkpoint.text(CognitiveCycleState.DECISION_STATUS),
                     "fresh JVM must restore the full graph checkpoint from PostgreSQL");
