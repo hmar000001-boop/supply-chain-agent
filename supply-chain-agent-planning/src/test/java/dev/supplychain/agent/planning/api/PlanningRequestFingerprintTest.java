@@ -8,6 +8,7 @@ import dev.supplychain.agent.domain.recovery.RecoveryObjective;
 import dev.supplychain.agent.domain.world.SupplyChainSnapshot;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.working.MemoryValue;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.planning.PlanningTestFixtures;
 import dev.supplychain.agent.planning.session.InMemoryPlannerSessionStore;
 import dev.supplychain.agent.planning.session.PlannerCheckpointConflictException;
@@ -31,6 +32,28 @@ final class PlanningRequestFingerprintTest {
         var enlarged = PlanningTestFixtures.withBudgetAndResume(original,
                 PlanningTestFixtures.budget(20, 20, 0, 10, 2), "session-1");
         assertEquals(original.fingerprint(), enlarged.fingerprint());
+    }
+
+    @org.junit.jupiter.api.Test
+    void uncertaintyAssessmentRevisionIsPartOfThePlannerSessionFingerprint() {
+        var base = PlanningTestFixtures.request("fingerprint-uncertainty", PlanningTestFixtures.budget(10, 10, 0, 5, 3));
+        var firstReference = new UncertaintyAssessment.Reference("assessment:uncertainty", 1,
+                base.executionId(), base.workingMemory().scopeId().value());
+        var secondReference = new UncertaintyAssessment.Reference("assessment:uncertainty", 2,
+                base.executionId(), base.workingMemory().scopeId().value());
+        var first = withUncertainty(base, firstReference);
+        var second = withUncertainty(base, secondReference);
+
+        assertFalse(first.fingerprint().equals(second.fingerprint()),
+                "resuming a planner session under a different uncertainty revision must be rejected");
+    }
+
+    private static PlanningRequest withUncertainty(PlanningRequest source,
+                                                   UncertaintyAssessment.Reference reference) {
+        return new PlanningRequest(source.executionId(), source.objective(), source.initialWorld(), source.workingMemory(),
+                source.evidence(), source.availableActionDefinitions(), source.hardConstraints(), source.scoringProfile(),
+                source.riskPolicy(), source.authorityPolicy(), source.complexity(), source.budget(),
+                source.requestedAt(), source.resumeSessionId(), reference);
     }
 
     @org.junit.jupiter.api.Test
@@ -97,6 +120,6 @@ final class PlanningRequestFingerprintTest {
         return new PlanningRequest(source.executionId(), objective, world, memory, evidence,
                 source.availableActionDefinitions(), source.hardConstraints(), source.scoringProfile(),
                 source.riskPolicy(), source.authorityPolicy(), source.complexity(), source.budget(),
-                source.requestedAt(), resumeId);
+                source.requestedAt(), resumeId, source.uncertaintyAssessmentReference());
     }
 }

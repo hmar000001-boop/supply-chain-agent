@@ -105,7 +105,8 @@ public final class PlanningTestFixtures {
     public static PlanningRequest withBudgetAndResume(PlanningRequest original, PlannerBudget budget, String sessionId) {
         return new PlanningRequest(original.executionId(), original.objective(), original.initialWorld(), original.workingMemory(),
                 original.evidence(), original.availableActionDefinitions(), original.hardConstraints(), original.scoringProfile(),
-                original.riskPolicy(), original.authorityPolicy(), original.complexity(), budget, original.requestedAt(), sessionId);
+                original.riskPolicy(), original.authorityPolicy(), original.complexity(), budget, original.requestedAt(), sessionId,
+                original.uncertaintyAssessmentReference());
     }
 
     public static PlannerBudget budget(int expansions, int evaluations, int modelCalls, int rollouts, int maxDepth) {

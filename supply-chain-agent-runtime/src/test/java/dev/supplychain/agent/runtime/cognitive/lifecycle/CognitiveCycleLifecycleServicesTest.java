@@ -346,6 +346,69 @@ final class CognitiveCycleLifecycleServicesTest {
     }
 
     @Test
+    void b4MethodGovernanceRejectsExpiredUncertaintyBeforeConsultingTheDomainDirective() {
+        Fixture fixture = new Fixture();
+        CycleContext context = context("", 0, "", 0, "");
+        var expired = new UncertaintyAssessment(context.uncertaintyAssessmentReference(),
+                NOW.minusSeconds(100), NOW.minusSeconds(1), "expired-b4-provenance",
+                UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
+                UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
+                UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
+        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+                fixture.domain.metaControl.requiredForNextStep());
+
+        assertThrows(SecurityException.class, () -> fixture.lifecycle.governIntention(context));
+        assertEquals(0, fixture.domain.intentionDirectiveCalls,
+                "B4 must not select or change a method using an expired uncertainty assessment");
+    }
+
+    @Test
+    void b6AssessmentRevisionIsScopedVersionedAndIdempotentForTheSameGraphTrigger() {
+        Fixture fixture = new Fixture();
+        CycleContext initial = context("", 0, "", 0, "");
+
+        var first = fixture.lifecycle.assessUncertainty(initial, "post-retrieval:evidence-1");
+        var replay = fixture.lifecycle.assessUncertainty(initial, "post-retrieval:evidence-1");
+
+        assertEquals(first, replay, "a checkpoint retry must resolve the same immutable assessment revision");
+        assertEquals(2L, first.version(), "the fixture context already carries revision 1");
+        assertEquals("execution:m6b", first.executionId());
+        assertEquals(SCOPE.value(), first.memoryScopeId());
+    }
+
+    @Test
+    void b6AssessmentRefreshRejectsSkippedRevisionNumbers() {
+        Fixture fixture = new Fixture();
+        fixture.domain.assessmentVersionIncrement = 2L;
+        CycleContext context = context("", 0, "", 0, "");
+
+        assertThrows(SecurityException.class,
+                () -> fixture.lifecycle.assessUncertainty(context, "post-planning:skipped-revision"));
+    }
+
+    @Test
+    void b6RejectsAnAssessmentThatDoesNotMatchTheGraphRevisionOrIsExpired() {
+        Fixture fixture = new Fixture();
+        CycleContext context = context("", 0, "", 0, "");
+        var wrongRevision = uncertainty(0.1, new UncertaintyAssessment.Reference(
+                "uncertainty:execution:m6b", 2, "execution:m6b", SCOPE.value()));
+        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), wrongRevision,
+                fixture.domain.metaControl.requiredForNextStep());
+        assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
+
+        var expired = new UncertaintyAssessment(context.uncertaintyAssessmentReference(),
+                NOW.minusSeconds(100), NOW.minusSeconds(1), "expired-provenance",
+                UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
+                UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
+                UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
+        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+                fixture.domain.metaControl.requiredForNextStep());
+        assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
+    }
+
+    @Test
     void b6DecisionIsPersistedAndResourceExhaustionStopsTheCycle() {
         Fixture fixture = new Fixture();
         CycleContext context = context("", 0, "", 0, "");
@@ -455,7 +518,8 @@ final class CognitiveCycleLifecycleServicesTest {
                 loaded.intentionVersion() + 1, initial.plannerId(), initial.plannerSessionId(), initial.candidateSetId(),
                 initial.planningRound(), initial.selectedCandidateId(), opened.caseId(), "", initial.approvalId(),
                 initial.approvalResponseId(), initial.approverId(), initial.humanControlResponseId(), initial.humanControlActorId(),
-                initial.executionOperationId(), initial.observationId(), initial.lastReason());
+                initial.executionOperationId(), initial.observationId(), initial.lastReason(),
+                initial.uncertaintyAssessmentReference());
 
         ImpasseInvestigated investigated = fixture.lifecycle.investigateImpasse(withImpasse);
         ImpasseResolved resolved = fixture.lifecycle.validateImpasseReturn(withImpasse);
@@ -491,14 +555,21 @@ final class CognitiveCycleLifecycleServicesTest {
                 loaded.intentionVersion() + 1, initial.plannerId(), initial.plannerSessionId(), initial.candidateSetId(),
                 initial.planningRound(), initial.selectedCandidateId(), opened.caseId(), "", initial.approvalId(),
                 initial.approvalResponseId(), initial.approverId(), initial.humanControlResponseId(), initial.humanControlActorId(),
-                initial.executionOperationId(), initial.observationId(), initial.lastReason());
+                initial.executionOperationId(), initial.observationId(), initial.lastReason(),
+                initial.uncertaintyAssessmentReference());
 
         assertThrows(SecurityException.class, () -> fixture.lifecycle.investigateImpasse(delegated));
         assertEquals(0, fixture.domain.executedChildSteps);
     }
 
     private static UncertaintyAssessment uncertainty(double value) {
-        return new UncertaintyAssessment(Map.of(
+        return uncertainty(value, new UncertaintyAssessment.Reference("uncertainty:execution:m6b", 1,
+                "execution:m6b", SCOPE.value()));
+    }
+
+    private static UncertaintyAssessment uncertainty(double value, UncertaintyAssessment.Reference reference) {
+        return new UncertaintyAssessment(reference, NOW.minusSeconds(1), NOW.plusSeconds(300),
+                "test-provenance:uncertainty", UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, value, "test evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, value, "test hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, value, "test plan", 1)));
@@ -509,7 +580,8 @@ final class CognitiveCycleLifecycleServicesTest {
         return new CycleContext("request:m6b", "execution:m6b", SCOPE.value(), "Recover affected customer order",
                 "recover customer order", "test context", "", 0, memoryId, memoryVersion,
                 "evidence-set:m6b", 0, "", "workspace:m6b", intentionId, intentionVersion,
-                "", "", "", 0, "", "", "", "", "", "", "", "", "action-batch:m6b", observationId, "");
+                "", "", "", 0, "", "", "", "", "", "", "", "", "action-batch:m6b", observationId, "",
+                new UncertaintyAssessment.Reference("uncertainty:execution:m6b", 1, "execution:m6b", SCOPE.value()));
     }
 
     private static final class Fixture {
@@ -599,6 +671,9 @@ final class CognitiveCycleLifecycleServicesTest {
         @Override public WorkspaceAdmissionRequest workspaceAdmissionRequest(CycleContext context, Instant at) { throw new UnsupportedOperationException(); }
         @Override public Set<String> workspaceConsumers(CycleContext context) { throw new UnsupportedOperationException(); }
         @Override public void recordWorkspaceBroadcast(CycleContext context, WorkspaceBroadcastReport report, Instant at) { throw new UnsupportedOperationException(); }
+        @Override public UncertaintyAssessment currentUncertaintyAssessment(CycleContext context, Instant at) {
+            throw new UnsupportedOperationException();
+        }
         @Override public PlanningRequest planningRequest(CycleContext context, Instant at) { throw new UnsupportedOperationException(); }
     }
 
@@ -616,6 +691,9 @@ final class CognitiveCycleLifecycleServicesTest {
         private List<ResolutionFinding> findings = List.of();
         private int executedChildSteps;
         private int intentionDirectiveCalls;
+        private final Map<String, UncertaintyAssessment> uncertaintyByTrigger = new java.util.HashMap<>();
+        private final Map<UncertaintyAssessment.Reference, UncertaintyAssessment> uncertaintyByReference = new java.util.HashMap<>();
+        private long assessmentVersionIncrement = 1L;
 
         @Override public MemoryScopeId memoryScope(CycleContext context) { return new MemoryScopeId(context.memoryScopeId()); }
         @Override public dev.supplychain.agent.memory.working.WorkingMemoryId workingMemoryId(CycleContext context) {
@@ -657,6 +735,26 @@ final class CognitiveCycleLifecycleServicesTest {
                 dev.supplychain.agent.mechanisms.b4.RecoveryIntention current, Instant at) {
             intentionDirectiveCalls++;
             return nextIntentionDirective;
+        }
+        @Override public UncertaintyAssessment assessUncertainty(CycleContext context, String triggerId, Instant at) {
+            UncertaintyAssessment next = uncertaintyByTrigger.computeIfAbsent(triggerId, ignored -> {
+                var previous = context.uncertaintyAssessmentReference();
+                long version = previous == null ? 1L : previous.version() + assessmentVersionIncrement;
+                String id = previous == null ? "uncertainty:" + context.executionId() : previous.assessmentId();
+                var reference = new UncertaintyAssessment.Reference(id, version, context.executionId(), context.memoryScopeId());
+                var created = uncertainty(0.1, reference);
+                uncertaintyByReference.put(reference, created);
+                return created;
+            });
+            metaControl = new MetaControlInputs(metaControl.budget(), next, metaControl.requiredForNextStep());
+            return next;
+        }
+        @Override public UncertaintyAssessment currentUncertaintyAssessment(CycleContext context, Instant at) {
+            var reference = context.requireUncertaintyAssessmentReference();
+            UncertaintyAssessment current = uncertaintyByReference.get(reference);
+            if (current != null) return current;
+            if (metaControl.uncertainty().reference().equals(reference)) return metaControl.uncertainty();
+            throw new SecurityException("uncertainty revision was not found in the test assessment store");
         }
         @Override public MetaControlInputs metaControlInputs(CycleContext context, Instant at) { return metaControl; }
         @Override public void recordMetaControlDecision(CycleContext context, MetaControlInputs inputs,

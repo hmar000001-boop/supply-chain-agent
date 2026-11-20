@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-ANNOTATION = re.compile(r"@(Test|ParameterizedTest|RepeatedTest|TestFactory)\b")
+ANNOTATION = re.compile(r"@(?:org\.junit\.jupiter\.api\.)?(Test|ParameterizedTest|RepeatedTest|TestFactory)\b")
 FRAMEWORK_NEUTRAL = {
     "supply-chain-agent-domain", "supply-chain-agent-memory", "supply-chain-agent-core",
     "supply-chain-agent-simulator", "supply-chain-agent-actions",
@@ -23,9 +23,9 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
     "supply-chain-agent-actions": (57, 5, 28, 4, 1),
-    "supply-chain-agent-mechanisms": (86, 6, 70, 6, 0),
-    "supply-chain-agent-planning": (51, 8, 30, 6, 2),
-    "supply-chain-agent-runtime": (35, 11, 66, 11, 0),
+    "supply-chain-agent-mechanisms": (86, 6, 72, 6, 0),
+    "supply-chain-agent-planning": (51, 8, 37, 7, 1),
+    "supply-chain-agent-runtime": (35, 11, 72, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (38, 12, 44, 11, 1),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
     "supply-chain-agent-evaluation": (20, 7, 26, 7, 0),
@@ -156,5 +156,5 @@ if failures:
 print(f"M8-B5 architecture verification: PASS ({len(modules)} modules; acyclic internal dependency graph)")
 print("Direct framework dependencies: PASS (all imports declared by their owning modules)")
 print("Framework-neutral module boundary: PASS")
-print("Source/test inventory: PASS (403 production Java files; 62 test sources; 342 test annotations/factories)")
+print("Source/test inventory: PASS (403 production Java files; 62 test sources; 357 test annotations/factories)")
 print("CI workflow mirror and M8-B2 artifact capture: PASS")

@@ -2,6 +2,8 @@ package dev.supplychain.agent.runtime.cognitive.decision;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.supplychain.agent.memory.common.EvidenceReference;
@@ -63,6 +65,9 @@ import dev.supplychain.agent.mechanisms.b3.WorkspaceCandidate;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceCandidateKind;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceConsumerReceipt;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceScoringPolicy;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyDimension;
+import dev.supplychain.agent.mechanisms.b6.UncertaintySignal;
 import dev.supplychain.agent.actions.api.ActionCategory;
 import dev.supplychain.agent.actions.api.ActionDescriptor;
 import dev.supplychain.agent.actions.api.ActionEffect;
@@ -261,6 +266,17 @@ final class CognitiveCycleDecisionServicesTest {
     }
 
     @Test
+    void workspaceAdmissionRejectsARequestBoundToAnotherUncertaintyRevision() {
+        var port = new TestDecisionPort();
+        port.workspaceAssessmentReferenceOverride = new UncertaintyAssessment.Reference(
+                "assessment:execution:test", 2, "execution:test", SCOPE.value());
+        var services = services(port, workspaceBroadcast());
+
+        assertThrows(SecurityException.class, () -> services.prepareWorkspace(context()));
+        assertNull(port.broadcastReport, "a stale uncertainty binding must be rejected before B3 admission or broadcast");
+    }
+
+    @Test
     void broadcastFailureCannotBeReportedAsAnAdmittedWorkspace() {
         var port = new TestDecisionPort();
         var failing = new WorkspaceBroadcastService(Map.of("planner", broadcast ->
@@ -294,6 +310,24 @@ final class CognitiveCycleDecisionServicesTest {
         assertEquals(CognitiveCycleOperations.EvaluationDisposition.NO_FEASIBLE_CANDIDATE,
                 evaluated.disposition());
         assertTrue(evaluated.reason().contains("NO_AVAILABLE_ACTIONS"));
+    }
+
+    @Test
+    void plannerRequestMustCarryTheCurrentUncertaintyRevision() {
+        var port = new TestDecisionPort();
+        var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
+        PlanningRequest valid = planningRequest("execution:test", workingMemory);
+        port.planningRequest = new PlanningRequest(valid.executionId(), valid.objective(), valid.initialWorld(),
+                valid.workingMemory(), valid.evidence(), valid.availableActionDefinitions(), valid.hardConstraints(),
+                valid.scoringProfile(), valid.riskPolicy(), valid.authorityPolicy(), valid.complexity(), valid.budget(),
+                valid.requestedAt(), valid.resumeSessionId(), new UncertaintyAssessment.Reference(
+                        "assessment:execution:test", 2, "execution:test", SCOPE.value()));
+        var world = new SimulatorBackedPlanningWorldModel(new SupplyChainSimulator(),
+                (request, state) -> List.of(), "decision-test-world-v1");
+        var services = services(port, workspaceBroadcast(), world, new DeterministicCandidateEvaluator(world));
+
+        assertThrows(SecurityException.class, () -> services.proposeCandidates(context(workingMemory, "")));
+        assertTrue(port.plannerInvocations.isEmpty(), "planner must not run under a stale uncertainty revision");
     }
 
     @Test
@@ -448,7 +482,8 @@ final class CognitiveCycleDecisionServicesTest {
                 new PlanningAuthorityPolicy("m6a-test-policy-v1", Set.of(Capability.INVENTORY_RESERVE),
                         Set.of(Capability.INVENTORY_RESERVE)),
                 new PlanningComplexity(1, 1, 0.10, 0.30),
-                new PlannerBudget(2, 4, 4, 0, 0, 4, Duration.ofSeconds(30), NOW.plusSeconds(30)), NOW, null);
+                new PlannerBudget(2, 4, 4, 0, 0, 4, Duration.ofSeconds(30), NOW.plusSeconds(30)), NOW, null,
+                new UncertaintyAssessment.Reference("assessment:" + executionId, 1, executionId, workingMemory.scopeId().value()));
     }
 
     private static PlanningRequest planningRequest(String executionId, WorkingMemorySnapshot workingMemory) {
@@ -470,7 +505,8 @@ final class CognitiveCycleDecisionServicesTest {
                 new PlanningAuthorityPolicy("m6a-test-policy-v1", Set.of(), Set.of()),
                 new PlanningComplexity(1, 1, 0.1, 0.1),
                 new PlannerBudget(1, 1, 1, 0, 0, 1, Duration.ofSeconds(10), NOW.plusSeconds(10)),
-                NOW, null);
+                NOW, null, new UncertaintyAssessment.Reference("assessment:" + executionId, 1,
+                        executionId, workingMemory.scopeId().value()));
     }
 
     private static CognitiveCycleDecisionServices services(TestDecisionPort port,
@@ -549,7 +585,8 @@ final class CognitiveCycleDecisionServicesTest {
         return new CognitiveCycleOperations.CycleContext(
                 "request:test", "execution:test", SCOPE.value(), "Assess supplier disruption",
                 "", "", "", 0, "", 0L, "evidence-set:test", 0, "", "", "", 0L,
-                "", "", "", 0, "", "", "", "", "", "", "", "", "", "", "");
+                "", "", "", 0, "", "", "", "", "", "", "", "", "", "", "",
+                new UncertaintyAssessment.Reference("assessment:execution:test", 1, "execution:test", SCOPE.value()));
     }
 
     private static CognitiveCycleOperations.CycleContext context(WorkingMemorySnapshot workingMemory,
@@ -565,7 +602,17 @@ final class CognitiveCycleDecisionServicesTest {
                 "request:test", "execution:test", SCOPE.value(), "Assess supplier disruption",
                 "", "", "", 0, workingMemory.id().value(), workingMemory.version(), "evidence-set:test", 0,
                 "", "workspace:test", "", 0L, plannerId, plannerSessionId, candidateSetId, 0,
-                "", "", "", "", "", "", "", "", "", "", "");
+                "", "", "", "", "", "", "", "", "", "", "",
+                new UncertaintyAssessment.Reference("assessment:execution:test", 1, "execution:test", SCOPE.value()));
+    }
+
+    private static UncertaintyAssessment uncertainty(CognitiveCycleOperations.CycleContext context, Instant at) {
+        var reference = context.requireUncertaintyAssessmentReference();
+        return new UncertaintyAssessment(reference, at.minusSeconds(1), at.plusSeconds(300),
+                "test-provenance:decision", UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence source", 1),
+                UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis source", 1),
+                UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan source", 1)));
     }
 
     private static final class TestDecisionPort implements CognitiveCycleDecisionPort {
@@ -578,6 +625,7 @@ final class CognitiveCycleDecisionServicesTest {
         private String retrievalPredicate;
         private B1CandidateFeatureProvider featureProvider;
         private String persistedEvidenceSetId = "";
+        private UncertaintyAssessment.Reference workspaceAssessmentReferenceOverride;
         private java.util.function.Function<PlanningRequest, PlanningResult> plannerResultFactory;
         private final List<PlannerId> plannerInvocations = new java.util.ArrayList<>();
 
@@ -606,6 +654,9 @@ final class CognitiveCycleDecisionServicesTest {
                     CognitiveCycleOperations.EvidenceDisposition.READY, "evidence-set:test", 0.1,
                     "empty but valid evidence set persisted");
         }
+        @Override public UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at) {
+            return uncertainty(context, at);
+        }
         @Override public WorkspaceAdmissionRequest workspaceAdmissionRequest(
                 CognitiveCycleOperations.CycleContext context, Instant at) {
             return new WorkspaceAdmissionRequest("cycle:test", SCOPE, 10, 5,
@@ -614,7 +665,9 @@ final class CognitiveCycleDecisionServicesTest {
                     List.of(new WorkspaceCandidate("request-context", SCOPE,
                             WorkspaceCandidateKind.OBSERVATION, 2.0, 1.0, 0.0,
                             2, Set.of("current-request"), Set.of(), true,
-                            List.of(new EvidenceReference("request", "request:test")))), at);
+                            List.of(new EvidenceReference("request", "request:test")))), at,
+                    workspaceAssessmentReferenceOverride == null
+                            ? context.requireUncertaintyAssessmentReference() : workspaceAssessmentReferenceOverride);
         }
         @Override public Set<String> workspaceConsumers(CognitiveCycleOperations.CycleContext context) {
             return Set.of("planner");

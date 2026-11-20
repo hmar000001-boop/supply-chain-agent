@@ -29,6 +29,7 @@ import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetExceededException;
 import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -269,11 +270,15 @@ public final class CognitiveCycleDecisionServices {
 
     public WorkspacePrepared prepareWorkspace(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
+        Instant at = clock.instant();
+        UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, at);
         if (context.evidenceSetId().isBlank()) {
             throw new IllegalStateException("B3 workspace admission requires the persisted B1 evidence-set reference");
         }
-        Instant at = clock.instant();
         var request = domainPort.workspaceAdmissionRequest(context, at);
+        if (!Objects.equals(request.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
+            throw new SecurityException("B3 admission request must carry the exact current uncertainty assessment reference");
+        }
         var expectedScope = domainPort.memoryScope(context);
         if (!expectedScope.equals(request.scopeId())) {
             throw new SecurityException("workspace scope does not match the active cognitive-cycle scope");
@@ -308,8 +313,13 @@ public final class CognitiveCycleDecisionServices {
 
     public PlanningPrepared proposeCandidates(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
+        Instant at = clock.instant();
+        UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, at);
         PlanningRequest request = Objects.requireNonNull(
-                domainPort.planningRequest(context, clock.instant()), "domain port returned null planning request");
+                domainPort.planningRequest(context, at), "domain port returned null planning request");
+        if (!Objects.equals(request.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
+            throw new SecurityException("M5 planning request must carry the exact current uncertainty assessment reference");
+        }
         if (!request.executionId().equals(context.executionId())) {
             throw new SecurityException("planning request execution identity does not match graph execution");
         }
@@ -358,6 +368,7 @@ public final class CognitiveCycleDecisionServices {
 
     public CandidateEvaluation evaluateCandidates(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
+        UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, clock.instant());
         String candidateSetId = require(context.candidateSetId(), "candidateSetId");
         var artifacts = planningArtifacts.find(candidateSetId).orElseThrow(() ->
                 new IllegalStateException("planner candidate set is not available: " + candidateSetId));
@@ -365,6 +376,9 @@ public final class CognitiveCycleDecisionServices {
             throw new SecurityException("candidate set belongs to a different graph execution");
         }
         PlanningRequest request = artifacts.request();
+        if (!Objects.equals(request.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
+            throw new SecurityException("candidate set was planned under a different uncertainty assessment revision");
+        }
         PlanningResult result = artifacts.result();
         if (!request.workingMemory().id().value().equals(context.workingMemoryId())
                 || request.workingMemory().version() != context.workingMemoryVersion()
@@ -401,6 +415,17 @@ public final class CognitiveCycleDecisionServices {
                         + ", score=" + best.score() + ", evaluator=" + candidateEvaluator.configurationFingerprint());
     }
 
+    private UncertaintyAssessment requireCurrentUncertainty(CognitiveCycleOperations.CycleContext context, Instant at) {
+        var reference = context.requireUncertaintyAssessmentReference();
+        UncertaintyAssessment assessment = Objects.requireNonNull(
+                domainPort.currentUncertaintyAssessment(context, at), "decision domain returned null uncertainty assessment");
+        if (!assessment.reference().equals(reference)
+                || !assessment.isCurrentFor(context.executionId(), context.memoryScopeId(), at)) {
+            throw new SecurityException("B3/M5 decision stage requires the exact current uncertainty assessment referenced by graph state");
+        }
+        return assessment;
+    }
+
     /** Returns the exact selected M5 candidate and its immutable planning provenance. */
     public SelectedPlanningCandidate selectedCandidate(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
@@ -428,6 +453,10 @@ public final class CognitiveCycleDecisionServices {
     public CandidateRevalidation revalidateSelectedCandidate(
             CognitiveCycleOperations.CycleContext context, PlanningRequest freshRequest) {
         Objects.requireNonNull(freshRequest, "freshRequest");
+        UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, clock.instant());
+        if (!Objects.equals(freshRequest.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
+            return new CandidateRevalidation(false, "fresh planning request does not carry the active uncertainty assessment revision");
+        }
         SelectedPlanningCandidate selected = selectedCandidate(context);
         PlanningRequest original = selected.request();
         if (!freshRequest.executionId().equals(context.executionId())

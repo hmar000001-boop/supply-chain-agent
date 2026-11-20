@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive.decision;
 
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 
 import java.util.Objects;
@@ -68,6 +69,10 @@ public final class CognitiveCycleDecisionOperations implements CognitiveCycleOpe
 
     @Override public IntentionGovernance governIntention(CycleContext context) {
         return remainingOperations.governIntention(context);
+    }
+
+    @Override public UncertaintyAssessment.Reference assessUncertainty(CycleContext context, String triggerId) {
+        return remainingOperations.assessUncertainty(context, triggerId);
     }
 
     @Override public MetaControlDecision governMetaControl(CycleContext context) {

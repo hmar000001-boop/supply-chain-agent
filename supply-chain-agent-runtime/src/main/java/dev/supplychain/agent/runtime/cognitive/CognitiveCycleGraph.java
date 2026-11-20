@@ -30,6 +30,11 @@ public final class CognitiveCycleGraph {
     public static final String NODE_AWAIT_CLARIFICATION = "await-clarification";
     public static final String NODE_LOAD_CONTEXT = "load-context";
     public static final String NODE_RETRIEVE = "retrieve-evidence";
+    public static final String NODE_ASSESS_UNCERTAINTY = "assess-uncertainty-after-retrieval";
+    public static final String NODE_REFRESH_UNCERTAINTY = "refresh-uncertainty-after-planning";
+    public static final String NODE_REFRESH_UNCERTAINTY_AFTER_HUMAN = "refresh-uncertainty-after-human-control";
+    public static final String NODE_ASSESS_UNCERTAINTY_BEFORE_IMPASSE = "assess-uncertainty-before-impasse";
+    public static final String NODE_REFRESH_UNCERTAINTY_BEFORE_IMPASSE = "refresh-uncertainty-before-impasse";
     public static final String NODE_AWAIT_EVIDENCE = "await-evidence";
     public static final String NODE_WORKSPACE = "workspace-admission-and-broadcast";
     public static final String NODE_PROPOSE = "propose-candidates";
@@ -125,6 +130,36 @@ public final class CognitiveCycleGraph {
                     CognitiveCycleState.LAST_REASON, result.reason());
         };
 
+        NodeAction<CognitiveCycleState> assessUncertainty = state -> assessUncertaintyUpdate(
+                state, operations,
+                "post-retrieval:" + state.text(CognitiveCycleState.EVIDENCE_SET_ID)
+                        + ":evidence-request-" + state.integer(CognitiveCycleState.EVIDENCE_REQUEST_COUNT),
+                "uncertainty-assessed-after-retrieval");
+
+        NodeAction<CognitiveCycleState> refreshUncertainty = state -> assessUncertaintyUpdate(
+                state, operations,
+                "post-planning:" + state.text(CognitiveCycleState.CANDIDATE_SET_ID)
+                        + ":planning-round-" + state.integer(CognitiveCycleState.PLANNING_ROUND),
+                "uncertainty-refreshed-after-planning");
+
+        NodeAction<CognitiveCycleState> refreshUncertaintyAfterHuman = state -> assessUncertaintyUpdate(
+                state, operations,
+                "post-human-control:" + state.text(CognitiveCycleState.HUMAN_CONTROL_AUDIT_REFERENCE)
+                        + ":meta-round-" + state.integer(CognitiveCycleState.META_CONTROL_ROUND),
+                "uncertainty-refreshed-after-human-control");
+
+        NodeAction<CognitiveCycleState> assessUncertaintyBeforeImpasse = state -> assessUncertaintyUpdate(
+                state, operations,
+                "pre-impasse-retrieval:" + state.text(CognitiveCycleState.EVIDENCE_SET_ID)
+                        + ":evidence-request-" + state.integer(CognitiveCycleState.EVIDENCE_REQUEST_COUNT),
+                "uncertainty-assessed-before-impasse");
+
+        NodeAction<CognitiveCycleState> refreshUncertaintyBeforeImpasse = state -> assessUncertaintyUpdate(
+                state, operations,
+                "pre-impasse-planning:" + state.text(CognitiveCycleState.CANDIDATE_SET_ID)
+                        + ":planning-round-" + state.integer(CognitiveCycleState.PLANNING_ROUND),
+                "uncertainty-refreshed-before-impasse");
+
         NodeAction<CognitiveCycleState> acceptEvidence = state -> {
             if (state.text(CognitiveCycleState.EVIDENCE_RESPONSE_ID).isBlank()) {
                 throw new IllegalStateException("Evidence interruption resumed without a host-issued evidence response reference");
@@ -176,6 +211,10 @@ public final class CognitiveCycleGraph {
                         CognitiveCycleState.IMPASSE_CASE_ID, child.text(B2ResolutionGraphState.IMPASSE_CASE_ID),
                         CognitiveCycleState.IMPASSE_INVESTIGATION_REFERENCE,
                         child.text(B2ResolutionGraphState.INVESTIGATION_REFERENCE),
+                        CognitiveCycleState.UNCERTAINTY_ASSESSMENT_ID,
+                        child.text(B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID),
+                        CognitiveCycleState.UNCERTAINTY_ASSESSMENT_VERSION,
+                        child.uncertaintyAssessmentVersion(),
                         CognitiveCycleState.DECISION_STATUS, child.text(B2ResolutionGraphState.DISPOSITION),
                         CognitiveCycleState.LAST_REASON, child.text(B2ResolutionGraphState.REASON));
             } catch (RuntimeException ex) {
@@ -475,6 +514,11 @@ public final class CognitiveCycleGraph {
                 .addNode(NODE_AWAIT_CLARIFICATION, node_async(acceptClarification))
                 .addNode(NODE_LOAD_CONTEXT, node_async(loadContext))
                 .addNode(NODE_RETRIEVE, node_async(retrieve))
+                .addNode(NODE_ASSESS_UNCERTAINTY, node_async(assessUncertainty))
+                .addNode(NODE_REFRESH_UNCERTAINTY, node_async(refreshUncertainty))
+                .addNode(NODE_REFRESH_UNCERTAINTY_AFTER_HUMAN, node_async(refreshUncertaintyAfterHuman))
+                .addNode(NODE_ASSESS_UNCERTAINTY_BEFORE_IMPASSE, node_async(assessUncertaintyBeforeImpasse))
+                .addNode(NODE_REFRESH_UNCERTAINTY_BEFORE_IMPASSE, node_async(refreshUncertaintyBeforeImpasse))
                 .addNode(NODE_AWAIT_EVIDENCE, node_async(acceptEvidence))
                 .addNode(NODE_WORKSPACE, node_async(workspace))
                 .addNode(NODE_PROPOSE, node_async(propose))
@@ -502,13 +546,15 @@ public final class CognitiveCycleGraph {
                 .addEdge(NODE_AWAIT_CLARIFICATION, NODE_INTERPRET)
                 .addEdge(NODE_LOAD_CONTEXT, NODE_RETRIEVE)
                 .addConditionalEdges(NODE_RETRIEVE, edge_async(evidenceRoute), Map.of(
-                        "workspace", NODE_WORKSPACE,
+                        "workspace", NODE_ASSESS_UNCERTAINTY,
                         "await-evidence", NODE_AWAIT_EVIDENCE,
-                        "b2-resolution", NODE_B2,
+                        "b2-resolution", NODE_ASSESS_UNCERTAINTY_BEFORE_IMPASSE,
                         "escalate", NODE_ESCALATE))
+                .addEdge(NODE_ASSESS_UNCERTAINTY, NODE_WORKSPACE)
+                .addEdge(NODE_ASSESS_UNCERTAINTY_BEFORE_IMPASSE, NODE_B2)
                 .addConditionalEdges(NODE_AWAIT_EVIDENCE, edge_async(acceptedEvidenceRoute), Map.of(
                         "load-context", NODE_LOAD_CONTEXT,
-                        "b2-resolution", NODE_B2,
+                        "b2-resolution", NODE_ASSESS_UNCERTAINTY_BEFORE_IMPASSE,
                         "escalate", NODE_ESCALATE))
                 .addConditionalEdges(NODE_WORKSPACE, edge_async(workspaceRoute), Map.of(
                         "propose", NODE_PROPOSE,
@@ -516,11 +562,13 @@ public final class CognitiveCycleGraph {
                         "escalate", NODE_ESCALATE))
                 .addEdge(NODE_PROPOSE, NODE_EVALUATE)
                 .addConditionalEdges(NODE_EVALUATE, edge_async(evaluationRoute), Map.of(
-                        "intention", NODE_INTENTION,
+                        "intention", NODE_REFRESH_UNCERTAINTY,
                         "propose", NODE_PROPOSE,
                         "await-evidence", NODE_AWAIT_EVIDENCE,
-                        "b2-resolution", NODE_B2,
+                        "b2-resolution", NODE_REFRESH_UNCERTAINTY_BEFORE_IMPASSE,
                         "escalate", NODE_ESCALATE))
+                .addEdge(NODE_REFRESH_UNCERTAINTY, NODE_INTENTION)
+                .addEdge(NODE_REFRESH_UNCERTAINTY_BEFORE_IMPASSE, NODE_B2)
                 .addConditionalEdges(NODE_B2, edge_async(b2Route), Map.of(
                         "load-context", NODE_LOAD_CONTEXT,
                         "escalate", NODE_ESCALATE))
@@ -537,10 +585,11 @@ public final class CognitiveCycleGraph {
                         "await-human-control", NODE_AWAIT_HUMAN_CONTROL,
                         "escalate", NODE_ESCALATE))
                 .addConditionalEdges(NODE_AWAIT_HUMAN_CONTROL, edge_async(humanControlRoute), Map.of(
-                        "authorize", NODE_AUTHORIZE,
+                        "authorize", NODE_REFRESH_UNCERTAINTY_AFTER_HUMAN,
                         "await-evidence", NODE_AWAIT_EVIDENCE,
                         "propose", NODE_PROPOSE,
                         "escalate", NODE_ESCALATE))
+                .addEdge(NODE_REFRESH_UNCERTAINTY_AFTER_HUMAN, NODE_META_CONTROL)
                 .addConditionalEdges(NODE_AUTHORIZE, edge_async(authorizationRoute), Map.of(
                         "revalidate", NODE_REVALIDATE,
                         "await-approval", NODE_AWAIT_APPROVAL,
@@ -580,6 +629,26 @@ public final class CognitiveCycleGraph {
                 .recursionLimit(256)
                 .graphId("supply-chain-cognitive-cycle")
                 .build());
+    }
+
+    private static Map<String, Object> assessUncertaintyUpdate(
+            CognitiveCycleState state, CognitiveCycleOperations operations, String triggerId, String event) {
+        var previous = state.uncertaintyAssessmentReference();
+        var next = Objects.requireNonNull(operations.assessUncertainty(state.context(), triggerId),
+                "uncertainty assessment reference");
+        if (!next.executionId().equals(state.text(CognitiveCycleState.EXECUTION_ID))
+                || !next.memoryScopeId().equals(state.text(CognitiveCycleState.MEMORY_SCOPE_ID))) {
+            throw new SecurityException("uncertainty assessment belongs to a different execution or memory scope");
+        }
+        if (previous == null) {
+            if (next.version() != 1L) throw new IllegalStateException("initial uncertainty assessment must be version 1");
+        } else if (!previous.assessmentId().equals(next.assessmentId())
+                || next.version() != previous.version() + 1L) {
+            throw new SecurityException("uncertainty assessment refresh must advance exactly one revision in the same immutable assessment series");
+        }
+        return update(event + ":v" + next.version(),
+                CognitiveCycleState.UNCERTAINTY_ASSESSMENT_ID, next.assessmentId(),
+                CognitiveCycleState.UNCERTAINTY_ASSESSMENT_VERSION, next.version());
     }
 
     private static Map<String, Object> update(String event, Object... pairs) {

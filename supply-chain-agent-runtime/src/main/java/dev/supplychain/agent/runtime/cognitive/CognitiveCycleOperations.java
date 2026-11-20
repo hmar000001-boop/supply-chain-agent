@@ -2,6 +2,7 @@ package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.core.interpretation.InterpretationOutcome;
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.planning.api.PlannerId;
 import dev.supplychain.agent.planning.api.PlannerTerminationReason;
 
@@ -49,6 +50,9 @@ public interface CognitiveCycleOperations {
 
     /** Applies B4 objective/method authority; this must not silently redefine the objective. */
     IntentionGovernance governIntention(CycleContext context);
+
+    /** Creates and durably stores the next immutable uncertainty-assessment revision for this execution. */
+    UncertaintyAssessment.Reference assessUncertainty(CycleContext context, String triggerId);
 
     /** Applies B6 uncertainty/resource policy and persists any budget reduction it selects. */
     MetaControlDecision governMetaControl(CycleContext context);
@@ -123,7 +127,8 @@ public interface CognitiveCycleOperations {
             String humanControlActorId,
             String executionOperationId,
             String observationId,
-            String lastReason) {
+            String lastReason,
+            UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
         public CycleContext {
             requestId = optional(requestId);
             executionId = optional(executionId);
@@ -151,10 +156,41 @@ public interface CognitiveCycleOperations {
             executionOperationId = optional(executionOperationId);
             observationId = optional(observationId);
             lastReason = optional(lastReason);
+            if (uncertaintyAssessmentReference != null
+                    && (!uncertaintyAssessmentReference.executionId().equals(executionId)
+                    || !uncertaintyAssessmentReference.memoryScopeId().equals(memoryScopeId))) {
+                throw new SecurityException("uncertainty assessment reference belongs to a different execution or memory scope");
+            }
             if (clarificationRound < 0 || workingMemoryVersion < 0 || evidenceRequestCount < 0
                     || intentionVersion < 0 || planningRound < 0) {
                 throw new IllegalArgumentException("cycle counters and versions must be nonnegative");
             }
+        }
+
+        /** Source-compatible constructor for callers that have not yet entered the assessment stage. */
+        public CycleContext(String requestId, String executionId, String memoryScopeId, String request,
+                            String normalizedIntent, String summary, String clarificationContext,
+                            int clarificationRound, String workingMemoryId, long workingMemoryVersion,
+                            String evidenceSetId, int evidenceRequestCount, String evidenceResponseId,
+                            String workspaceSnapshotId, String intentionId, long intentionVersion,
+                            String plannerId, String plannerSessionId, String candidateSetId, int planningRound,
+                            String selectedCandidateId, String impasseCaseId, String impasseInvestigationReference,
+                            String approvalId, String approvalResponseId, String approverId,
+                            String humanControlResponseId, String humanControlActorId,
+                            String executionOperationId, String observationId, String lastReason) {
+            this(requestId, executionId, memoryScopeId, request, normalizedIntent, summary, clarificationContext,
+                    clarificationRound, workingMemoryId, workingMemoryVersion, evidenceSetId, evidenceRequestCount,
+                    evidenceResponseId, workspaceSnapshotId, intentionId, intentionVersion, plannerId,
+                    plannerSessionId, candidateSetId, planningRound, selectedCandidateId, impasseCaseId,
+                    impasseInvestigationReference, approvalId, approvalResponseId, approverId,
+                    humanControlResponseId, humanControlActorId, executionOperationId, observationId, lastReason, null);
+        }
+
+        public UncertaintyAssessment.Reference requireUncertaintyAssessmentReference() {
+            if (uncertaintyAssessmentReference == null) {
+                throw new IllegalStateException("the current cognitive-cycle stage requires a versioned uncertainty assessment reference");
+            }
+            return uncertaintyAssessmentReference;
         }
 
         private static String optional(String value) {

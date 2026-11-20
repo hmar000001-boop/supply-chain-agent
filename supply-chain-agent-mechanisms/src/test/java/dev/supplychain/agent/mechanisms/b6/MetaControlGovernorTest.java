@@ -10,10 +10,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MetaControlGovernorTest {
     private static final Instant NOW=Instant.parse("2026-11-17T12:00:00Z");
-    private UncertaintyAssessment uncertainty(double evidence,double hypothesis,double plan){return new UncertaintyAssessment(Map.of(
-            UncertaintyDimension.EVIDENCE,new UncertaintySignal(UncertaintyDimension.EVIDENCE,evidence,"evidence quality",3),
-            UncertaintyDimension.HYPOTHESIS,new UncertaintySignal(UncertaintyDimension.HYPOTHESIS,hypothesis,"hypothesis confidence",2),
-            UncertaintyDimension.PLAN,new UncertaintySignal(UncertaintyDimension.PLAN,plan,"plan viability",4)));}
+    private UncertaintyAssessment uncertainty(double evidence,double hypothesis,double plan){
+        var reference = new UncertaintyAssessment.Reference("assessment:" + evidence + ":" + hypothesis + ":" + plan,
+                1, "e1", "tenant:test");
+        return new UncertaintyAssessment(reference, NOW.minusSeconds(1), NOW.plusSeconds(100),
+                "test-provenance:meta-control", UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                UncertaintyDimension.EVIDENCE,new UncertaintySignal(UncertaintyDimension.EVIDENCE,evidence,"evidence quality",3),
+                UncertaintyDimension.HYPOTHESIS,new UncertaintySignal(UncertaintyDimension.HYPOTHESIS,hypothesis,"hypothesis confidence",2),
+                UncertaintyDimension.PLAN,new UncertaintySignal(UncertaintyDimension.PLAN,plan,"plan viability",4)));}
+
     private ResourceBudget budget(Map<ResourceUnit,Long> limits,Instant deadline){return new ResourceBudget(limits,deadline);}
     private InMemoryResourceBudgetLedger ledger(String execution,ResourceBudget budget){var l=new InMemoryResourceBudgetLedger();l.register(execution,budget);return l;}
     private MetaControlGovernor governor(){return new MetaControlGovernor(new MetaControlPolicy(0.5,0.8,0.2));}
@@ -93,8 +98,28 @@ class MetaControlGovernorTest {
     }
     @Test void missingUncertaintyDimensionIsNotSilentlyTreatedAsZero(){
         var incomplete=Map.of(UncertaintyDimension.EVIDENCE,new UncertaintySignal(UncertaintyDimension.EVIDENCE,0.1,"known",1));
-        assertThrows(IllegalArgumentException.class,()->new UncertaintyAssessment(incomplete));
+        var reference = new UncertaintyAssessment.Reference("assessment:incomplete", 1, "e1", "tenant:test");
+        assertThrows(IllegalArgumentException.class, () -> new UncertaintyAssessment(reference,
+                NOW.minusSeconds(1), NOW.plusSeconds(10), "test-provenance",
+                UncertaintyAssessment.Calibration.notCalibrated(), incomplete));
     }
+    @Test void uncertaintyAssessmentMustMatchExecutionScopeAndValidityWindow() {
+        var assessment = uncertainty(0.1, 0.2, 0.3);
+        assertTrue(assessment.isCurrentFor("e1", "tenant:test", NOW));
+        assertFalse(assessment.isCurrentFor("other-execution", "tenant:test", NOW));
+        assertFalse(assessment.isCurrentFor("e1", "other-tenant", NOW));
+        assertFalse(assessment.isCurrentFor("e1", "tenant:test", NOW.plusSeconds(101)));
+    }
+
+    @Test void calibratedUncertaintyRequiresAnAuditableValidationProfile() {
+        assertThrows(IllegalArgumentException.class, () -> new UncertaintyAssessment.Calibration(
+                UncertaintyAssessment.CalibrationStatus.CALIBRATED, "", "", 0));
+        var calibration = new UncertaintyAssessment.Calibration(
+                UncertaintyAssessment.CalibrationStatus.CALIBRATED,
+                "calibration-profile-v1", "validation-report:heldout-01", 250);
+        assertEquals(UncertaintyAssessment.CalibrationStatus.CALIBRATED, calibration.status());
+    }
+
     @Test void cumulativeActualUsageSaturatesInsteadOfOverflowingAndHidingAnOverrun(){
         var l=ledger("e1",budget(Map.of(ResourceUnit.OUTPUT_TOKENS,Long.MAX_VALUE-1),NOW.plusSeconds(100)));
         l.reserve("e1","r1",ResourceUsage.of(ResourceUnit.OUTPUT_TOKENS,0),NOW);

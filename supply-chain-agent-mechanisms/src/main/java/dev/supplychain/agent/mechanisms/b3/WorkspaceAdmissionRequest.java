@@ -1,6 +1,7 @@
 package dev.supplychain.agent.mechanisms.b3;
 
 import dev.supplychain.agent.memory.common.MemoryScopeId;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +10,8 @@ import java.util.Set;
 
 public record WorkspaceAdmissionRequest(String cycleId,MemoryScopeId scopeId,int capacityUnits,int maximumCandidates,
                                         Set<String> requiredCoverage,Map<String,Double> coverageValue,
-                                        WorkspaceScoringPolicy scoringPolicy,List<WorkspaceCandidate> candidates,Instant createdAt){
+                                        WorkspaceScoringPolicy scoringPolicy,List<WorkspaceCandidate> candidates,Instant createdAt,
+                                        UncertaintyAssessment.Reference uncertaintyAssessmentReference){
     public WorkspaceAdmissionRequest{
         cycleId=require(cycleId,"cycleId");scopeId=Objects.requireNonNull(scopeId,"scopeId");
         if(capacityUnits<1||maximumCandidates<1)throw new IllegalArgumentException("workspace capacity and maximum candidates must be positive");
@@ -19,7 +21,20 @@ public record WorkspaceAdmissionRequest(String cycleId,MemoryScopeId scopeId,int
         if(!coverageValue.keySet().containsAll(requiredCoverage))throw new IllegalArgumentException("every required coverage tag must have a value");
         scoringPolicy=Objects.requireNonNull(scoringPolicy,"scoringPolicy");candidates=List.copyOf(Objects.requireNonNull(candidates,"candidates"));
         createdAt=Objects.requireNonNull(createdAt,"createdAt");
+        if (uncertaintyAssessmentReference != null
+                && (!uncertaintyAssessmentReference.memoryScopeId().equals(scopeId.value()))) {
+            throw new SecurityException("workspace uncertainty assessment belongs to a different memory scope");
+        }
         var ids=new java.util.HashSet<String>();for(var c:candidates){if(!scopeId.equals(c.scopeId()))throw new SecurityException("workspace candidate scope mismatch");if(!ids.add(c.id()))throw new IllegalArgumentException("duplicate workspace candidate: "+c.id());}
     }
+    /** Compatibility constructor for standalone mechanism tests and non-agent admission fixtures. */
+    public WorkspaceAdmissionRequest(String cycleId, MemoryScopeId scopeId, int capacityUnits, int maximumCandidates,
+                                     Set<String> requiredCoverage, Map<String, Double> coverageValue,
+                                     WorkspaceScoringPolicy scoringPolicy, List<WorkspaceCandidate> candidates,
+                                     Instant createdAt) {
+        this(cycleId, scopeId, capacityUnits, maximumCandidates, requiredCoverage, coverageValue,
+                scoringPolicy, candidates, createdAt, null);
+    }
+
     private static String require(String v,String n){String s=Objects.requireNonNull(v,n).trim();if(s.isEmpty())throw new IllegalArgumentException(n+" cannot be blank");return s;}
 }

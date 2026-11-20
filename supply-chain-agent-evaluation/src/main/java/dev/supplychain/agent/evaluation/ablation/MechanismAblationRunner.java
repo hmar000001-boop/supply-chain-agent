@@ -477,7 +477,10 @@ public final class MechanismAblationRunner {
     }
 
     private static UncertaintyAssessment uncertainty(double evidence, double hypothesis, double plan) {
-        return new UncertaintyAssessment(Map.of(
+        return new UncertaintyAssessment(
+                new UncertaintyAssessment.Reference("assessment:m8-b3-ablation", 1, "execution:m8-b3-ablation", SCOPE.value()),
+                T0, T0.plusSeconds(600), "m8-b3-ablation-fixture-provenance",
+                UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, evidence, "fixture evidence quality", 2),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, hypothesis, "fixture hypothesis ambiguity", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, plan, "fixture plan uncertainty", 2)));

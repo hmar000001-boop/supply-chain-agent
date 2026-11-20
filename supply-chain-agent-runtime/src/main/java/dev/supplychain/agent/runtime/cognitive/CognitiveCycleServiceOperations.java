@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleLifecycleServices;
 
@@ -39,6 +40,7 @@ public final class CognitiveCycleServiceOperations implements CognitiveCycleOper
     @Override public ImpasseInvestigated investigateImpasse(CycleContext context) { return lifecycle.investigateImpasse(context); }
     @Override public ImpasseResolved validateImpasseReturn(CycleContext context) { return lifecycle.validateImpasseReturn(context); }
     @Override public IntentionGovernance governIntention(CycleContext context) { return lifecycle.governIntention(context); }
+    @Override public UncertaintyAssessment.Reference assessUncertainty(CycleContext context, String triggerId) { return lifecycle.assessUncertainty(context, triggerId); }
     @Override public MetaControlDecision governMetaControl(CycleContext context) { return lifecycle.governMetaControl(context); }
     @Override public HumanControlResolution resolveHumanControl(CycleContext context) { return lifecycle.resolveHumanControl(context); }
     @Override public AuthorizationPrepared prepareAuthorization(CycleContext context) { return lifecycle.prepareAuthorization(context); }

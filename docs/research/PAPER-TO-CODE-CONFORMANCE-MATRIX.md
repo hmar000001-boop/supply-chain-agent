@@ -302,3 +302,14 @@ These gaps do not invalidate the accepted M8-B6 freeze or the implementation wor
 ## 10. Review status
 
 This is a source-to-code traceability assessment against the M8-B6 frozen source archive and the project-owner-reported accepted CI/experimental results. R0 clarifications correct the B3 persistence interpretation and the B4 residual-bundle acceptance boundary; they do not change executable source or reopen the M8-B6 freeze. It is documentation, not a new implementation milestone. It does not alter or reopen the M8-B6 freeze. Its purpose is to supply an auditable basis for Pre-B7 remediation and, later, the Chapter 19 and Chapter 20 outlines.
+
+
+## Pre-B7 implementation addendum (2026-11-20)
+
+The main matrix above is the source-to-code snapshot against the accepted M8-B6 source freeze. The following post-freeze increments are tracked separately so that the original evidence baseline is not silently rewritten:
+
+- **R1-A — CoALA retrieval projection:** B1-selected, scope-valid memory references are now projected into versioned `WorkingMemorySnapshot` under `coala.retrieval.selected.references`; the source records are not duplicated. The projection has an execution/base-version marker for exact idempotent replay and fails closed on stale CAS. The project owner reported green CI after the inventory correction.
+- **R1-B — B4 lifecycle validation:** adversarial application-boundary tests now cover method-change reconsideration, objective preservation, stale intention versions and authorized termination semantics. The project owner reported green CI after the inventory correction. No learned future method-selection policy is claimed or required by B4.
+- **R1-C — Versioned uncertainty handoff:** implementation is prepared and **pending CI**. `UncertaintyAssessment` now has a small immutable reference (assessment ID, exact revision, execution and memory scope), assessment/expiry timestamps, provenance and explicit calibration metadata. The LangGraph checkpoint carries only the reference. B3 admission requests and M5 planning requests carry the exact revision; planner-session fingerprints include it. B4/B6 and authorization/revalidation/execution boundaries resolve and validate the exact revision. The B2 child graph receives the parent reference, refreshes it after investigation and returns the refreshed revision to the parent before parent-context revalidation. Refreshes are trigger-idempotent and must advance exactly one revision.
+
+R1-C does **not** establish calibration: values remain uncertainty signals and the fixture assessments are explicitly `NOT_CALIBRATED`. It also defines a durable host-port contract but does not add a production database-backed uncertainty repository. Those are separate validation/host integration concerns. The final matrix will be regenerated at R4 against the final Pre-B7 source and CI commit.

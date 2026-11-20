@@ -8,6 +8,7 @@ import dev.supplychain.agent.mechanisms.b1.B1SelectionRequest;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionResult;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionRequest;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastReport;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 
@@ -44,7 +45,18 @@ public interface CognitiveCycleDecisionPort {
             B1SelectionResult selected,
             Instant at);
 
-    /** Build B3 candidates from the evidence set referenced by the graph context. */
+    /**
+     * Resolve the exact, current uncertainty revision referenced by the graph context. The returned
+     * assessment must match context.requireUncertaintyAssessmentReference(); returning a newer
+     * revision is not a substitute because it would make the checkpoint's decision inputs ambiguous.
+     */
+    UncertaintyAssessment currentUncertaintyAssessment(
+            CognitiveCycleOperations.CycleContext context, Instant at);
+
+    /**
+     * Build B3 candidates from the evidence set referenced by the graph context. The resulting
+     * WorkspaceAdmissionRequest must carry context.requireUncertaintyAssessmentReference() exactly.
+     */
     WorkspaceAdmissionRequest workspaceAdmissionRequest(
             CognitiveCycleOperations.CycleContext context, Instant at);
 
@@ -57,6 +69,10 @@ public interface CognitiveCycleDecisionPort {
             WorkspaceBroadcastReport report,
             Instant at);
 
-    /** Build a complete, trusted M5 request from authoritative domain state and admitted context. */
+    /**
+     * Build a complete M5 request using context.requireUncertaintyAssessmentReference() exactly.
+     * The reference participates in the planner-session fingerprint so checkpoint resume cannot
+     * silently continue under a different uncertainty revision.
+     */
     PlanningRequest planningRequest(CognitiveCycleOperations.CycleContext context, Instant at);
 }

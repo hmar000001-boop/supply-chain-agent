@@ -27,6 +27,7 @@ import dev.supplychain.agent.mechanisms.b4.RecoveryIntention;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionId;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlGovernor;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
@@ -235,6 +236,7 @@ public final class CognitiveCycleLifecycleServices {
 
     public ImpasseOpened openImpasse(CycleContext context) {
         Instant now = clock.instant();
+        requireCurrentUncertainty(context, now);
         WorkingMemorySnapshot memory = currentMemory(context);
         RecoveryIntention intention = currentIntention(context);
         var request = Objects.requireNonNull(domain.impasseOpenRequest(context, now), "impasse open request");
@@ -282,6 +284,7 @@ public final class CognitiveCycleLifecycleServices {
     public ImpasseInvestigated investigateImpasse(CycleContext context) {
         String caseId = required(context.impasseCaseId(), "impasseCaseId");
         Instant now = clock.instant();
+        requireCurrentUncertainty(context, now);
         var resolutionCase = impasses.get(caseId);
         if (!resolutionCase.executionId().equals(context.executionId())
                 || !resolutionCase.parentRequestId().equals(context.requestId())) {
@@ -348,6 +351,7 @@ public final class CognitiveCycleLifecycleServices {
     public ImpasseResolved validateImpasseReturn(CycleContext context) {
         String caseId = required(context.impasseCaseId(), "impasseCaseId");
         Instant now = clock.instant();
+        requireCurrentUncertainty(context, now);
         var artifact = childArtifacts.find(caseId).orElseThrow(() ->
                 new IllegalStateException("B2 child result is missing; parent context cannot accept an unverified return"));
         var resolutionCase = impasses.get(caseId);
@@ -376,6 +380,7 @@ public final class CognitiveCycleLifecycleServices {
 
     public IntentionGovernance governIntention(CycleContext context) {
         Instant now = clock.instant();
+        requireCurrentUncertainty(context, now);
         RecoveryIntention intention = currentIntention(context);
         if (intention.version() != context.intentionVersion()) {
             throw new IllegalStateException("B4 intention version changed; reload the active context before governance");
@@ -401,12 +406,36 @@ public final class CognitiveCycleLifecycleServices {
         return new IntentionGovernance(directive.action(), updated.id().value(), updated.version(), directive.reason());
     }
 
+    public UncertaintyAssessment.Reference assessUncertainty(CycleContext context, String triggerId) {
+        Objects.requireNonNull(context, "context");
+        String stableTriggerId = required(triggerId, "triggerId");
+        Instant now = clock.instant();
+        UncertaintyAssessment assessment = Objects.requireNonNull(
+                domain.assessUncertainty(context, stableTriggerId, now), "domain returned null uncertainty assessment");
+        requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), now);
+        var previous = context.uncertaintyAssessmentReference();
+        if (previous == null) {
+            if (assessment.reference().version() != 1L) {
+                throw new IllegalStateException("first uncertainty assessment revision must be version 1");
+            }
+        } else if (!assessment.reference().assessmentId().equals(previous.assessmentId())
+                || assessment.reference().version() != previous.version() + 1L) {
+            throw new SecurityException("uncertainty assessment revision must advance exactly one version in the same execution-scoped assessment");
+        }
+        return assessment.reference();
+    }
+
     public dev.supplychain.agent.mechanisms.b6.MetaControlDecision governMetaControl(CycleContext context) {
         Instant now = clock.instant();
+        var expectedReference = context.requireUncertaintyAssessmentReference();
         CognitiveCycleLifecyclePort.MetaControlInputs inputs = Objects.requireNonNull(domain.metaControlInputs(context, now), "B6 meta-control inputs");
         if (!inputs.budget().executionId().equals(context.executionId())) {
             throw new SecurityException("B6 budget snapshot belongs to a different execution");
         }
+        if (!inputs.uncertainty().reference().equals(expectedReference)) {
+            throw new SecurityException("B6 uncertainty assessment differs from the exact revision carried by graph state");
+        }
+        requireCurrentAssessment(inputs.uncertainty(), context.executionId(), context.memoryScopeId(), now);
         if (resourceBudgetGuard != null) {
             var durable = resourceBudgetGuard.snapshot(context.executionId(), now);
             if (!durable.budget().equals(inputs.budget().budget())) {
@@ -418,6 +447,27 @@ public final class CognitiveCycleLifecycleServices {
                 inputs.requiredForNextStep(), now);
         domain.recordMetaControlDecision(context, inputs, decision, clock.instant());
         return decision;
+    }
+
+    private UncertaintyAssessment requireCurrentUncertainty(CycleContext context, Instant at) {
+        var reference = context.requireUncertaintyAssessmentReference();
+        UncertaintyAssessment assessment = Objects.requireNonNull(
+                domain.currentUncertaintyAssessment(context, at), "domain returned null current uncertainty assessment");
+        if (!assessment.reference().equals(reference)) {
+            throw new SecurityException("host uncertainty store did not resolve the exact graph-referenced revision");
+        }
+        requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), at);
+        return assessment;
+    }
+
+    private static void requireCurrentAssessment(UncertaintyAssessment assessment, String executionId,
+                                                 String memoryScopeId, Instant at) {
+        if (!assessment.isCurrentFor(executionId, memoryScopeId, at)) {
+            throw new SecurityException("uncertainty assessment is expired or belongs to another execution or memory scope");
+        }
+        if (assessment.provenanceReference().isBlank()) {
+            throw new SecurityException("uncertainty assessment is missing provenance");
+        }
     }
 
     public HumanControlResolution resolveHumanControl(CycleContext context) {
@@ -441,6 +491,12 @@ public final class CognitiveCycleLifecycleServices {
     }
 
     public AuthorizationPrepared prepareAuthorization(CycleContext context) {
+        try {
+            requireCurrentUncertainty(context, clock.instant());
+        } catch (IllegalStateException | SecurityException staleAssessment) {
+            return new AuthorizationPrepared(AuthorizationDisposition.DENIED, true, "",
+                    "authorization refused because the scoped uncertainty assessment is missing, stale or expired");
+        }
         AuthorizedActionPlan plan = actionPlan(context);
         if (!plan.stateChanging()) throw new SecurityException("recovery plan was not classified as a state-changing action plan");
         var binding = binding(context, plan);
@@ -460,6 +516,7 @@ public final class CognitiveCycleLifecycleServices {
     }
 
     public ApprovalResolved resolveApproval(CycleContext context) {
+        requireCurrentUncertainty(context, clock.instant());
         AuthorizedActionPlan plan = actionPlan(context);
         if (context.approvalId().isBlank() || context.approvalResponseId().isBlank() || context.approverId().isBlank()) {
             throw new IllegalStateException("approval cannot be resolved without host-issued approval, response and approver references");
@@ -475,6 +532,12 @@ public final class CognitiveCycleLifecycleServices {
     }
 
     public PlanRevalidation revalidatePlan(CycleContext context) {
+        try {
+            requireCurrentUncertainty(context, clock.instant());
+        } catch (IllegalStateException | SecurityException staleAssessment) {
+            return new PlanRevalidation(RevalidationDisposition.STALE,
+                    "uncertainty assessment is missing, stale, expired or no longer bound to this execution");
+        }
         AuthorizedActionPlan plan = actionPlan(context);
         ApprovalBinding binding = binding(context, plan);
         if (context.approvalId().isBlank()
@@ -494,6 +557,12 @@ public final class CognitiveCycleLifecycleServices {
 
     public AuthorizedExecution executeAuthorizedCandidate(CycleContext context) {
         Instant now = clock.instant();
+        try {
+            requireCurrentUncertainty(context, now);
+        } catch (IllegalStateException | SecurityException staleAssessment) {
+            return new AuthorizedExecution(ExecutionDisposition.REJECTED, "uncertainty:" + context.executionId(), "",
+                    "M3 dispatch refused because the scoped uncertainty assessment is missing or expired");
+        }
         PlanRevalidation revalidation = revalidatePlan(context);
         if (revalidation.disposition() != RevalidationDisposition.VALID) {
             return new AuthorizedExecution(ExecutionDisposition.REJECTED, "revalidation:" + context.executionId(), "",

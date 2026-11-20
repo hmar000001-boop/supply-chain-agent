@@ -14,23 +14,30 @@ public final class B2ResolutionGraphState extends AgentState {
     public static final String PARENT_WORKING_MEMORY_VERSION = "parentWorkingMemoryVersion";
     public static final String IMPASSE_CASE_ID = "impasseCaseId";
     public static final String IMPASSE_REASON = "impasseReason";
+    public static final String UNCERTAINTY_ASSESSMENT_ID = "uncertaintyAssessmentId";
+    public static final String UNCERTAINTY_ASSESSMENT_VERSION = "uncertaintyAssessmentVersion";
     public static final String INVESTIGATION_REFERENCE = "investigationReference";
     public static final String DISPOSITION = "disposition";
     public static final String REASON = "reason";
 
-    public static final Map<String, Channel<?>> SCHEMA = Map.of(
-            REQUEST_ID, Channels.base(() -> ""),
-            EXECUTION_ID, Channels.base(() -> ""),
-            MEMORY_SCOPE_ID, Channels.base(() -> ""),
-            PARENT_WORKING_MEMORY_VERSION, Channels.base(() -> 0L),
-            IMPASSE_CASE_ID, Channels.base(() -> ""),
-            IMPASSE_REASON, Channels.base(() -> ""),
-            INVESTIGATION_REFERENCE, Channels.base(() -> ""),
-            DISPOSITION, Channels.base(() -> "UNRESOLVED"),
-            REASON, Channels.base(() -> "")
+    public static final Map<String, Channel<?>> SCHEMA = Map.ofEntries(
+            Map.entry(REQUEST_ID, Channels.base(() -> "")),
+            Map.entry(EXECUTION_ID, Channels.base(() -> "")),
+            Map.entry(MEMORY_SCOPE_ID, Channels.base(() -> "")),
+            Map.entry(PARENT_WORKING_MEMORY_VERSION, Channels.base(() -> 0L)),
+            Map.entry(IMPASSE_CASE_ID, Channels.base(() -> "")),
+            Map.entry(IMPASSE_REASON, Channels.base(() -> "")),
+            Map.entry(UNCERTAINTY_ASSESSMENT_ID, Channels.base(() -> "")),
+            Map.entry(UNCERTAINTY_ASSESSMENT_VERSION, Channels.base(() -> 0L)),
+            Map.entry(INVESTIGATION_REFERENCE, Channels.base(() -> "")),
+            Map.entry(DISPOSITION, Channels.base(() -> "UNRESOLVED")),
+            Map.entry(REASON, Channels.base(() -> ""))
     );
 
     public B2ResolutionGraphState(Map<String, Object> initialData) { super(initialData); }
     public String text(String key) { return this.<String>value(key).orElse(""); }
     public long parentWorkingMemoryVersion() { return this.<Long>value(PARENT_WORKING_MEMORY_VERSION).orElse(0L); }
+    public long uncertaintyAssessmentVersion() {
+        return this.<Long>value(UNCERTAINTY_ASSESSMENT_VERSION).orElse(0L);
+    }
 }

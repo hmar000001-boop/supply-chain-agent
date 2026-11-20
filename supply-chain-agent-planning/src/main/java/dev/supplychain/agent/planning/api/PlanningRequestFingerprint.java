@@ -45,6 +45,7 @@ final class PlanningRequestFingerprint {
         values.add(request.budget().maxDepth());
         values.add(request.budget().maxCandidates());
         values.add(request.requestedAt());
+        values.add(request.uncertaintyAssessmentReference());
         return encode(values);
     }
 

@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.CycleContext;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import org.bsc.langgraph4j.CompileConfig;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphInput;
@@ -40,6 +41,23 @@ public final class B2ResolutionSubgraph {
                     B2ResolutionGraphState.INVESTIGATION_REFERENCE, result.investigationReference(),
                     B2ResolutionGraphState.REASON, result.summary());
         };
+        NodeAction<B2ResolutionGraphState> refreshUncertainty = state -> {
+            CycleContext context = childContext(state);
+            String triggerId = "post-b2-investigation:" + state.text(B2ResolutionGraphState.IMPASSE_CASE_ID)
+                    + ":" + state.text(B2ResolutionGraphState.INVESTIGATION_REFERENCE);
+            UncertaintyAssessment.Reference previous = context.requireUncertaintyAssessmentReference();
+            UncertaintyAssessment.Reference next = Objects.requireNonNull(
+                    operations.assessUncertainty(context, triggerId), "B2 uncertainty refresh reference");
+            if (!next.assessmentId().equals(previous.assessmentId())
+                    || next.version() != previous.version() + 1L
+                    || !next.executionId().equals(context.executionId())
+                    || !next.memoryScopeId().equals(context.memoryScopeId())) {
+                throw new SecurityException("B2 uncertainty refresh must advance exactly one revision in the same execution and memory scope");
+            }
+            return Map.of(
+                    B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID, next.assessmentId(),
+                    B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_VERSION, next.version());
+        };
         NodeAction<B2ResolutionGraphState> validateReturn = state -> {
             var result = operations.validateImpasseReturn(childContext(state));
             return Map.of(
@@ -50,10 +68,12 @@ public final class B2ResolutionSubgraph {
         var graph = new StateGraph<>(B2ResolutionGraphState.SCHEMA, B2ResolutionGraphState::new)
                 .addNode("open-child", node_async(open))
                 .addNode("investigate-child", node_async(investigate))
+                .addNode("refresh-uncertainty-after-investigation", node_async(refreshUncertainty))
                 .addNode("validate-parent-return", node_async(validateReturn))
                 .addEdge(START, "open-child")
                 .addEdge("open-child", "investigate-child")
-                .addEdge("investigate-child", "validate-parent-return")
+                .addEdge("investigate-child", "refresh-uncertainty-after-investigation")
+                .addEdge("refresh-uncertainty-after-investigation", "validate-parent-return")
                 .addEdge("validate-parent-return", END);
         return graph.compile(CompileConfig.builder().recursionLimit(12).build());
     }
@@ -67,6 +87,10 @@ public final class B2ResolutionSubgraph {
                 B2ResolutionGraphState.EXECUTION_ID, context.executionId(),
                 B2ResolutionGraphState.MEMORY_SCOPE_ID, context.memoryScopeId(),
                 B2ResolutionGraphState.PARENT_WORKING_MEMORY_VERSION, context.workingMemoryVersion(),
+                B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID,
+                        context.requireUncertaintyAssessmentReference().assessmentId(),
+                B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_VERSION,
+                        context.requireUncertaintyAssessmentReference().version(),
                 B2ResolutionGraphState.IMPASSE_CASE_ID, context.impasseCaseId(),
                 B2ResolutionGraphState.IMPASSE_REASON, context.lastReason());
         var config = org.bsc.langgraph4j.RunnableConfig.builder()
@@ -97,6 +121,11 @@ public final class B2ResolutionSubgraph {
                 state.text(B2ResolutionGraphState.IMPASSE_CASE_ID),
                 state.text(B2ResolutionGraphState.INVESTIGATION_REFERENCE),
                 "", "", "", "", "", "", "",
-                childReason);
+                childReason,
+                new UncertaintyAssessment.Reference(
+                        state.text(B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID),
+                        state.uncertaintyAssessmentVersion(),
+                        state.text(B2ResolutionGraphState.EXECUTION_ID),
+                        state.text(B2ResolutionGraphState.MEMORY_SCOPE_ID)));
     }
 }

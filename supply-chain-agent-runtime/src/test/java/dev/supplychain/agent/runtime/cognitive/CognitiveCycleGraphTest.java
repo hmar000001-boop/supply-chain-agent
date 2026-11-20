@@ -166,6 +166,14 @@ class CognitiveCycleGraphTest {
         assertEquals(1, operations.openImpasseCalls);
         assertEquals(1, operations.investigateImpasseCalls);
         assertEquals(1, operations.validateImpasseCalls);
+        assertEquals(1L, operations.uncertaintyVersionAtOpen,
+                "the child must begin under the exact parent assessment revision");
+        assertEquals(1L, operations.uncertaintyVersionAtInvestigation,
+                "investigation must use the assessment under which the child was opened");
+        assertEquals(2L, operations.uncertaintyVersionAtValidation,
+                "parent return validation must use a fresh assessment after child investigation");
+        assertEquals(2L, operations.uncertaintyVersionAtParentReload,
+                "the refreshed child assessment reference must be propagated back to the parent graph");
         assertTrue(result.state().events().stream().anyMatch(event -> event.equals("b2-resolution:RESOLVED")));
         assertEquals(1, operations.executeCalls);
     }
@@ -362,6 +370,10 @@ class CognitiveCycleGraphTest {
         private int openImpasseCalls;
         private int investigateImpasseCalls;
         private int validateImpasseCalls;
+        private long uncertaintyVersionAtOpen;
+        private long uncertaintyVersionAtInvestigation;
+        private long uncertaintyVersionAtValidation;
+        private long uncertaintyVersionAtParentReload;
         private int approvalCalls;
         private int humanControlCalls;
         private int executeCalls;
@@ -383,6 +395,9 @@ class CognitiveCycleGraphTest {
         }
         @Override public ContextLoaded loadContext(CycleContext context) {
             contextLoadCalls++;
+            if (!context.impasseInvestigationReference().isBlank()) {
+                uncertaintyVersionAtParentReload = context.requireUncertaintyAssessmentReference().version();
+            }
             return new ContextLoaded("wm-1", contextLoadCalls, "intention-1", 2);
         }
         @Override public EvidenceRetrieved retrieveEvidence(CycleContext context) {
@@ -419,22 +434,39 @@ class CognitiveCycleGraphTest {
             return new CandidateEvaluation(EvaluationDisposition.SELECTED, "candidate-1", "Candidate passed deterministic feasibility checks.");
         }
         @Override public ImpasseOpened openImpasse(CycleContext context) {
+            assertTrue(context.uncertaintyAssessmentReference() != null,
+                    "B2 investigation must receive the current uncertainty reference, including when retrieval raises an impasse");
             openImpasseCalls++;
+            uncertaintyVersionAtOpen = context.requireUncertaintyAssessmentReference().version();
             assertEquals("A source conflict requires bounded resolution.", context.lastReason(),
                     "B2 must receive the original impasse cause as the child's last reason");
             return new ImpasseOpened("impasse-1", context.lastReason());
         }
         @Override public ImpasseInvestigated investigateImpasse(CycleContext context) {
             investigateImpasseCalls++;
+            uncertaintyVersionAtInvestigation = context.requireUncertaintyAssessmentReference().version();
             return new ImpasseInvestigated("impasse-findings-1", "Conflicting source records isolated.");
         }
         @Override public ImpasseResolved validateImpasseReturn(CycleContext context) {
             validateImpasseCalls++;
+            uncertaintyVersionAtValidation = context.requireUncertaintyAssessmentReference().version();
             return new ImpasseResolved(ImpasseDisposition.RESOLVED, "impasse-findings-1", "Parent version and objective fingerprint remain valid.");
         }
         @Override public IntentionGovernance governIntention(CycleContext context) {
             return new IntentionGovernance(intentionAction, "intention-1", 3, "Objective remains unchanged.");
         }
+        private final java.util.Map<String, dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment.Reference> uncertaintyByTrigger = new java.util.HashMap<>();
+        private long nextUncertaintyVersion;
+
+        @Override public dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment.Reference assessUncertainty(
+                CycleContext context, String triggerId) {
+            return uncertaintyByTrigger.computeIfAbsent(triggerId, ignored -> {
+                long version = ++nextUncertaintyVersion;
+                return new dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment.Reference(
+                        "assessment:" + context.executionId(), version, context.executionId(), context.memoryScopeId());
+            });
+        }
+
         @Override public MetaControlDecision governMetaControl(CycleContext context) {
             ResumeCondition condition = switch (metaControlAction) {
                 case INTERRUPT_FOR_HUMAN -> ResumeCondition.HUMAN_DECISION;

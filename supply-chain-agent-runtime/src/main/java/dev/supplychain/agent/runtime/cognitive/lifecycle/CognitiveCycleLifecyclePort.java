@@ -78,6 +78,19 @@ public interface CognitiveCycleLifecyclePort {
     IntentionDirective intentionDirective(CognitiveCycleOperations.CycleContext context,
                                           RecoveryIntention current, Instant at);
 
+    /**
+     * Creates and durably stores the next immutable assessment revision. The first call must return
+     * version 1; subsequent calls for the same execution must preserve assessmentId and increment
+     * the version by exactly one. The trigger ID must make the operation idempotent across graph retries.
+     */
+    UncertaintyAssessment assessUncertainty(CognitiveCycleOperations.CycleContext context, String triggerId, Instant at);
+
+    /**
+     * Resolves the exact reference carried by CycleContext; implementations must not return a newer
+     * or older revision. This exactness applies at B4, B6, authorization, revalidation and execution boundaries.
+     */
+    UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at);
+
     MetaControlInputs metaControlInputs(CognitiveCycleOperations.CycleContext context, Instant at);
 
     /** Records the selected B6 decision and any budget reduction through the host's budget ledger. */
@@ -86,7 +99,11 @@ public interface CognitiveCycleLifecyclePort {
                                    dev.supplychain.agent.mechanisms.b6.MetaControlDecision decision,
                                    Instant at);
 
-    /** Fresh world and evidence snapshot for final pre-execution deterministic replay. */
+    /**
+     * Fresh world and evidence snapshot for final pre-execution deterministic replay. The returned
+     * PlanningRequest must retain context.requireUncertaintyAssessmentReference() exactly, so the
+     * final deterministic check is bound to the same uncertainty revision as the graph checkpoint.
+     */
     PlanningRequest revalidationRequest(CognitiveCycleOperations.CycleContext context,
                                         CognitiveCycleDecisionServices.SelectedPlanningCandidate selected,
                                         WorkingMemorySnapshot latestWorkingMemory, Instant at);

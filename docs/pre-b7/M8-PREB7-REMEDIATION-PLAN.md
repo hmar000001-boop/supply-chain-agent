@@ -5,7 +5,7 @@
 **Source archive:** `SUPPLY_CHAIN_AGENT_M8_B6_FROZEN_SOURCE_2026-11-20.zip`  
 **Source archive SHA-256:** `e68c91eb2112d76d15d80340b44424a56f2e99c03abb5d2246bb41f18887ec37`  
 **R0 status:** Accepted — documentation and conformance-baseline corrections complete  
-**Execution status:** R1 in progress — R1-A CoALA working-memory projection and R1-B B4 lifecycle adversarial tests prepared; R1-A must pass CI before R1-B is applied and validated  
+**Execution status:** R1 in progress — R1-A and R1-B applied with project-owner-reported green CI after the source-inventory correction; R1-C versioned uncertainty propagation implemented and pending CI  
 **Change class in R0:** Documentation only; no executable source, tests, POMs, migrations or CI workflows changed.
 
 ## 1. Purpose
@@ -66,18 +66,18 @@ The order follows the dependency logic in Fan & Lan §VI-D: make commitment, unc
 
 **Scope**
 
-1. CoALA B1-selected evidence-reference projection into versioned working memory, with source-reference provenance, scope/version/expiry checks and no source-payload duplication. **R1-A code and targeted tests are drafted; CI validation remains pending.**
-2. B4 adversarial lifecycle tests for objective preservation, authorized method change, reconsideration, oscillation, delegation, suspension/resumption and termination.
-3. One explicit, versioned uncertainty contract with provenance, scope and calibration metadata; propagate it through relevant planning, memory-admission, verification, authorization, monitoring and stop/interruption decision boundaries where the application host owns those decisions.
+1. CoALA B1-selected evidence-reference projection into versioned working memory, with source-reference provenance, scope/version/expiry checks and no source-payload duplication. **R1-A was applied and its CI was reported green by the project owner after the inventory correction.**
+2. B4 adversarial lifecycle validation for objective preservation, explicit reconsideration, authorized method changes, stale versions and termination. **R1-B was applied and its CI was reported green by the project owner after the inventory correction.**
+3. One explicit, versioned uncertainty contract with provenance, scope, validity and calibration metadata; propagate it through planning, memory admission, B2 child investigation, B4/B6, authorization, final revalidation and execution. **R1-C implementation and focused tests are prepared; CI validation is pending.** Calibration remains unclaimed until separately evaluated.
 4. Verify one shared durable `ResourceBudgetExecutionGuard` instance is injected across M5 planning, M3 reasoning/action dispatch and B6 at the complete production host composition boundary.
 5. Reservation lease/ownership/fencing and idempotent orphan-reservation reconciliation. Expiration alone must not release unknown consumption; recovery must use conservative accounting and explicit unknown-outcome handling.
 6. Complete production `compileFull` application-graph OS-process kill/relaunch tests with PostgreSQL and authoritative test adapters. Existing smaller forked-JVM graph tests remain supporting evidence, not a substitute.
 
 **R1 exit evidence**
 
-- Retrieval-to-working-memory integration tests cover selected-reference projection, exact replay after a graph checkpoint interruption, stale version conflict, expired memory and cross-scope rejection. R1-A adds the projection, replay-idempotence and stale-version cases; remaining cases must be covered before R1 acceptance.
-- B4 adversarial tests prove that no planner/model proposal can mutate the committed objective or switch the method without the defined authority and diagnostic preconditions.
-- Uncertainty provenance is traceable across the implemented lifecycle stages; absent or invalid required uncertainty fails closed where specified. Calibration is not claimed until a preregistered held-out calibration evaluation is completed.
+- Retrieval-to-working-memory integration tests cover selected-reference projection, exact replay after a graph checkpoint interruption and stale-version fail-closed behavior. R1-A CI was reported green by the project owner.
+- B4 adversarial tests prove objective-preserving method changes, required reconsideration, stale-version rejection and authorized termination semantics. R1-B CI was reported green by the project owner.
+- Versioned uncertainty has exact execution/scope identity, assessment-series version, assessment/expiry timestamps, provenance and explicit calibration status. Graph checkpoints carry only its small reference; B2 refreshes after child investigation and returns the new reference to the parent; B3 and M5 requests plus planner-session fingerprints bind the exact revision. R1-C implementation is pending CI. Calibration is not claimed until a preregistered held-out calibration evaluation is completed.
 - Shared-guard host-wiring test proves the same guard instance is used at all required execution boundaries.
 - Child-JVM tests kill and relaunch the complete production application graph at each reservation/operation boundary, verifying idempotency, fencing, reconciliation and no duplicate external-effect simulation.
 - No claim of real external supplier/ERP/WMS/carrier effects; use deterministic adapters and explicit host ports.
@@ -153,4 +153,6 @@ All of the following must be true before M8-B7 writing begins:
 
 **R0 is accepted.** It corrects traceability and acceptance definitions only and does not alter M8-B6.
 
-**R1 is in progress.** R1-A adds the CoALA reference-projection implementation to `CognitiveCycleDecisionServices` (including an execution/base-version marker so only the exact prior CAS can be replayed idempotently), propagates the updated working-memory identity/version through `CognitiveCycleGraph`, and injects the same `WorkingMemoryService` instance into the full evaluation-host decision and lifecycle compositions. Targeted tests cover successful semantic-memory reference projection, exact idempotent replay after a graph-checkpoint interruption, and stale-version fail-closed behavior. The code patch is not yet CI-validated. R1-B through R1-F remain open; no global Pre-B7 or B7 acceptance is implied.
+**R1-A and R1-B are accepted on project-owner-reported green CI.** R1-A projects selected scoped evidence references into versioned CoALA working memory with replay idempotence and stale-version protection. R1-B strengthens lifecycle-boundary validation of B4 objective and method authority. The first combined run exposed a stale source-inventory count; the verifier and CSV were corrected, and the project owner subsequently reported green CI.
+
+**R1-C is implemented and awaiting CI.** It adds a versioned, execution/scope-bound uncertainty reference; assessment validity and provenance metadata; explicit calibrated/not-calibrated state; exact revision propagation through graph state, B2 child resolution, B3 workspace admission, M5 planning, B4/B6, approval, revalidation and execution; and planner-session fingerprint binding. Assessment refreshes must advance exactly one revision and are trigger-idempotent. This is a contract and application integration increment, not evidence of calibrated probabilities or a production uncertainty-store implementation. R1-D through R1-F remain open; no global Pre-B7 or B7 acceptance is implied.

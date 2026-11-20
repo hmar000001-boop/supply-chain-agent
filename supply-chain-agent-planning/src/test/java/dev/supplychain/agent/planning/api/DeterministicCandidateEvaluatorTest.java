@@ -84,7 +84,8 @@ final class DeterministicCandidateEvaluatorTest {
         PlanningRequest protectedRequest = new PlanningRequest(original.executionId(), original.objective(),
                 original.initialWorld(), original.workingMemory(), original.evidence(), original.availableActionDefinitions(),
                 constraints, original.scoringProfile(), original.riskPolicy(), original.authorityPolicy(),
-                original.complexity(), original.budget(), original.requestedAt(), null);
+                original.complexity(), original.budget(), original.requestedAt(), null,
+                original.uncertaintyAssessmentReference());
         PlanningWorldModel model = PlanningTestFixtures.worldModel();
         PlanEvaluation evaluation = PlanningTestFixtures.evaluator(model).evaluate(protectedRequest, applyFirst(protectedRequest, model));
 
@@ -101,7 +102,8 @@ final class DeterministicCandidateEvaluatorTest {
         PlanningRequest request = new PlanningRequest(original.executionId(), original.objective(),
                 original.initialWorld(), original.workingMemory(), original.evidence(), original.availableActionDefinitions(),
                 original.hardConstraints(), original.scoringProfile(), original.riskPolicy(), noPolicyApproval,
-                original.complexity(), original.budget(), original.requestedAt(), null);
+                original.complexity(), original.budget(), original.requestedAt(), null,
+                original.uncertaintyAssessmentReference());
         PlanningWorldModel model = PlanningTestFixtures.worldModel();
         PlanEvaluation evaluation = PlanningTestFixtures.evaluator(model).evaluate(request, applyFirst(request, model));
 
@@ -121,6 +123,7 @@ final class DeterministicCandidateEvaluatorTest {
         return new PlanningRequest(source.executionId(), source.objective(), source.initialWorld(),
                 source.workingMemory(), source.evidence(), source.availableActionDefinitions(),
                 source.hardConstraints(), source.scoringProfile(), risk, source.authorityPolicy(),
-                source.complexity(), source.budget(), source.requestedAt(), null);
+                source.complexity(), source.budget(), source.requestedAt(), null,
+                source.uncertaintyAssessmentReference());
     }
 }

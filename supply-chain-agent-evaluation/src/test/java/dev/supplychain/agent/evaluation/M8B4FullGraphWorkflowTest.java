@@ -420,6 +420,16 @@ class M8B4FullGraphWorkflowTest {
         }
     }
 
+    private static UncertaintyAssessment uncertainty(CognitiveCycleOperations.CycleContext context, Instant at) {
+        var reference = context.requireUncertaintyAssessmentReference();
+        return new UncertaintyAssessment(reference, at.minusSeconds(1), at.plusSeconds(300),
+                "m8-b4-scenario-uncertainty:" + context.executionId(),
+                UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "fixture evidence", 1),
+                UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "fixture hypothesis", 1),
+                UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "fixture plan", 1)));
+    }
+
     private static final class DecisionAdapter implements CognitiveCycleDecisionPort {
         private final ScenarioFixture fixture;
         private final ScenarioWorldStore worldStore;
@@ -456,6 +466,10 @@ class M8B4FullGraphWorkflowTest {
                     "versioned scenario evidence set persisted by the deterministic test adapter");
         }
 
+        @Override public UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at) {
+            return uncertainty(context, at);
+        }
+
         @Override public WorkspaceAdmissionRequest workspaceAdmissionRequest(
                 CognitiveCycleOperations.CycleContext context, Instant at) {
             MemoryScopeId scope = memoryScope(context);
@@ -465,7 +479,8 @@ class M8B4FullGraphWorkflowTest {
                     List.of(new WorkspaceCandidate("request-context:" + context.requestId(), scope,
                             WorkspaceCandidateKind.OBSERVATION, 2.0, 1.0, 0.0, 2,
                             Set.of("current-request"), Set.of(), true,
-                            List.of(new EvidenceReference("request", context.requestId())))), at);
+                            List.of(new EvidenceReference("request", context.requestId())))), at,
+                    context.requireUncertaintyAssessmentReference());
         }
 
         @Override public Set<String> workspaceConsumers(CognitiveCycleOperations.CycleContext context) {
@@ -488,16 +503,19 @@ class M8B4FullGraphWorkflowTest {
                             List.of(new EvidenceReference("request", context.requestId())), at, expiry);
             lastPlanningRequest = copy(base, working, worldStore.snapshot(),
                     worldStore.actionDescriptors(base.availableActionDefinitions()),
-                    worldStore.evidence(base.evidence()), context.executionId());
+                    worldStore.evidence(base.evidence()), context.executionId(),
+                    context.requireUncertaintyAssessmentReference());
             return lastPlanningRequest;
         }
 
         private PlanningRequest copy(PlanningRequest base, WorkingMemorySnapshot working,
                                      dev.supplychain.agent.domain.world.SupplyChainSnapshot world,
-                                     List<ActionDescriptor> descriptors, List<EvidenceReference> evidence, String executionId) {
+                                     List<ActionDescriptor> descriptors, List<EvidenceReference> evidence, String executionId,
+                                     UncertaintyAssessment.Reference uncertaintyReference) {
             return new PlanningRequest(executionId, base.objective(), world, working, evidence,
                     descriptors, base.hardConstraints(), base.scoringProfile(), base.riskPolicy(),
-                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), base.resumeSessionId());
+                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), base.resumeSessionId(),
+                    uncertaintyReference);
         }
     }
 
@@ -512,6 +530,8 @@ class M8B4FullGraphWorkflowTest {
         private final AtomicInteger outcomeEpisodes = new AtomicInteger();
         private final AtomicInteger revalidationRequests = new AtomicInteger();
         private final RecoveryObjective objective;
+        private final Map<String, UncertaintyAssessment.Reference> uncertaintyByTrigger = new java.util.HashMap<>();
+        private final Map<UncertaintyAssessment.Reference, UncertaintyAssessment> uncertaintyByReference = new java.util.HashMap<>();
 
         private LifecycleAdapter(ScenarioFixture fixture, Clock clock, ApprovalMode approvalMode,
                                  ScenarioEffectStore effects, ScenarioWorldStore worldStore,
@@ -602,11 +622,36 @@ class M8B4FullGraphWorkflowTest {
                     objectiveFingerprint(context), "");
         }
 
+        @Override public UncertaintyAssessment assessUncertainty(CognitiveCycleOperations.CycleContext context,
+                String triggerId, Instant at) {
+            UncertaintyAssessment.Reference reference = uncertaintyByTrigger.computeIfAbsent(triggerId, ignored -> {
+                var previous = context.uncertaintyAssessmentReference();
+                long version = previous == null ? 1L : previous.version() + 1L;
+                String id = previous == null ? "uncertainty:" + context.executionId() : previous.assessmentId();
+                return new UncertaintyAssessment.Reference(id, version, context.executionId(), context.memoryScopeId());
+            });
+            return uncertaintyByReference.computeIfAbsent(reference, key -> {
+                var assessment = new UncertaintyAssessment(key, at, at.plusSeconds(300),
+                        "m8-b4-scenario-uncertainty:" + context.executionId() + ":" + triggerId,
+                        UncertaintyAssessment.Calibration.notCalibrated(), Map.of(
+                        UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "fixture evidence", 1),
+                        UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "fixture hypothesis", 1),
+                        UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "fixture plan", 1)));
+                return assessment;
+            });
+        }
+
+        @Override public UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at) {
+            var reference = context.requireUncertaintyAssessmentReference();
+            var assessment = uncertaintyByReference.get(reference);
+            if (assessment == null || !assessment.isCurrentFor(context.executionId(), context.memoryScopeId(), at)) {
+                throw new SecurityException("scenario host cannot resolve the exact current uncertainty revision");
+            }
+            return assessment;
+        }
+
         @Override public MetaControlInputs metaControlInputs(CognitiveCycleOperations.CycleContext context, Instant at) {
-            var uncertainty = new UncertaintyAssessment(Map.of(
-                    UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "fixture evidence", 1),
-                    UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "fixture hypothesis", 1),
-                    UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "fixture plan", 1)));
+            var uncertainty = currentUncertaintyAssessment(context, at);
             var budget = new ResourceBudgetSnapshot(context.executionId(),
                     new ResourceBudget(Map.of(), at.plusSeconds(60)), Map.of(), Map.of(), at);
             return new MetaControlInputs(budget, uncertainty, new ResourceUsage(Map.of()));
@@ -648,7 +693,8 @@ class M8B4FullGraphWorkflowTest {
             }
             return new PlanningRequest(context.executionId(), base.objective(), worldStore.snapshot(), latestWorkingMemory,
                     worldStore.evidence(base.evidence()), descriptors, base.hardConstraints(), base.scoringProfile(), base.riskPolicy(),
-                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), base.resumeSessionId());
+                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), base.resumeSessionId(),
+                    context.requireUncertaintyAssessmentReference());
         }
 
         @Override public List<ActionDispatchCommand<?, ?>> actionCommands(CognitiveCycleOperations.CycleContext context,

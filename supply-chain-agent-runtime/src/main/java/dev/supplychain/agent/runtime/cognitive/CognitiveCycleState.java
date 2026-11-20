@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.CycleContext;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import org.bsc.langgraph4j.state.AgentState;
 import org.bsc.langgraph4j.state.Channel;
 import org.bsc.langgraph4j.state.Channels;
@@ -52,6 +53,8 @@ public final class CognitiveCycleState extends AgentState {
     public static final String PLANNER_TERMINATION_REASON = "plannerTerminationReason";
     public static final String PLANNER_CANDIDATE_COUNT = "plannerCandidateCount";
     public static final String EVIDENCE_MAXIMUM_UNCERTAINTY = "evidenceMaximumUncertainty";
+    public static final String UNCERTAINTY_ASSESSMENT_ID = "uncertaintyAssessmentId";
+    public static final String UNCERTAINTY_ASSESSMENT_VERSION = "uncertaintyAssessmentVersion";
     public static final String META_CONTROL_MAXIMUM_UNCERTAINTY = "metaControlMaximumUncertainty";
     public static final String EXECUTION_OPERATION_ID = "executionOperationId";
     public static final String EXECUTION_RESULT_REFERENCE = "executionResultReference";
@@ -101,6 +104,8 @@ public final class CognitiveCycleState extends AgentState {
             Map.entry(PLANNER_TERMINATION_REASON, Channels.base(() -> "")),
             Map.entry(PLANNER_CANDIDATE_COUNT, Channels.base(() -> 0)),
             Map.entry(EVIDENCE_MAXIMUM_UNCERTAINTY, Channels.base(() -> 0.0d)),
+            Map.entry(UNCERTAINTY_ASSESSMENT_ID, Channels.base(() -> "")),
+            Map.entry(UNCERTAINTY_ASSESSMENT_VERSION, Channels.base(() -> 0L)),
             Map.entry(META_CONTROL_MAXIMUM_UNCERTAINTY, Channels.base(() -> 0.0d)),
             Map.entry(EXECUTION_OPERATION_ID, Channels.base(() -> "")),
             Map.entry(EXECUTION_RESULT_REFERENCE, Channels.base(() -> "")),
@@ -119,6 +124,16 @@ public final class CognitiveCycleState extends AgentState {
     public long number(String key) { return this.<Long>value(key).orElse(0L); }
     public List<String> events() { return this.<List<String>>value(EVENTS).orElse(List.of()); }
 
+    public UncertaintyAssessment.Reference uncertaintyAssessmentReference() {
+        String id = text(UNCERTAINTY_ASSESSMENT_ID);
+        long version = number(UNCERTAINTY_ASSESSMENT_VERSION);
+        if (id.isBlank() && version == 0L) return null;
+        if (id.isBlank() || version < 1L) {
+            throw new IllegalStateException("checkpoint contains an incomplete uncertainty assessment reference");
+        }
+        return new UncertaintyAssessment.Reference(id, version, text(EXECUTION_ID), text(MEMORY_SCOPE_ID));
+    }
+
     public CycleContext context() {
         return new CycleContext(text(REQUEST_ID), text(EXECUTION_ID), text(MEMORY_SCOPE_ID), text(REQUEST),
                 text(NORMALIZED_INTENT), text(SUMMARY), text(CLARIFICATION_CONTEXT), integer(CLARIFICATION_ROUND),
@@ -128,6 +143,7 @@ public final class CognitiveCycleState extends AgentState {
                 text(CANDIDATE_SET_ID), integer(PLANNING_ROUND), text(SELECTED_CANDIDATE_ID),
                 text(IMPASSE_CASE_ID), text(IMPASSE_INVESTIGATION_REFERENCE), text(APPROVAL_ID),
                 text(APPROVAL_RESPONSE_ID), text(APPROVER_ID), text(HUMAN_CONTROL_RESPONSE_ID),
-                text(HUMAN_CONTROL_ACTOR_ID), text(EXECUTION_OPERATION_ID), text(OBSERVATION_ID), text(LAST_REASON));
+                text(HUMAN_CONTROL_ACTOR_ID), text(EXECUTION_OPERATION_ID), text(OBSERVATION_ID), text(LAST_REASON),
+                uncertaintyAssessmentReference());
     }
 }
