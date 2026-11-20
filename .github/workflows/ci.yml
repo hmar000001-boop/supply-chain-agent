@@ -68,7 +68,7 @@ jobs:
           fi
           BACKUP_PATH="$RUNNER_TEMP/supply-chain-agent-m7-backup.dump"
           RESTORE_DATABASE="sca_m7_restore_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
-          ./scripts/postgres/backup.sh "$BACKUP_PATH"
+          bash ./scripts/postgres/backup.sh "$BACKUP_PATH"
           createdb --maintenance-db=postgres "$RESTORE_DATABASE"
           cleanup() {
             dropdb --if-exists --maintenance-db=postgres "$RESTORE_DATABASE" || true
@@ -76,7 +76,7 @@ jobs:
           }
           trap cleanup EXIT
           PGDATABASE="$RESTORE_DATABASE" PGRESTORE_TARGET_CONFIRM="$RESTORE_DATABASE" \
-            ./scripts/postgres/restore-verify.sh "$BACKUP_PATH"
+            bash ./scripts/postgres/restore-verify.sh "$BACKUP_PATH"
 
       - name: Capture resolved dependency tree
         if: always() && steps.build.outcome == 'success'
