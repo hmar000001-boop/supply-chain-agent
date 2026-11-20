@@ -42,6 +42,30 @@ public final class PostgresResourceBudgetLedger implements LeasedResourceBudgetL
         this.scopeId = required(scopeId, "scopeId");
     }
 
+    /**
+     * Ensures a persisted execution budget exists without rebinding it on host restart.
+     * PostgreSQL timestamptz values have microsecond precision, so compare the requested
+     * deadline at the same precision used by {@link PostgresJdbc#setInstant}; otherwise a
+     * repeated registration of the same nanosecond-precision Java deadline can be rejected
+     * after its first round-trip through PostgreSQL.
+     */
+    @Override
+    public void ensureRegistered(String executionId, ResourceBudget budget) {
+        String execution = required(executionId, "executionId");
+        Objects.requireNonNull(budget, "budget");
+        try {
+            register(execution, budget);
+        } catch (IllegalStateException alreadyRegistered) {
+            ResourceBudgetSnapshot existing = snapshot(execution, Instant.EPOCH);
+            ResourceBudget canonicalRequested = new ResourceBudget(
+                    budget.limits(), PostgresJdbc.normalizeInstant(budget.deadline()));
+            if (!existing.budget().equals(canonicalRequested)) {
+                throw new SecurityException(
+                        "execution is already bound to a different resource budget", alreadyRegistered);
+            }
+        }
+    }
+
     @Override
     public void register(String executionId, ResourceBudget budget) {
         String execution = required(executionId, "executionId");

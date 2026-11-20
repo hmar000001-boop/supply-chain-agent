@@ -469,7 +469,7 @@ class PostgresM7B2CoreIntegrationTest {
         assertTrue(health.liveness(), "liveness is independent of transient database health");
         var readiness = health.readiness();
         assertTrue(readiness.ready(), () -> "database should be ready after V010 (M8-PreB7 R1-DEF), found " + readiness.statusCode());
-        assertEquals(9, readiness.schemaVersion());
+        assertEquals(10, readiness.schemaVersion(), "R1-DEF V010 fenced reservation lease migration is installed");
 
         String activeScope = "metrics-active-" + UUID.randomUUID();
         String otherScope = "metrics-other-" + UUID.randomUUID();

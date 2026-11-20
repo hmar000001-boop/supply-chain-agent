@@ -1,37 +1,23 @@
-# M8 Pre-B7 R1-DEF — CI Fix 2
+# M8-PreB7 R1-DEF — PostgreSQL CI Fix 3
 
-This is a changes-only ZIP containing **four complete source-file replacements** for the checkout that already has:
+This is a change-only package of three complete source-file replacements. Apply it on top of the already-applied `M8_PREB7_R1DEF_CI_FIX2_FULL_SOURCE_CHANGESET_ONLY_2026-11-20.zip` and the R1-DEF shared-budget/lease package.
 
-- the accepted green R1-C changes, including predecessor-scoped uncertainty idempotency;
-- the R1-DEF integrated budget-authority / reservation-recovery delivery;
-- R1-DEF CI Fix 1 (the `ReservationStatus` import in `ResourceBudgetExecutionGuardTest.java`).
+## Fixes
 
-Do not apply this ZIP to the frozen M8-B6 baseline or to a checkout that does not already contain R1-DEF.
+1. `PostgresResourceBudgetLedger.ensureRegistered(...)` now compares persisted deadlines at PostgreSQL's supported microsecond precision. PostgreSQL timestamp round-trips truncate Java nanoseconds; without normalization, a host restart falsely reports that an identical persisted execution budget has been rebound. Resource limits and the canonical deadline must still match exactly. A genuinely different budget continues to fail closed with `SecurityException`. The lower-level `register(...)` behavior is unchanged.
+2. `R1DefBudgetLeaseRecoveryIntegrationTest` now marks the second, still-live reservation's operation as started before committing it. This matches the production state machine and preserves the test's capacity-accounting purpose.
+3. `PostgresM7B2CoreIntegrationTest` now expects schema version 10 because R1-DEF installs migration V010.
 
 ## Apply
 
-Extract this archive at the repository root, preserving paths and allowing the four listed files to overwrite their current versions. Commit and push the result, then run:
+Extract this ZIP at the repository root and overwrite the three listed files. Do not remove or replace any other files. Then run:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-## Corrections
+## Validation in the authoring environment
 
-1. `CognitiveCycleGraphTest.java`: restores the exact complete test source from the green R1-C Fix 5 delivery. This preserves the post-human-control second B6 evaluation and its assertion that it consumes uncertainty revision 3. R1-DEF had unintentionally replaced it with an older pre-Fix-5 copy.
-2. `ResourceBudgetExecutionGuardTest.java`: marks the second live reservation's operation as started before committing it, respecting the production lease state machine.
-3. `BudgetedReasoningProviderTest.java`: changes the simulated unavailable ledger to implement `LeasedResourceBudgetLedger`, matching the production guard contract, and asserts that no lease operation/provider invocation occurs when durable account initialization is unavailable.
-4. `BudgetReservationInUseException.java`: adds `serialVersionUID` to remove the Java serialization warning.
-
-No production behavior or authorization checks are weakened. No migration, POM, dependency, workflow, inventory count, or database schema is changed by this CI correction.
-
-## Validation performed
-
-- Exact restored graph test source compared to the complete R1-C Fix 5 delivery.
-- All four replacement paths and source hashes recorded in the manifest/checksum files.
-- Java 21 compilation of `ResourceBudgetExecutionGuardTest` and `BudgetedReasoningProviderTest` against the R1-DEF compiled production classes: PASS.
-- Focused assertion-backed execution of those two test classes: **13/13 PASS**.
-- Exception source compiles under Java 21.
-- ZIP integrity and per-file SHA-256 verification: PASS.
-
-This focused harness is not a Maven Surefire run. The complete GitHub Actions Maven/PostgreSQL CI remains the acceptance gate for R1-DEF. The graph test was restored from the previously green R1-C Fix 5 source and must be re-executed by Surefire in CI.
+- Java 21 focused production compilation passed for all B6 mechanism sources, `PostgresJdbc`, `PostgresPersistenceException`, and the modified `PostgresResourceBudgetLedger`.
+- ZIP integrity, exact file inventory, and SHA-256 checksums verified.
+- Full Maven/PostgreSQL integration execution was not available in this environment because the Maven distribution host could not be resolved. GitHub Actions remains the required acceptance run.

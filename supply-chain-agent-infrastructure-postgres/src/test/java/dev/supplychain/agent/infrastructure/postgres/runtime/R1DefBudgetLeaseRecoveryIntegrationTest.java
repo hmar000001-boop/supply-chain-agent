@@ -105,6 +105,9 @@ class R1DefBudgetLeaseRecoveryIntegrationTest {
         String otherReservationId = ResourceBudgetExecutionGuard.reservationIdFor(execution, "other-live-operation");
         var otherLease = first.acquireLease(execution, otherReservationId, "process-two", otherReserved,
                 now.plusSeconds(120), now.plusMillis(4));
+        var otherStarted = first.markOperationStarted(execution, otherReservationId, "process-two",
+                otherLease.fencingToken(), now.plusMillis(5));
+        assertTrue(otherStarted.operationStarted(), "a live operation must be marked started before it can be committed");
 
         Instant recoveredAt = now.plusSeconds(2);
         var restarted = new PostgresResourceBudgetLedger(dataSource, scope);
@@ -120,7 +123,7 @@ class R1DefBudgetLeaseRecoveryIntegrationTest {
         assertEquals(18L, restarted.snapshot(execution, recoveredAt).consumed().get(ResourceUnit.REASONING_EVALUATIONS));
         assertEquals(3L, restarted.snapshot(execution, recoveredAt).reserved().get(ResourceUnit.MODEL_CALLS));
         assertEquals(2L, restarted.snapshot(execution, recoveredAt).reserved().get(ResourceUnit.REASONING_EVALUATIONS));
-        restarted.commitOwned(execution, otherReservationId, "process-two", otherLease.fencingToken(),
+        restarted.commitOwned(execution, otherReservationId, "process-two", otherStarted.fencingToken(),
                 otherReserved, recoveredAt.plusMillis(1));
         assertEquals(8L, restarted.snapshot(execution, recoveredAt.plusMillis(1)).consumed().get(ResourceUnit.MODEL_CALLS));
         assertEquals(20L, restarted.snapshot(execution, recoveredAt.plusMillis(1)).consumed().get(ResourceUnit.REASONING_EVALUATIONS));
