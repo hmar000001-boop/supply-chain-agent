@@ -110,3 +110,13 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 - The B5 workflow's green run confirms its B2 CLI and non-empty result-file/provenance steps completed. The actual three JSONL files and GitHub Actions artifact payload were not supplied to this workspace; their record counts, ten paired comparisons and 125 replay outcomes are therefore not content-verified here. Archive that CI artifact beside the source checkpoint and review it before stating planner-result conclusions in Chapters 19/20.
 - The readiness register preserves open production/deployment gates: production `compileFull` host wiring, full production-graph OS restart, orphan B6 reservation recovery, trusted token-level usage, ERP/WMS/supplier/carrier adapters, production IAM, PITR/RPO/RTO, tenant reconciliation, retention/legal-hold operations and formal SAST/SCA/penetration testing.
 - M8-B6 does not convert a source archive into a production deployment certification. The source checkpoint is packaged; final evidence freeze is conditional on the companion B2 experiment artifact being archived/reviewed and no further source edits being introduced without a new checkpoint version.
+
+## M8-PreB7 status — 2026-11-20
+
+- R0 is accepted.
+- R1-A and R1-B are accepted on user-confirmed green CI.
+- R1-C is accepted on user-confirmed green CI after the predecessor-scoped uncertainty idempotency correction (Fix 6).
+- R1-D/E/F are grouped as one integrated R1-DEF delivery. The implementation includes strict shared durable guard composition, PostgreSQL V010 fenced reservation leases and recovery, and a complete application graph PostgreSQL-checkpoint fresh-JVM pause/resume test. The package is prepared; hosted full Maven/PostgreSQL CI acceptance is pending.
+- The static architecture verifier reports 409 production Java files, 64 test sources and 377 test annotations/factories. These are source inventory counts, not executed test totals.
+- R1-DEF restart evidence is bounded to a safe clarification interrupt before external effects and uses deterministic test adapters. It does not certify durability of all production adapters or post-effect full-graph restart.
+- Next is one grouped R2 delivery: typed B2 recovery drafts, durable B3 outcome evidence, offline/held-out B1/B3 feedback evaluation, integrated ablations, SAST/SCA, conformance refresh and final pre-B7 evidence/source freeze. Separate R2/R3/R4 ZIP/CI cycles are not planned by default.

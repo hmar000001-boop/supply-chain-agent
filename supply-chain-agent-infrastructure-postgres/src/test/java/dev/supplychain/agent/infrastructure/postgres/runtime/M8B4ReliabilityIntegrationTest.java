@@ -71,7 +71,7 @@ class M8B4ReliabilityIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(9, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(10, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test void b6BudgetReservationsAndActualUsageSurviveRepositoryReplacement() {

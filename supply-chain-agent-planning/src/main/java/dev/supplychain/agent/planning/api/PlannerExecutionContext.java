@@ -70,7 +70,7 @@ public final class PlannerExecutionContext {
             case REASONING_EVALUATIONS, VERIFICATION_CALLS -> request.budget().maxEvaluations();
             case SEARCH_EXPANSIONS -> request.budget().maxExpansions();
             case MCTS_ROLLOUTS -> request.budget().maxRollouts();
-            case INPUT_TOKENS, OUTPUT_TOKENS, EXTERNAL_READS -> Long.MAX_VALUE;
+            case INPUT_TOKENS, OUTPUT_TOKENS, EXTERNAL_READS, ACTION_DISPATCHES -> Long.MAX_VALUE;
         };
     }
 

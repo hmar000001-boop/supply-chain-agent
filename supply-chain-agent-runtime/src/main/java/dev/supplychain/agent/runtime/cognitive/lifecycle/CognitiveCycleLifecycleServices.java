@@ -159,7 +159,7 @@ public final class CognitiveCycleLifecycleServices {
         this.childSteps = childSteps;
         this.clock = Objects.requireNonNull(clock, "clock");
         this.resourceBudgetGuard = resourceBudgetGuard;
-        validateBudgetedReasoningActionBinding();
+        validateBudgetedActionBindings();
     }
 
     public CognitiveCycleDecisionServices decisionServices() { return decisionServices; }
@@ -704,8 +704,18 @@ public final class CognitiveCycleLifecycleServices {
         domain.recordEscalation(context, required(reason, "reason"), clock.instant());
     }
 
-    private void validateBudgetedReasoningActionBinding() {
-        if (resourceBudgetGuard == null) return;
+    private void validateBudgetedActionBindings() {
+        if (resourceBudgetGuard == null) {
+            if (actionDispatcher.hasExecutionBudget()) {
+                throw new SecurityException(
+                        "M3 external action dispatch cannot use a separate B6 guard when the lifecycle composition has no shared guard");
+            }
+            return;
+        }
+        if (!actionDispatcher.isBoundToBudgetIdentity(resourceBudgetGuard)) {
+            throw new SecurityException(
+                    "M3 external action dispatch must use the exact shared B6 execution guard");
+        }
         actionRegistry.findHandler(ReasoningAction.ID).ifPresent(handler -> {
             if (!(handler instanceof ReasoningAction reasoning)
                     || !reasoning.isBoundToBudgetIdentity(resourceBudgetGuard)) {
@@ -718,7 +728,7 @@ public final class CognitiveCycleLifecycleServices {
     private AuthorizedActionPlan actionPlan(CycleContext context) {
         // ActionRegistry is intentionally mutable during host startup. Revalidate at each
         // authorization/dispatch boundary so a later registration cannot bypass B6 composition.
-        validateBudgetedReasoningActionBinding();
+        validateBudgetedActionBindings();
         var selected = decisionServices.selectedCandidate(context);
         if (context.intentionId().isBlank()) throw new SecurityException("M3 action plan is not bound to a persistent B4 intention");
         var commands = List.copyOf(domain.actionCommands(context, selected, clock.instant()));

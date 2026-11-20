@@ -1,7 +1,8 @@
 package dev.supplychain.agent.infrastructure.postgres.runtime;
 
 import dev.supplychain.agent.actions.api.ActionExecutionLedger;
-import dev.supplychain.agent.mechanisms.b6.ResourceBudgetLedger;
+import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
+import dev.supplychain.agent.mechanisms.b6.LeasedResourceBudgetLedger;
 import dev.supplychain.agent.mechanisms.b2.ImpasseCaseRepository;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionRepository;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
@@ -14,6 +15,10 @@ import dev.supplychain.agent.runtime.cognitive.lifecycle.ObservationStore;
 
 import javax.sql.DataSource;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.function.Function;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import java.util.Objects;
 
 /**
@@ -32,7 +37,7 @@ public final class PostgresRuntimePersistence {
     private final ImpasseCaseRepository impasseCases;
     private final PostgresApprovalStore approvals;
     private final PostgresActionExecutionLedger actionLedger;
-    private final ResourceBudgetLedger resourceBudgets;
+    private final LeasedResourceBudgetLedger resourceBudgets;
     private final PostgresMessagingStore messaging;
     private final PostgresRuntimeMetrics metrics;
     private final String scopeId;
@@ -71,7 +76,27 @@ public final class PostgresRuntimePersistence {
     public PostgresApprovalStore approvals() { return approvals; }
     public ActionExecutionLedger actionLedger() { return actionLedger; }
     public PostgresActionExecutionLedger fencedActionLedger() { return actionLedger; }
-    public ResourceBudgetLedger resourceBudgets() { return resourceBudgets; }
+    public LeasedResourceBudgetLedger resourceBudgets() { return resourceBudgets; }
+
+    /**
+     * Creates the one production B6 guard from this scope-bound PostgreSQL ledger. The caller must
+     * pass the returned exact instance to M5 decision services, the budgeted M3 reasoning provider,
+     * and B6 lifecycle services; CognitiveCycleServiceOperations verifies the M5/B6 identity.
+     */
+    public ResourceBudgetExecutionGuard newResourceBudgetExecutionGuard(
+            Function<String, ResourceBudget> authoritativeBudgetProvider, Clock clock) {
+        return newResourceBudgetExecutionGuard(authoritativeBudgetProvider, clock, Duration.ofMinutes(2));
+    }
+
+    /** Same as the default factory with an explicit operational lease duration for the host. */
+    public ResourceBudgetExecutionGuard newResourceBudgetExecutionGuard(
+            Function<String, ResourceBudget> authoritativeBudgetProvider, Clock clock, Duration leaseDuration) {
+        return new ResourceBudgetExecutionGuard(resourceBudgets,
+                Objects.requireNonNull(authoritativeBudgetProvider, "authoritativeBudgetProvider"),
+                Objects.requireNonNull(clock, "clock"), Objects.requireNonNull(leaseDuration, "leaseDuration"));
+    }
+
+    public String scopeId() { return scopeId; }
     public PostgresMessagingStore messaging() { return messaging; }
     public PostgresRuntimeMetrics.Snapshot metrics() { return metrics.read(); }
 

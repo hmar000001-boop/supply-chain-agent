@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.supplychain.agent.actions.api.ActionDispatcher;
+import dev.supplychain.agent.actions.api.ActionExecutionBudget;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
 import dev.supplychain.agent.actions.internal.ReasoningAction;
@@ -99,6 +100,7 @@ import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetedActionExecution;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.decision.InMemoryPlanningArtifactStore;
@@ -477,6 +479,28 @@ final class CognitiveCycleLifecycleServicesTest {
     }
 
     @Test
+    void lifecycleRejectsAnExternalM3DispatcherNotBoundToTheSharedB6Guard() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
+                NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThrows(SecurityException.class,
+                () -> new Fixture(guard, guard, new ActionRegistry(), null));
+    }
+
+    @Test
+    void lifecycleRejectsAnM3DispatcherWithAnUnsharedGuardWhenLifecycleHasNoB6Guard() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
+                NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThrows(SecurityException.class, () -> new Fixture(null, null, new ActionRegistry(),
+                new ResourceBudgetedActionExecution(guard)));
+    }
+
+    @Test
     void completeCompositionRejectsDifferentB6GuardInstancesForM5AndLifecycle() {
         var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
         var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
@@ -526,7 +550,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 Set.of(dev.supplychain.agent.actions.api.Capability.SUPPLIER_READ),
                 NOW.plusSeconds(120), 2);
         fixture.domain.childPlan = new CognitiveCycleLifecyclePort.ChildInvestigationPlan(
-                List.of(new CognitiveCycleLifecyclePort.ChildInvestigationStep("read-supplier", 
+                List.of(new CognitiveCycleLifecyclePort.ChildInvestigationStep("read-supplier",
                         dev.supplychain.agent.actions.api.Capability.SUPPLIER_READ, "read current supplier status")),
                 ResolutionDisposition.EVIDENCE_CONFIRMED, List.of(), DelegationReturn.NO_METHOD_CHANGE);
         fixture.domain.findings = List.of(new ResolutionFinding("Supplier is active but has not confirmed the order",
@@ -636,6 +660,14 @@ final class CognitiveCycleLifecycleServicesTest {
         private Fixture(ResourceBudgetExecutionGuard decisionGuard,
                         ResourceBudgetExecutionGuard lifecycleGuard,
                         ActionRegistry registry) {
+            this(decisionGuard, lifecycleGuard, registry,
+                    lifecycleGuard == null ? null : new ResourceBudgetedActionExecution(lifecycleGuard));
+        }
+
+        private Fixture(ResourceBudgetExecutionGuard decisionGuard,
+                        ResourceBudgetExecutionGuard lifecycleGuard,
+                        ActionRegistry registry,
+                        ActionExecutionBudget actionExecutionBudget) {
             var scope = SCOPE;
             var working = new WorkingMemoryService(workingRepository, Duration.ofDays(1));
             var episodic = new EpisodicMemoryService(episodeRepository, Duration.ofDays(7));
@@ -645,7 +677,8 @@ final class CognitiveCycleLifecycleServicesTest {
             lifecycle = new CognitiveCycleLifecycleServices(working, episodic,
                     new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository()),
                     new RecoveryIntentionService(intentionRepository), new MetaControlGovernor(new MetaControlPolicy(0.4, 0.8, 0.2)),
-                    new ActionDispatcher(registry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger()), registry,
+                    new ActionDispatcher(registry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger(),
+                            actionExecutionBudget), registry,
                     interpreter, decisions, domain, new TestAuthority(), new InMemoryAuthorizedActionPlanStore(),
                     new InMemoryImpasseChildArtifactStore(), new InMemoryActionExecutionBatchStore(),
                     new InMemoryObservationStore(), null, lifecycleGuard, Clock.fixed(NOW, ZoneOffset.UTC));

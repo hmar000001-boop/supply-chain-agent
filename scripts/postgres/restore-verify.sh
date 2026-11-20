@@ -33,8 +33,8 @@ pg_restore --list "$BACKUP" >/dev/null
 pg_restore --exit-on-error --single-transaction --no-owner --no-acl --dbname "$PGDATABASE" "$BACKUP"
 SCHEMA_VERSION="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
   --command "SELECT COALESCE(MAX(version),0) FROM agent_schema_history")"
-if [[ "$SCHEMA_VERSION" != "9" ]]; then
-  echo "Restore verification failed: expected schema version 9 (including M8-B4 V009), found $SCHEMA_VERSION" >&2
+if [[ "$SCHEMA_VERSION" != "10" ]]; then
+  echo "Restore verification failed: expected schema version 10 (including R1-DEF V010), found $SCHEMA_VERSION" >&2
   exit 67
 fi
 MISSING_RUNTIME_TABLES="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
@@ -43,10 +43,16 @@ if [[ "$MISSING_RUNTIME_TABLES" != "0" ]]; then
   echo "Restore verification failed: $MISSING_RUNTIME_TABLES required runtime tables (M7 plus M8-B4 B6 budget) are missing" >&2
   exit 68
 fi
-MIGRATION_HISTORY_OK="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
-  --command "SELECT CASE WHEN COUNT(*)=9 AND COUNT(DISTINCT version)=9 AND MIN(version)=1 AND MAX(version)=9 THEN 'ok' ELSE 'bad' END FROM agent_schema_history")"
-if [[ "$MIGRATION_HISTORY_OK" != "ok" ]]; then
-  echo "Restore verification failed: migration history is incomplete or non-contiguous" >&2
+MISSING_B6_LEASE_COLUMNS="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
+  --command "SELECT COUNT(*) FROM (VALUES ('owner_id'),('lease_expires_at'),('fencing_token'),('started_at'),('recovery_outcome')) AS required(column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema='public' AND c.table_name='b6_resource_budget_reservation' AND c.column_name=required.column_name)")"
+if [[ "$MISSING_B6_LEASE_COLUMNS" != "0" ]]; then
+  echo "Restore verification failed: $MISSING_B6_LEASE_COLUMNS R1-DEF reservation lease columns are missing" >&2
   exit 69
 fi
-echo "Restore verification passed for schema version $SCHEMA_VERSION and required runtime tables on isolated target $PGDATABASE"
+MIGRATION_HISTORY_OK="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
+  --command "SELECT CASE WHEN COUNT(*)=10 AND COUNT(DISTINCT version)=10 AND MIN(version)=1 AND MAX(version)=10 THEN 'ok' ELSE 'bad' END FROM agent_schema_history")"
+if [[ "$MIGRATION_HISTORY_OK" != "ok" ]]; then
+  echo "Restore verification failed: migration history is incomplete or non-contiguous" >&2
+  exit 70
+fi
+echo "Restore verification passed for schema version $SCHEMA_VERSION, required runtime tables and R1-DEF B6 lease columns on isolated target $PGDATABASE"

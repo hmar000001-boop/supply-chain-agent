@@ -18,11 +18,24 @@ public final class ActionDispatcher {
     private final ActionRegistry registry;
     private final CapabilityAuthorizer authorizer;
     private final ActionExecutionLedger ledger;
+    private final ActionExecutionBudget executionBudget;
 
     public ActionDispatcher(ActionRegistry registry, CapabilityAuthorizer authorizer, ActionExecutionLedger ledger) {
+        this(registry, authorizer, ledger, null);
+    }
+
+    public ActionDispatcher(ActionRegistry registry, CapabilityAuthorizer authorizer,
+                            ActionExecutionLedger ledger, ActionExecutionBudget executionBudget) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.authorizer = Objects.requireNonNull(authorizer, "authorizer");
         this.ledger = Objects.requireNonNull(ledger, "ledger");
+        this.executionBudget = executionBudget;
+    }
+
+    public boolean hasExecutionBudget() { return executionBudget != null; }
+
+    public boolean isBoundToBudgetIdentity(Object identity) {
+        return executionBudget != null && executionBudget.usesBudgetIdentity(Objects.requireNonNull(identity, "identity"));
     }
 
     public <I, O> ActionResult<O> dispatch(ActionId id, Class<I> inputType, Class<O> outputType,
@@ -123,16 +136,35 @@ public final class ActionDispatcher {
         }
 
         ActionContext executionContext = context.withOperationId(operationId);
+        String budgetOperationId = executionBudget == null ? operationId
+                : stableBudgetOperationId(descriptor, context, operationId);
         try {
-            O value = Objects.requireNonNull(handler.execute(executionContext, input), "action returned null");
-            ActionReceipt receipt = new ActionReceipt(descriptor.id(), operationId, context.principal().principalId(),
-                    context.correlationId(), startedAt, context.now(), handler.resultReference(value),
-                    descriptor.idempotencyRequired() ? java.util.Map.of("idempotent", "true") : java.util.Map.of());
-            if (ledgerKey != null) {
-                if (ledger instanceof FencedActionExecutionLedger fenced) fenced.completeFenced(ledgerKey, fencingToken, receipt);
-                else ledger.complete(ledgerKey, receipt);
+            O value = Objects.requireNonNull(executionBudget == null
+                    ? handler.execute(executionContext, input)
+                    : executionBudget.execute(executionContext, budgetOperationId,
+                            () -> handler.execute(executionContext, input)), "action returned null");
+            // The handler has returned: an external effect may already have happened. Failure
+            // while constructing or persisting its receipt is therefore an unknown outcome,
+            // never an authorization denial or a safely retryable failure.
+            try {
+                ActionReceipt receipt = new ActionReceipt(descriptor.id(), operationId, context.principal().principalId(),
+                        context.correlationId(), startedAt, context.now(), handler.resultReference(value),
+                        descriptor.idempotencyRequired() ? java.util.Map.of("idempotent", "true") : java.util.Map.of());
+                if (ledgerKey != null) {
+                    if (ledger instanceof FencedActionExecutionLedger fenced) fenced.completeFenced(ledgerKey, fencingToken, receipt);
+                    else ledger.complete(ledgerKey, receipt);
+                }
+                return ActionResult.success(value, receipt);
+            } catch (RuntimeException receiptFailure) {
+                ActionFailure unknown = failure(ActionFailureCode.UNKNOWN_OUTCOME,
+                        "The action handler returned but its final M3 receipt could not be committed; reconcile the external outcome before retrying",
+                        false, true);
+                if (ledgerKey != null) {
+                    try { recordFailure(ledgerKey, unknown, fencingToken); }
+                    catch (RuntimeException ledgerFailure) { receiptFailure.addSuppressed(ledgerFailure); }
+                }
+                return ActionResult.failed(unknown);
             }
-            return ActionResult.success(value, receipt);
         } catch (ActionExecutionException ex) {
             if (ledgerKey != null) recordFailure(ledgerKey, ex.failure(), fencingToken);
             return ActionResult.failed(ex.failure());
@@ -175,6 +207,27 @@ public final class ActionDispatcher {
             case KEY_REUSED -> ActionResult.rejected(claim.failure());
             case FAILED, UNKNOWN_OUTCOME -> ActionResult.failed(claim.failure());
         };
+    }
+
+    /**
+     * Stable across a restarted M3 idempotency ledger: B6 must fence the same logical M3
+     * operation even when a replacement process would otherwise generate a new claim UUID.
+     * The tuple deliberately mirrors IdempotencyLedgerKey (principal, action, idempotency key).
+     */
+    private static String stableBudgetOperationId(ActionDescriptor descriptor, ActionContext context,
+                                                  String claimedOperationId) {
+        if (!descriptor.idempotencyRequired() || context.idempotencyKey() == null) return claimedOperationId;
+        String principal = context.principal().principalId();
+        String action = descriptor.id().value();
+        String key = context.idempotencyKey();
+        String canonical = "m3-budget-operation-v1|" + principal.length() + ":" + principal
+                + action.length() + ":" + action + key.length() + ":" + key;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return "m3-idempotency:" + HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is required by the Java runtime", impossible);
+        }
     }
 
     private static <I, O> String fingerprint(ActionHandler<I, O> handler, I input) {

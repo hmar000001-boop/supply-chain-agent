@@ -1,38 +1,73 @@
 package dev.supplychain.agent.runtime.cognitive;
 
+import dev.supplychain.agent.mechanisms.b6.BudgetReservationInUseException;
+import dev.supplychain.agent.mechanisms.b6.BudgetReservationLease;
+import dev.supplychain.agent.mechanisms.b6.LeasedResourceBudgetLedger;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetLedger;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetSnapshot;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
+import dev.supplychain.agent.mechanisms.b6.ReservationStatus;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Shared B6 execution boundary for M5 planning and M3 reasoning. The account is durably bound to
- * one immutable budget per execution. Work is reserved before invocation and actual usage is
- * committed from a trusted adapter measurement afterwards. If work starts but fails before a
- * measurement is returned, the full reservation is conservatively charged rather than released.
+ * Shared, fenced B6 execution boundary for M5 planning and M3 reasoning. Each operation has a
+ * deterministic reservation identity, a process-local owner identity and a monotonically increasing
+ * fencing token. The operation-start transition is committed before the provider is invoked.
+ * An expired unstarted reservation can be reclaimed; an expired started reservation is never
+ * replayed and is conservatively charged by the durable ledger.
  */
 public final class ResourceBudgetExecutionGuard {
+    private static final ScheduledExecutorService HEARTBEATS = Executors.newScheduledThreadPool(4, task -> {
+        Thread thread = new Thread(task, "b6-budget-lease-heartbeat");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     private final ResourceBudgetLedger ledger;
+    private final LeasedResourceBudgetLedger leasedLedger;
     private final Function<String, ResourceBudget> budgetProvider;
     private final Clock clock;
+    private final Duration leaseDuration;
+    private final String ownerId = UUID.randomUUID().toString();
 
     public ResourceBudgetExecutionGuard(ResourceBudgetLedger ledger,
                                         Function<String, ResourceBudget> budgetProvider,
                                         Clock clock) {
+        this(ledger, budgetProvider, clock, Duration.ofMinutes(2));
+    }
+
+    public ResourceBudgetExecutionGuard(ResourceBudgetLedger ledger,
+                                        Function<String, ResourceBudget> budgetProvider,
+                                        Clock clock,
+                                        Duration leaseDuration) {
         this.ledger = Objects.requireNonNull(ledger, "ledger");
+        if (!(ledger instanceof LeasedResourceBudgetLedger leased)) {
+            throw new IllegalArgumentException("B6 production execution requires a leased, fencing-capable resource ledger");
+        }
+        this.leasedLedger = leased;
         this.budgetProvider = Objects.requireNonNull(budgetProvider, "budgetProvider");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.leaseDuration = Objects.requireNonNull(leaseDuration, "leaseDuration");
+        if (leaseDuration.toMillis() < 300L) {
+            throw new IllegalArgumentException("leaseDuration must be at least 300 milliseconds so heartbeat renewal can run before expiry");
+        }
     }
 
     public ResourceBudgetSnapshot snapshot(String executionId, Instant at) {
@@ -54,19 +89,44 @@ public final class ResourceBudgetExecutionGuard {
         ResourceBudget budget = Objects.requireNonNull(budgetProvider.apply(execution),
                 "host returned no B6 budget for execution");
         ledger.ensureRegistered(execution, budget);
-        String reservationId = "b6-" + sha256(execution + "\n" + operationKey + "\n" + UUID.randomUUID());
-        ledger.reserve(execution, reservationId, reserved, clock.instant());
+        Instant acquiredAt = clock.instant();
+        String reservationId = reservationIdFor(execution, operationKey);
+        BudgetReservationLease lease = leasedLedger.acquireLease(execution, reservationId, ownerId, reserved,
+                acquiredAt.plus(leaseDuration), acquiredAt);
+        if (lease.status() == ReservationStatus.COMMITTED) {
+            throw new BudgetReservationInUseException("budgeted operation was already completed or conservatively reconciled; refusing to invoke it again");
+        }
+        if (lease.status() != ReservationStatus.ACTIVE || !ownerId.equals(lease.ownerId()) || lease.operationStarted()) {
+            throw new BudgetReservationInUseException("budgeted operation could not obtain an unstarted reservation lease");
+        }
+
+        lease = leasedLedger.markOperationStarted(execution, reservationId, ownerId,
+                lease.fencingToken(), clock.instant());
+        long fencingToken = lease.fencingToken();
+        long heartbeatMillis = Math.max(1L, leaseDuration.toMillis() / 3L);
+        AtomicReference<RuntimeException> heartbeatFailure = new AtomicReference<>();
+        ScheduledFuture<?> heartbeat = HEARTBEATS.scheduleWithFixedDelay(() -> {
+            try {
+                Instant now = clock.instant();
+                leasedLedger.renewLease(execution, reservationId, ownerId, fencingToken,
+                        now.plus(leaseDuration), now);
+            } catch (RuntimeException failure) {
+                heartbeatFailure.compareAndSet(null, failure);
+            }
+        }, heartbeatMillis, heartbeatMillis, TimeUnit.MILLISECONDS);
 
         final T result;
         try {
             result = Objects.requireNonNull(operation.get(), "budgeted operation returned null");
-        } catch (RuntimeException operationFailure) {
-            // After crossing the execution boundary, usage is unknown. Charging the reservation
-            // is conservative; leaving it active would permanently hold capacity without a reason.
+        } catch (RuntimeException | Error operationFailure) {
             try {
-                ledger.commit(execution, reservationId, reserved, clock.instant());
-            } catch (RuntimeException accountingFailure) {
+                leasedLedger.commitOwned(execution, reservationId, ownerId, fencingToken, reserved, clock.instant());
+            } catch (RuntimeException | Error accountingFailure) {
                 operationFailure.addSuppressed(accountingFailure);
+                RuntimeException heartbeatProblem = heartbeatFailure.get();
+                if (heartbeatProblem != null) operationFailure.addSuppressed(heartbeatProblem);
+            } finally {
+                heartbeat.cancel(false);
             }
             throw operationFailure;
         }
@@ -74,20 +134,32 @@ public final class ResourceBudgetExecutionGuard {
         final ResourceUsage actual;
         try {
             actual = Objects.requireNonNull(actualUsage.apply(result), "actual usage measurement");
-        } catch (RuntimeException measurementFailure) {
-            // A missing or invalid trusted measurement is not evidence that the work was free.
-            // Charge the estimate conservatively; if this write also fails, keep the reservation active.
+        } catch (RuntimeException | Error measurementFailure) {
             try {
-                ledger.commit(execution, reservationId, reserved, clock.instant());
-            } catch (RuntimeException accountingFailure) {
+                leasedLedger.commitOwned(execution, reservationId, ownerId, fencingToken, reserved, clock.instant());
+            } catch (RuntimeException | Error accountingFailure) {
                 measurementFailure.addSuppressed(accountingFailure);
+                RuntimeException heartbeatProblem = heartbeatFailure.get();
+                if (heartbeatProblem != null) measurementFailure.addSuppressed(heartbeatProblem);
+            } finally {
+                heartbeat.cancel(false);
             }
             throw measurementFailure;
         }
-        // A commit failure is propagated. The active reservation continues to hold capacity so
-        // subsequent work cannot spend resources whose accounting outcome is unknown.
-        ledger.commit(execution, reservationId, actual, clock.instant());
+
+        try {
+            leasedLedger.commitOwned(execution, reservationId, ownerId, fencingToken, actual, clock.instant());
+        } finally {
+            heartbeat.cancel(false);
+        }
         return result;
+    }
+
+    /** Stable identity used by guarded operation adapters and crash-recovery tests. */
+    public static String reservationIdFor(String executionId, String operationId) {
+        String execution = required(executionId, "executionId");
+        String operation = required(operationId, "operationId");
+        return "b6-op-v1-" + sha256(execution.length() + ":" + execution + "|" + operation.length() + ":" + operation);
     }
 
     private static String sha256(String value) {

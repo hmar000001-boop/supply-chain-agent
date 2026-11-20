@@ -7,6 +7,12 @@ import dev.supplychain.agent.actions.api.ActionId;
 import dev.supplychain.agent.actions.api.ActionPrincipal;
 import dev.supplychain.agent.actions.api.PreconditionCheck;
 import dev.supplychain.agent.actions.api.ActionRegistry;
+import dev.supplychain.agent.actions.internal.ReasoningAction;
+import dev.supplychain.agent.actions.internal.ReasoningAssessment;
+import dev.supplychain.agent.actions.internal.ReasoningConfidence;
+import dev.supplychain.agent.actions.internal.ReasoningProvider;
+import dev.supplychain.agent.actions.api.ActionReceipt;
+import dev.supplychain.agent.actions.api.ActionFailure;
 import dev.supplychain.agent.actions.api.Capability;
 import dev.supplychain.agent.actions.api.CapabilityGrant;
 import dev.supplychain.agent.actions.api.ResourceReference;
@@ -20,6 +26,13 @@ import dev.supplychain.agent.evaluation.catalog.ScenarioCatalog;
 import dev.supplychain.agent.evaluation.fixture.ScenarioFixture;
 import dev.supplychain.agent.evaluation.fixture.ScenarioFixtureFactory;
 import dev.supplychain.agent.evaluation.host.FullGraphEvaluationHost;
+import dev.supplychain.agent.infrastructure.postgres.checkpoint.PostgresLangGraph4jCheckpointSaverFactory;
+import dev.supplychain.agent.infrastructure.postgres.config.PostgresDataSourceFactory;
+import dev.supplychain.agent.infrastructure.postgres.config.PostgresDatabaseConfig;
+import dev.supplychain.agent.infrastructure.postgres.migration.PostgresMigrationRunner;
+import dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec;
+import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimeCodecs;
+import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimePersistence;
 import dev.supplychain.agent.evaluation.planner.EvaluationPlannerFactory;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
@@ -54,6 +67,7 @@ import dev.supplychain.agent.mechanisms.b4.RecoveryMethodReference;
 import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
+import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetSnapshot;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
@@ -66,6 +80,8 @@ import dev.supplychain.agent.planning.api.PlanningAction;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.planning.api.PlanningWorldModel;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
+import dev.supplychain.agent.runtime.langchain4j.BudgetedReasoningProvider;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleState;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
@@ -88,11 +104,15 @@ import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphInput;
 import org.bsc.langgraph4j.RunnableConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -102,7 +122,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.EnumMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 import static org.bsc.langgraph4j.StateGraph.END;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -115,6 +137,70 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * adapters are deterministic, in-memory and explicitly limited to the disposable test process.
  */
 class M8B4FullGraphWorkflowTest {
+
+    @Test
+    @EnabledIfSystemProperty(named = "phase0.postgres", matches = "true")
+    void completeApplicationGraphResumesFromPostgresCheckpointInFreshJvmAfterAbruptDeath() throws Exception {
+        String scenarioId = "FAIL-11";
+        ScenarioFixture fixture = new ScenarioFixtureFactory(ScenarioCatalog.loadDefault()).create(scenarioId);
+        String scopeId = fixture.planningRequest().workingMemory().scopeId().value();
+        String executionId = fixture.planningRequest().executionId();
+        String threadId = PostgresLangGraph4jCheckpointSaverFactory.threadIdForExecution(scopeId, executionId);
+
+        runFullGraphChild("pause", scenarioId, threadId);
+        runFullGraphChild("resume", scenarioId, threadId);
+    }
+
+    private static void runFullGraphChild(String mode, String scenarioId, String threadId) throws Exception {
+        String classpath = System.getProperty("surefire.test.class.path");
+        if (classpath == null || classpath.isBlank()) classpath = System.getProperty("java.class.path");
+        String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        Path log = Files.createTempFile("r1def-full-graph-" + mode + "-", ".log");
+        Process process = new ProcessBuilder(java, "-cp", classpath,
+                R1DefFullGraphForkedProbe.class.getName(), mode, scenarioId, threadId)
+                .redirectErrorStream(true).redirectOutput(log.toFile()).start();
+        try {
+            assertTrue(process.waitFor(90, TimeUnit.SECONDS), "forked full-graph process did not terminate: " + mode);
+            String output = Files.readString(log, StandardCharsets.UTF_8);
+            assertEquals(0, process.exitValue(), "forked full-graph process failed (" + mode + "):\n" + output);
+            assertTrue(output.contains("R1DEF_FULL_GRAPH_" + mode.toUpperCase(java.util.Locale.ROOT)), output);
+        } finally {
+            if (process.isAlive()) process.destroyForcibly();
+            Files.deleteIfExists(log);
+        }
+    }
+
+    /** Child JVM deliberately halted after checkpointing the full graph at the clarification boundary. */
+    public static final class R1DefFullGraphForkedProbe {
+        private R1DefFullGraphForkedProbe() { }
+
+        public static void main(String[] args) throws Exception {
+            if (args.length != 3) throw new IllegalArgumentException("expected mode,scenarioId,threadId");
+            String mode = args[0];
+            String scenarioId = args[1];
+            String threadId = args[2];
+            var dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
+            new PostgresMigrationRunner(dataSource).migrate();
+            ScenarioRuntime runtime = ScenarioRuntime.createForPostgres(scenarioId,
+                    "pause".equals(mode), threadId, dataSource);
+            if ("pause".equals(mode)) {
+                runtime.pauseBeforeClarification();
+                System.out.println("R1DEF_FULL_GRAPH_PAUSED thread=" + threadId);
+                System.out.flush();
+                Runtime.getRuntime().halt(0);
+            }
+            if ("resume".equals(mode)) {
+                TerminalOutput terminal = runtime.resumeClarificationAfterRestart();
+                assertEquals(END, terminal.node());
+                assertEquals("ESCALATED", terminal.state().text(CognitiveCycleState.DECISION_STATUS));
+                runtime.assertDurablePlannerReservationCommitted();
+                System.out.println("R1DEF_FULL_GRAPH_RESUMED thread=" + threadId
+                        + " status=" + terminal.state().text(CognitiveCycleState.DECISION_STATUS));
+                return;
+            }
+            throw new IllegalArgumentException("unknown full-graph probe mode: " + mode);
+        }
+    }
 
     @Test
     void authorizedWriteCompletesTheFullGraphOnlyAfterExactApprovalAndObservation() throws Exception {
@@ -335,9 +421,18 @@ class M8B4FullGraphWorkflowTest {
         private final AuthorityAdapter authority;
         private final CompiledGraph<CognitiveCycleState> graph;
         private final RunnableConfig config;
+        private final javax.sql.DataSource checkpointDataSource;
 
         private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode) throws Exception {
+            this(fixture, approvalMode, false, null, null, null, null);
+        }
+
+        private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode, boolean clarifyOnFirstInterpretation,
+                                String stableThreadId, javax.sql.DataSource checkpointDataSource,
+                                ResourceBudgetExecutionGuard durableBudgetGuard,
+                                ResourceBudget durableBudget) throws Exception {
             this.fixture = fixture;
+            this.checkpointDataSource = checkpointDataSource;
             this.worldStore = new ScenarioWorldStore(fixture.planningRequest().initialWorld(), fixture.planningRequest().evidence());
             this.worldStore.initializeActionDescriptors(fixture.planningRequest().availableActionDefinitions());
             this.effectStore = new ScenarioEffectStore(fixture, worldStore);
@@ -354,25 +449,128 @@ class M8B4FullGraphWorkflowTest {
                 registry.register(handler);
                 actionHandlers.put(descriptor.id(), handler);
             });
-            lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore, actionHandlers);
+            if (durableBudgetGuard != null) {
+                ReasoningProvider deterministicReasoner = request -> new ReasoningAssessment(
+                        "Evidence-bounded test assessment", List.of("Only supplied evidence is considered"),
+                        List.of(), List.of(), request.evidence(), List.of(), ReasoningConfidence.UNASSESSED,
+                        "R1-DEF verifies that the registered M3 reasoning action is bound to the same durable B6 guard");
+                registry.register(new ReasoningAction(new BudgetedReasoningProvider(
+                        deterministicReasoner, durableBudgetGuard)));
+            }
+            lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore, actionHandlers,
+                    durableBudget);
             authority = new AuthorityAdapter(approvalMode, fixture);
             var consumers = Map.<String, WorkspaceConsumer>of("planner", broadcast -> new WorkspaceConsumerReceipt(
                     "planner", broadcast.snapshot().id(), ConsumerReceiptStatus.ACCEPTED,
                     broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
                     broadcast.broadcastAt(), "deterministic planner consumer accepted the admitted workspace"));
             var strategies = new EvaluationPlannerFactory(world).strategiesForFullGraph(fixture);
-            var ports = new FullGraphEvaluationHost.Ports(decision, lifecycle, authority,
-                    request -> new RequestInterpretation(InterpretationOutcome.READY, request.originalText(),
-                            "Deterministic M8-B4 scenario interpretation"),
-                    worldModel, evaluator, strategies, clock, registry, consumers);
-            graph = host.compileFull(ports);
-            config = RunnableConfig.builder().threadId("m8-b4:" + fixture.definition().scenarioId() + ":" + UUID.randomUUID()).build();
+            AtomicInteger interpretationCalls = new AtomicInteger();
+            var interpreter = (dev.supplychain.agent.core.interpretation.RequestInterpreter) request -> {
+                if (clarifyOnFirstInterpretation && interpretationCalls.getAndIncrement() == 0) {
+                    return new RequestInterpretation(InterpretationOutcome.NEEDS_CLARIFICATION,
+                            request.originalText(), "The affected customer order must be identified before recovery.");
+                }
+                return new RequestInterpretation(InterpretationOutcome.READY, request.originalText(),
+                        "Deterministic M8-B4 scenario interpretation");
+            };
+            var ports = new FullGraphEvaluationHost.Ports(decision, lifecycle, authority, interpreter,
+                    worldModel, evaluator, strategies, clock, registry, consumers, durableBudgetGuard);
+            if (checkpointDataSource == null) {
+                graph = host.compileFull(ports);
+            } else {
+                graph = host.compileFull(ports, builder ->
+                        PostgresLangGraph4jCheckpointSaverFactory.create(checkpointDataSource, builder));
+            }
+            String selectedThreadId = stableThreadId == null
+                    ? "m8-b4:" + fixture.definition().scenarioId() + ":" + UUID.randomUUID()
+                    : stableThreadId;
+            config = RunnableConfig.builder().threadId(selectedThreadId).build();
         }
 
         static ScenarioRuntime create(String scenarioId, ApprovalMode mode) throws Exception {
             var catalog = ScenarioCatalog.loadDefault();
             var factory = new ScenarioFixtureFactory(catalog);
             return new ScenarioRuntime(factory.create(scenarioId), mode);
+        }
+
+        static ScenarioRuntime createForPostgres(String scenarioId, boolean clarifyOnFirstInterpretation,
+                                                 String stableThreadId, javax.sql.DataSource dataSource) throws Exception {
+            var fixture = new ScenarioFixtureFactory(ScenarioCatalog.loadDefault()).create(scenarioId);
+            String scopeId = fixture.planningRequest().workingMemory().scopeId().value();
+            String expectedThread = PostgresLangGraph4jCheckpointSaverFactory.threadIdForExecution(
+                    scopeId, fixture.planningRequest().executionId());
+            if (!expectedThread.equals(stableThreadId)) {
+                throw new SecurityException("full-graph checkpoint thread does not match fixture scope/execution identity");
+            }
+            Clock clock = Clock.fixed(ScenarioFixtureFactory.FIXTURE_AS_OF, ZoneOffset.UTC);
+            var persistence = new PostgresRuntimePersistence(dataSource, scopeId, unusedRuntimeCodecs());
+            var limits = new EnumMap<ResourceUnit, Long>(ResourceUnit.class);
+            for (ResourceUnit unit : ResourceUnit.values()) limits.put(unit, 1_000_000L);
+            var budget = new ResourceBudget(limits, ScenarioFixtureFactory.FIXTURE_AS_OF.plus(Duration.ofDays(90)));
+            ResourceBudgetExecutionGuard guard = persistence.newResourceBudgetExecutionGuard(
+                    ignored -> budget, clock, Duration.ofMinutes(2));
+            return new ScenarioRuntime(fixture, ApprovalMode.APPROVED, clarifyOnFirstInterpretation,
+                    stableThreadId, dataSource, guard, budget);
+        }
+
+        private static PostgresRuntimeCodecs unusedRuntimeCodecs() {
+            return PostgresRuntimeCodecs.withDefaults(
+                    unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec(),
+                    observation -> new PostgresRuntimeCodecs.ObservationProvenance(
+                            "unused-execution", "unused-principal", "unused-source", ScenarioFixtureFactory.FIXTURE_AS_OF),
+                    unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec());
+        }
+
+        private static <T> JsonCodec<T> unusedCodec() {
+            return new JsonCodec<>() {
+                @Override public String encode(T value) { throw new UnsupportedOperationException("test codec is not used in the clarification restart scenario"); }
+                @Override public T decode(String json) { throw new UnsupportedOperationException("test codec is not used in the clarification restart scenario"); }
+            };
+        }
+
+        void pauseBeforeClarification() {
+            var stream = graph.stream(GraphInput.args(input()), config);
+            for (var ignored : stream) { /* run the actual application graph to its clarification breakpoint */ }
+            assertTrue(org.bsc.langgraph4j.GraphResult.from(stream).isInterruptionMetadata(),
+                    "full application graph did not pause at the host clarification boundary");
+            assertEquals("NEEDS_CLARIFICATION", graph.getState(config).state().text(CognitiveCycleState.DECISION_STATUS));
+            assertEquals(0, effects.get(), "no external action may run before clarification and subsequent authorization");
+        }
+
+        TerminalOutput resumeClarificationAfterRestart() {
+            var checkpoint = graph.getState(config).state();
+            assertEquals("NEEDS_CLARIFICATION", checkpoint.text(CognitiveCycleState.DECISION_STATUS),
+                    "fresh JVM must restore the full graph checkpoint from PostgreSQL");
+            var updated = graph.updateState(config, Map.of(
+                    CognitiveCycleState.CLARIFICATION_CONTEXT,
+                    "The disrupted supplier serves the customer order identified by the scenario."), null);
+            var output = graph.invokeFinal(GraphInput.resume(), updated)
+                    .orElseThrow(() -> new AssertionError("full graph did not complete after process restart"));
+            return new TerminalOutput(output.node(), output.state());
+        }
+
+        void assertDurablePlannerReservationCommitted() throws Exception {
+            if (checkpointDataSource == null) {
+                throw new IllegalStateException("durable planner reservation assertion requires PostgreSQL-backed runtime");
+            }
+            String scopeId = fixture.planningRequest().workingMemory().scopeId().value();
+            String executionId = fixture.planningRequest().executionId();
+            try (var connection = checkpointDataSource.getConnection();
+                 var statement = connection.prepareStatement("""
+                         SELECT COUNT(*) FROM b6_resource_budget_reservation
+                         WHERE scope_id=? AND execution_id=? AND owner_id IS NOT NULL
+                           AND status='COMMITTED' AND started_at IS NOT NULL
+                           AND recovery_outcome='NONE'
+                         """)) {
+                statement.setString(1, scopeId);
+                statement.setString(2, executionId);
+                try (var row = statement.executeQuery()) {
+                    if (!row.next() || row.getLong(1) < 1L) {
+                        throw new AssertionError("full application graph did not durably commit its M5 planner reservation");
+                    }
+                }
+            }
         }
 
         boolean runUntilApproval() {
@@ -530,12 +728,13 @@ class M8B4FullGraphWorkflowTest {
         private final AtomicInteger outcomeEpisodes = new AtomicInteger();
         private final AtomicInteger revalidationRequests = new AtomicInteger();
         private final RecoveryObjective objective;
+        private final ResourceBudget durableBudget;
         private final Map<String, UncertaintyAssessment.Reference> uncertaintyByTrigger = new java.util.HashMap<>();
         private final Map<UncertaintyAssessment.Reference, UncertaintyAssessment> uncertaintyByReference = new java.util.HashMap<>();
 
         private LifecycleAdapter(ScenarioFixture fixture, Clock clock, ApprovalMode approvalMode,
                                  ScenarioEffectStore effects, ScenarioWorldStore worldStore,
-                                 Map<ActionId, ReservationActionHandler> actionHandlers) {
+                                 Map<ActionId, ReservationActionHandler> actionHandlers, ResourceBudget durableBudget) {
             this.fixture = fixture;
             this.clock = clock;
             this.effects = effects;
@@ -543,6 +742,7 @@ class M8B4FullGraphWorkflowTest {
             this.actionHandlers = Map.copyOf(actionHandlers);
             this.approvalMode = approvalMode;
             this.objective = fixture.planningRequest().objective();
+            this.durableBudget = durableBudget;
         }
 
         private final ApprovalMode approvalMode;
@@ -652,8 +852,10 @@ class M8B4FullGraphWorkflowTest {
 
         @Override public MetaControlInputs metaControlInputs(CognitiveCycleOperations.CycleContext context, Instant at) {
             var uncertainty = currentUncertaintyAssessment(context, at);
+            var budgetDefinition = durableBudget == null
+                    ? new ResourceBudget(Map.of(), at.plusSeconds(60)) : durableBudget;
             var budget = new ResourceBudgetSnapshot(context.executionId(),
-                    new ResourceBudget(Map.of(), at.plusSeconds(60)), Map.of(), Map.of(), at);
+                    budgetDefinition, Map.of(), Map.of(), at);
             return new MetaControlInputs(budget, uncertainty, new ResourceUsage(Map.of()));
         }
 

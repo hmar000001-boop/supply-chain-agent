@@ -65,9 +65,14 @@ public final class CognitiveCycleGraph {
     public static CompiledGraph<CognitiveCycleState> compile(
             CognitiveCycleOperations operations,
             BaseCheckpointSaver checkpointSaver) throws GraphStateException {
-        Objects.requireNonNull(operations, "operations");
         Objects.requireNonNull(checkpointSaver, "checkpointSaver");
+        return compile(build(operations), checkpointSaver);
+    }
 
+    /** Builds the complete graph before a checkpoint saver is selected. This is required by savers
+     * whose serializer is derived from the graph state schema, including the production PostgreSQL saver. */
+    public static StateGraph<CognitiveCycleState> build(CognitiveCycleOperations operations) throws GraphStateException {
+        Objects.requireNonNull(operations, "operations");
         var b2 = B2ResolutionSubgraph.compile(operations);
 
         NodeAction<CognitiveCycleState> initialize = state -> {
@@ -622,6 +627,15 @@ public final class CognitiveCycleGraph {
                 .addEdge(NODE_COMPLETE, END)
                 .addEdge(NODE_ESCALATE, END);
 
+        return builder;
+    }
+
+    /** Compiles a previously built complete graph with the supplied persistence adapter. */
+    public static CompiledGraph<CognitiveCycleState> compile(
+            StateGraph<CognitiveCycleState> builder,
+            BaseCheckpointSaver checkpointSaver) throws GraphStateException {
+        Objects.requireNonNull(builder, "builder");
+        Objects.requireNonNull(checkpointSaver, "checkpointSaver");
         return builder.compile(CompileConfig.builder()
                 .checkpointSaver(checkpointSaver)
                 .interruptBefore(NODE_AWAIT_CLARIFICATION, NODE_AWAIT_EVIDENCE,

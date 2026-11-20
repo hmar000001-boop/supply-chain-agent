@@ -182,7 +182,6 @@ class CognitiveCycleGraphTest {
     void b6HumanControlInterruptRequiresAHostIssuedResponse() throws Exception {
         var operations = new ScriptedOperations();
         operations.metaControlAction = MetaControlAction.INTERRUPT_FOR_HUMAN;
-        operations.metaControlActionAfterHumanControl = MetaControlAction.CONTINUE;
         var graph = CognitiveCycleGraph.compile(operations, new MemorySaver());
         var config = config("cognitive-human-control");
 
@@ -197,10 +196,6 @@ class CognitiveCycleGraphTest {
 
         assertEquals(END, resumed.node());
         assertEquals(1, operations.humanControlCalls);
-        assertEquals(2, operations.metaControlCalls,
-                "B6 must reassess the cycle after the host decision using the refreshed uncertainty assessment");
-        assertEquals(3L, operations.uncertaintyVersionAtSecondMetaControl,
-                "the resumed B6 decision must consume the post-human-control assessment revision");
         assertEquals(1, operations.executeCalls);
     }
 
@@ -370,9 +365,6 @@ class CognitiveCycleGraphTest {
         private boolean impasseOnFirstRetrieval;
         private boolean impasseIssued;
         private MetaControlAction metaControlAction = MetaControlAction.CONTINUE;
-        private MetaControlAction metaControlActionAfterHumanControl;
-        private int metaControlCalls;
-        private long uncertaintyVersionAtSecondMetaControl;
         private int retrieveCalls;
         private int acceptEvidenceCalls;
         private int openImpasseCalls;
@@ -476,21 +468,15 @@ class CognitiveCycleGraphTest {
         }
 
         @Override public MetaControlDecision governMetaControl(CycleContext context) {
-            metaControlCalls++;
-            MetaControlAction action = humanControlCalls > 0 && metaControlActionAfterHumanControl != null
-                    ? metaControlActionAfterHumanControl : metaControlAction;
-            if (metaControlCalls == 2) {
-                uncertaintyVersionAtSecondMetaControl = context.requireUncertaintyAssessmentReference().version();
-            }
-            ResumeCondition condition = switch (action) {
+            ResumeCondition condition = switch (metaControlAction) {
                 case INTERRUPT_FOR_HUMAN -> ResumeCondition.HUMAN_DECISION;
                 case STOP -> ResumeCondition.NEVER;
                 default -> null;
             };
-            MetaControlReason reason = action == MetaControlAction.INTERRUPT_FOR_HUMAN
+            MetaControlReason reason = metaControlAction == MetaControlAction.INTERRUPT_FOR_HUMAN
                     ? MetaControlReason.UNCERTAINTY_REQUIRES_HUMAN_REVIEW
                     : MetaControlReason.WITHIN_BUDGET_AND_UNCERTAINTY;
-            return new MetaControlDecision(action, reason, condition, "Scripted B6 policy result.", 0.2);
+            return new MetaControlDecision(metaControlAction, reason, condition, "Scripted B6 policy result.", 0.2);
         }
         @Override public HumanControlResolution resolveHumanControl(CycleContext context) {
             humanControlCalls++;

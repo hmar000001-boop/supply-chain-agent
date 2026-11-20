@@ -133,3 +133,16 @@
 - Added the M8-B6 freeze record, source-checkpoint metadata, source-file SHA-256 manifest and release-readiness register. Produced a complete source ZIP from the B5-accepted tree.
 - M8-B6 packaging is documentation/checkpoint work only; no Java source, Maven POM, SQL migration, shell script or CI workflow was changed after the green B5 run. No additional Maven/JUnit execution is claimed for the checkpoint packaging step.
 - Preserved open rollout gates: complete production application host/guard wiring, production-graph process restart, orphan B6 reservation recovery, trusted token-level usage, live ERP/WMS/supplier/carrier/provider adapters, production IAM, WAL/PITR RPO/RTO, tenant reconciliation, retention/legal-hold operation and formal SAST/SCA/penetration testing.
+
+## 2026-11-20 — M8-PreB7 R1-DEF integrated implementation prepared (hosted CI pending)
+
+- Grouped the remaining R1-D/R1-E/R1-F work into one cumulative delivery: strict shared durable B6 guard composition, PostgreSQL V010 fenced reservation leases/recovery, and full application-graph PostgreSQL checkpoint restoration in a fresh JVM.
+- Added owner/lease/expiry/fencing/start/recovery state; expired unstarted work can be reclaimed with a higher fence, while started unknown work is not replayed and consumes remaining finite budget capacity after preserving other active holds.
+- Explicitly preserve the limitation for unbounded resource dimensions: without a finite ceiling, this ledger cannot conservatively upper-bound unknown consumption.
+- Added child-JVM fault probes for reservation expiry before and after the operation-start marker, stale-owner/concurrency cases, explicit-release fencing, fatal provider-error accounting and full `compileFull` graph checkpoint pause/restart/resume.
+- Added the scope-bound PostgreSQL guard factory and strict application composition overloads for the exact same M5/M3/B6 guard identity.
+- Extended the same guard through every M3 `ActionDispatcher` handler invocation using the new `ACTION_DISPATCHES` resource unit; lifecycle composition rejects missing or divergent dispatcher bindings.
+- Made the B6 reservation identity stable across replacement of M3's process-local ledger by deriving it from the M3 principal/action/idempotency-key tuple; regression tests prove ordinary duplicate acknowledgment is not double-charged and a restarted M3 ledger cannot replay a committed external action.
+- Updated the architecture/test inventory and Pre-B7 acceptance/release-readiness records. Static architecture verification passes at 409 production Java files, 64 test source files and 377 test annotations/factories.
+- Hardened the M3 post-effect receipt boundary: a fenced or failed receipt completion after a handler returns is persisted/reported as `UNKNOWN_OUTCOME`, never `AUTHORIZATION_DENIED`; added a regression proving the action is not invoked again.
+- Maven/PostgreSQL tests have not been run in this authoring environment. R1-DEF remains pending the user's full GitHub Actions run. The full-graph restart test is bounded to a safe pre-effect clarification boundary with deterministic adapters.

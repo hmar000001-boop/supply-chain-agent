@@ -45,6 +45,7 @@ import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleState;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetedActionExecution;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.decision.InMemoryPlanningArtifactStore;
@@ -57,6 +58,8 @@ import dev.supplychain.agent.runtime.cognitive.lifecycle.InMemoryImpasseChildArt
 import dev.supplychain.agent.runtime.cognitive.lifecycle.InMemoryObservationStore;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphStateException;
+import org.bsc.langgraph4j.StateGraph;
+import org.bsc.langgraph4j.checkpoint.BaseCheckpointSaver;
 import org.bsc.langgraph4j.checkpoint.MemorySaver;
 
 import java.lang.reflect.InvocationHandler;
@@ -152,7 +155,26 @@ public final class FullGraphEvaluationHost {
      * only registry used by the M3 dispatcher in this host.
      */
     public CompiledGraph<CognitiveCycleState> compileFull(Ports ports) throws GraphStateException {
+        try {
+            return compileFull(ports, ignored -> new MemorySaver());
+        } catch (GraphStateException failure) {
+            throw failure;
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException("could not create the default in-memory checkpoint saver", failure);
+        }
+    }
+
+    /**
+     * Compiles the same complete application graph with a caller-selected checkpoint saver. The
+     * factory receives the graph schema before compilation, allowing PostgreSQL savers to derive
+     * their state serializer from the exact graph that will be run.
+     */
+    public CompiledGraph<CognitiveCycleState> compileFull(Ports ports, CheckpointSaverFactory saverFactory)
+            throws Exception {
         Objects.requireNonNull(ports, "ports");
+        Objects.requireNonNull(saverFactory, "saverFactory");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
         var workingMemoryService = new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1));
         var episodicRepository = new InMemoryEpisodeRepository();
@@ -178,12 +200,28 @@ public final class FullGraphEvaluationHost {
                 new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository()),
                 new RecoveryIntentionService(new InMemoryRecoveryIntentionRepository()),
                 new MetaControlGovernor(new MetaControlPolicy(0.4, 0.8, 0.2)),
-                new ActionDispatcher(actionRegistry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger()),
+                new ActionDispatcher(actionRegistry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger(),
+                        ports.resourceBudgetGuard() == null ? null
+                                : new ResourceBudgetedActionExecution(ports.resourceBudgetGuard())),
                 actionRegistry, ports.interpreter(), decisionServices, ports.lifecycleDomain(), ports.authority(),
                 new InMemoryAuthorizedActionPlanStore(), new InMemoryImpasseChildArtifactStore(),
                 new InMemoryActionExecutionBatchStore(), new InMemoryObservationStore(), null,
                 ports.resourceBudgetGuard(), ports.clock());
-        return CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, new MemorySaver());
+        StateGraph<CognitiveCycleState> graphBuilder = ports.resourceBudgetGuard() == null
+                ? CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices)
+                : CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices,
+                        ports.resourceBudgetGuard());
+        BaseCheckpointSaver saver = Objects.requireNonNull(saverFactory.create(graphBuilder),
+                "checkpoint saver factory returned null");
+        return ports.resourceBudgetGuard() == null
+                ? CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver)
+                : CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver,
+                        ports.resourceBudgetGuard());
+    }
+
+    @FunctionalInterface
+    public interface CheckpointSaverFactory {
+        BaseCheckpointSaver create(StateGraph<CognitiveCycleState> graph) throws Exception;
     }
 
     private static Ports failClosedProbePorts() {

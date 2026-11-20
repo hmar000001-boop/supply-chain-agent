@@ -1,6 +1,6 @@
 # M8-PreB7 R1-C — Versioned uncertainty assessment and lifecycle handoff
 
-**Status:** Implementation prepared; CI validation pending  
+**Status:** Accepted — project owner confirmed complete GitHub Actions CI green after predecessor-scoped idempotency correction  
 **Baseline:** M8-B6 accepted source plus R1-A/R1-B and the R1-A/B inventory correction  
 **Research alignment:** Fan & Lan B6 (uncertainty, resource allocation, interruption and stopping); supporting CoALA decision-cycle integration
 
@@ -87,8 +87,8 @@ R1-C does not:
 - resolve orphan budget reservations after hard process termination; or
 - prove full production-graph OS-process kill/relaunch recovery.
 
-These remain R1-D/R1-E/R1-F or R3/R4 work. The assessment contract is an important enabling interface, not proof that every host-side persistence and reliability gate is complete.
+These were addressed by the grouped R1-DEF delivery where applicable: shared budget guard wiring and fenced reservation recovery are separate from uncertainty assessment persistence. R1-DEF does not add a production PostgreSQL uncertainty-assessment repository. The assessment contract is an important enabling interface, not proof that every host-side persistence and reliability gate is complete.
 
 ## 8. Acceptance
 
-R1-C is accepted only after the project owner's GitHub Actions run is green on the commit containing this patch, including the architecture verifier, complete Maven reactor tests and PostgreSQL integration workflow. Any runtime or test failure must be corrected before proceeding to R1-D.
+R1-C was accepted after the project owner confirmed the complete GitHub Actions run was green on the commit containing the predecessor-scoped idempotency correction, including the architecture verifier, complete Maven reactor tests and PostgreSQL integration workflow. The next grouped package is R1-DEF.
