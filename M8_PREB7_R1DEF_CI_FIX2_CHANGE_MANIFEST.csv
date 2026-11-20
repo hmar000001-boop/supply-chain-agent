@@ -1,0 +1,6 @@
+path,change_type,bytes,sha256
+README.md,ADD,2589,0684c8e1b31afd9853be377947da75194c12a74dbfcae4bbd7eed93a22d35492
+supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b6/BudgetReservationInUseException.java,REPLACE,345,d08c80e9cd6cd697c65f43636a369de736867291022f5e07e381b8ed1a4ae010
+supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java,REPLACE,31313,b012674eea4c74e82ea54e046c5aa46cc63a64b9f49746f4e3a8a65c6a9dadef
+supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/ResourceBudgetExecutionGuardTest.java,REPLACE,13354,6e8c5ba0dc067821bef3ec693ee8095c4296fb420f915ea43c35d7864e3e6cce
+supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/langchain4j/BudgetedReasoningProviderTest.java,REPLACE,12376,f86474201c8b33fb5fa9cb9d6bf134f3d3356872e1f688c4aa5d254851ab8f53

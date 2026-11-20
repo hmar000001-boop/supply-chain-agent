@@ -90,7 +90,7 @@ class BudgetedReasoningProviderTest {
 
     @Test
     void budgetLedgerOutageFailsClosedBeforeCallingTheProvider() {
-        ResourceBudgetLedger unavailable = new ResourceBudgetLedger() {
+        LeasedResourceBudgetLedger unavailable = new LeasedResourceBudgetLedger() {
             @Override public void register(String executionId, ResourceBudget budget) {
                 throw new IllegalStateException("database unavailable");
             }
@@ -105,6 +105,32 @@ class BudgetedReasoningProviderTest {
             }
             @Override public ResourceBudgetSnapshot snapshot(String executionId, Instant at) {
                 throw new IllegalStateException("database unavailable");
+            }
+            @Override public BudgetReservationLease acquireLease(String executionId, String reservationId,
+                    String ownerId, ResourceUsage requested, Instant leaseExpiresAt, Instant at) {
+                throw new AssertionError("lease acquisition must not run when account initialization is unavailable");
+            }
+            @Override public BudgetReservationLease markOperationStarted(String executionId, String reservationId,
+                    String ownerId, long fencingToken, Instant at) {
+                throw new AssertionError("operation start must not run when account initialization is unavailable");
+            }
+            @Override public BudgetReservationLease renewLease(String executionId, String reservationId,
+                    String ownerId, long fencingToken, Instant leaseExpiresAt, Instant at) {
+                throw new AssertionError("lease renewal must not run when account initialization is unavailable");
+            }
+            @Override public ResourceBudgetSnapshot commitOwned(String executionId, String reservationId,
+                    String ownerId, long fencingToken, ResourceUsage actual, Instant at) {
+                throw new AssertionError("owned commit must not run when account initialization is unavailable");
+            }
+            @Override public ResourceBudgetSnapshot releaseOwnedBeforeStart(String executionId, String reservationId,
+                    String ownerId, long fencingToken, Instant at) {
+                throw new AssertionError("owned release must not run when account initialization is unavailable");
+            }
+            @Override public int recoverExpiredReservations(String executionId, Instant at, int maximum) {
+                throw new AssertionError("recovery must not run when account initialization is unavailable");
+            }
+            @Override public java.util.Optional<BudgetReservationLease> findLease(String executionId, String reservationId) {
+                throw new AssertionError("lease lookup must not run when account initialization is unavailable");
             }
         };
         var providerCalls = new AtomicInteger();

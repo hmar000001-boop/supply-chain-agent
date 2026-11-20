@@ -121,6 +121,8 @@ class ResourceBudgetExecutionGuardTest {
         var interim = ledger.snapshot("execution-shared", NOW.plusSeconds(2));
         assertEquals(7L, interim.consumed().get(ResourceUnit.MODEL_CALLS));
         assertEquals(3L, interim.reserved().get(ResourceUnit.MODEL_CALLS));
+        ledger.markOperationStarted("execution-shared", "operation-second", "process-two",
+                second.fencingToken(), NOW.plusSeconds(2));
         ledger.commitOwned("execution-shared", "operation-second", "process-two", second.fencingToken(),
                 ResourceUsage.of(ResourceUnit.MODEL_CALLS, 3L), NOW.plusSeconds(3));
         assertEquals(10L, ledger.snapshot("execution-shared", NOW.plusSeconds(3)).consumed().get(ResourceUnit.MODEL_CALLS));
