@@ -1,6 +1,6 @@
 # M8-B4 — End-to-end reliability and safety evaluation
 
-**Status:** In progress. B4-A, B4-B and B4-C implementation slices are prepared in one cumulative patch; user GitHub Actions CI validation is pending. This document is the controlled B4 test plan; the current delivery does not claim the complete B4 acceptance criteria have been met.
+**Status:** In progress. B4-A and B4-C PostgreSQL suites passed in the latest user CI run. B4-B ran ten full-graph methods, eight passed and two exposed deterministic fixture defects; the fixture corrections are included in the latest patch and require another full CI run. This document is the controlled B4 test plan; the current delivery does not claim the complete B4 acceptance criteria have been met.
 
 ## Objective
 
@@ -80,6 +80,8 @@ These are adapter-level PostgreSQL restart probes; B4-C adds a focused LangGraph
 The B4-B workflow suite invokes the actual `CognitiveCycleApplicationGraph.compileFull(...)` composition through `FullGraphEvaluationHost.compileFull(Ports)`. The graph still uses the real B1 retrieval/selection, B3 admission/broadcast, planner router and common deterministic evaluator, B2 impasse service, B4 intention service, B6 governor and M3 action dispatcher. Scenario adapters are deterministic, in-memory and scoped to the disposable test; the action registry only contains explicit inventory-reservation handlers for the two fixture lot IDs.
 
 The ten test methods execute twelve fixture runs across eleven distinct scenario IDs (REQ-08 is deliberately executed twice with different invalidation modes). Coverage includes: exact action-plan approval binding and successful observation; supplier-delay proposal with denied approval; quality-held lot exclusion with only qualified partial stock reserved and no false objective completion; blocked-route/shipment evidence preserved without a write; conflicting inventory observations kept as distinct references and denied without a write; approval denied and revoked immediately before dispatch; changed trusted action definition causing stale-plan rejection and a second approval; demand change causing fresh-world replanning and a second approval; post-approval quality observation invalidating all candidate actions and forcing replan/impasse/escalation; read-only and no-feasible scenarios terminating without a state-changing dispatch. See `M8-B4-B-WORKFLOW-MATRIX.csv` for test-to-fixture mapping.
+
+The first complete CI execution of this suite reported ten methods, eight passing and two errors. The demand-change fixture now replaces the existing customer-order entity rather than trying to insert a duplicate ID. The trusted-action-definition fixture now updates both the M5 trusted descriptor and its M3 registered handler descriptor under the same action ID, preserving the runtime security check that rejects mismatched definitions. These are test-fixture corrections; production validation remains strict. The PostgreSQL B4-A and B4-C suites passed in that same CI execution. The full reactor must be rerun before B4-A/B/C acceptance.
 
 This slice intentionally does not claim more than its executable adapters prove:
 

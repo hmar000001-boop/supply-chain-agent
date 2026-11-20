@@ -14,7 +14,7 @@
 | Slice | Scope | Status |
 |---|---|---|
 | B4-A | Durable B6 computational budget store; PostgreSQL restart/authority/unknown-outcome probes; additive V009 | **Implemented; first CI run exposed one incorrect assertion; corrected in this cumulative patch; re-run pending** |
-| B4-B | Full-graph request-to-terminal workflows using deterministic simulator and strict adapters | **Implemented in source; CI pending** |
+| B4-B | Full-graph request-to-terminal workflows using deterministic simulator and strict adapters | **Implemented; latest CI exposed two scenario-fixture errors; corrected in this patch; rerun pending** |
 | B4-C | Graph-host replacement, durable resume, ambiguous external outcome reconciliation, safe retry after authoritative NOT_APPLIED, duplicate action replay, independent-pool idempotency race and intention CAS | **Implemented in source; CI pending** |
 | B4-D | Adversarial evidence, malformed model output, dependency outages and comprehensive safety regression | Not started |
 
@@ -45,6 +45,15 @@ The first user CI execution compiled all 12 reactor projects and passed all exis
 
 The ten full-graph test methods cover twelve fixture executions across eleven distinct scenario IDs (REQ-08 is exercised twice under different invalidation modes): approved write and verified observation (`REQ-09`); supplier delay proposal/denial (`REQ-01`); quality-held inventory with qualified partial reservation and no false completion (`REQ-05`); blocked-route and conflicting-inventory evidence provenance with no write (`REQ-04`, `REQ-03`); denied and revoked approval (`FAIL-07`, `FAIL-08`); stale action-definition replan requiring a new approval (`REQ-08`); demand change after approval requiring a new plan and new approval (`FAIL-04`); post-approval quality observation invalidation and replanning (`REQ-08`); and read-only/no-feasible fail-closed paths (`REQ-10`, `FAIL-11`). The exact mapping is in `M8-B4-B-WORKFLOW-MATRIX.csv`.
 
+### B4-B fixture corrections from latest CI run
+
+The latest CI run completed the B4-A PostgreSQL suite (7/7) and B4-C restart/reconciliation suite (4/4), and ran all ten B4-B full-graph methods; eight passed and two errored in fixture setup/revalidation. No production safety guard or persistence adapter failed.
+
+1. `demandChangeAfterApprovalInvalidatesTheOldPlanAndRequiresASecondApproval` attempted to add an already-present customer order with `SupplyChainSnapshot.Builder.customerOrder(...)`, which correctly rejects duplicate identifiers. The fixture now uses `replaceCustomerOrder(...)` to update the existing authoritative order while incrementing the snapshot version.
+2. `changedTrustedActionDefinitionRequiresFreshApprovalBeforeDispatch` changed the trusted M5 action descriptor but left the corresponding registered M3 handler descriptor unchanged. `CognitiveCycleLifecycleServices.actionPlan(...)` correctly rejected this authority mismatch. The fixture now refreshes both the trusted descriptor and the registered handler descriptor together under the same `ActionId`; the production M5↔M3 validation remains unchanged and enabled.
+
+These corrections affect only the deterministic B4-B test fixture. The earlier CI run also showed that the B4-C `ResourceBudgetSnapshot` sparse-map assertion correction is effective: all four B4-C tests passed. Maven/JUnit has not been rerun after the two B4-B fixture corrections; B4-A/B/C remain pending a green full reactor CI.
+
 Important limits are explicit: the current graph has no typed read-only assessment terminal, so the read-only fixture is expected to escalate safely rather than claim a successful assessment; the blocked-route test verifies evidence binding and no dispatch, not rerouting, because this fixture's executable planning/action adapter only registers inventory reservations; the conflicting-evidence test verifies both provenance references survive into the request, not that a new authoritative inventory observation is resolved. B4-C now covers targeted graph-host replacement, external timeout reconciliation, safe retry after authoritative NOT_APPLIED, duplicate action dispatch and repository concurrency. It does not claim an operating-system process kill/relaunch, real external provider integration or automatic production B6 lifecycle wiring.
 
 ## B4-C host-replacement and reconciliation evidence
@@ -59,7 +68,7 @@ These tests demonstrate replacement of the graph host and connection pool inside
 
 ## Acceptance gate for cumulative B4-A + B4-B + B4-C
 
-1. Apply `M8_B4_C_CUMULATIVE_CHANGESET_ONLY.zip` over the accepted M8-B3 repository. It contains the corrected B4-A assertion, B4-B full-graph workflows and B4-C code/docs.
+1. Apply the latest targeted B4-B fixture correction over the current cumulative B4-A+B4-B+B4-C repository, or use the updated cumulative archive supplied with this correction.
 2. Run `./mvnw -B -ntp -Dphase0.postgres=true clean verify` with the configured PostgreSQL service.
-3. Confirm V009 migration/restore checks, all B4-A PostgreSQL probes, B4-B full-graph workflows and all four B4-C host-replacement/reconciliation/concurrency tests pass.
+3. Confirm V009 migration/restore checks, all B4-A PostgreSQL probes, all ten B4-B full-graph methods and all four B4-C host-replacement/reconciliation/concurrency tests pass.
 4. Only after the user confirms green CI mark B4-A/B/C accepted. B4-D adversarial and dependency-failure coverage remains open.

@@ -3,6 +3,7 @@ package dev.supplychain.agent.evaluation;
 import dev.supplychain.agent.actions.api.ActionContext;
 import dev.supplychain.agent.actions.api.ActionDescriptor;
 import dev.supplychain.agent.actions.api.ActionHandler;
+import dev.supplychain.agent.actions.api.ActionId;
 import dev.supplychain.agent.actions.api.ActionPrincipal;
 import dev.supplychain.agent.actions.api.PreconditionCheck;
 import dev.supplychain.agent.actions.api.ActionRegistry;
@@ -346,11 +347,15 @@ class M8B4FullGraphWorkflowTest {
             PlanningWorldModel worldModel = world.worldModel();
             DeterministicCandidateEvaluator evaluator = world.evaluator(worldModel);
             decision = new DecisionAdapter(fixture, worldStore);
-            lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore);
-            authority = new AuthorityAdapter(approvalMode, fixture);
             var registry = new ActionRegistry();
-            fixture.planningRequest().availableActionDefinitions().forEach(descriptor -> registry.register(
-                    new ReservationActionHandler(descriptor, effectStore)));
+            var actionHandlers = new HashMap<ActionId, ReservationActionHandler>();
+            fixture.planningRequest().availableActionDefinitions().forEach(descriptor -> {
+                var handler = new ReservationActionHandler(descriptor, effectStore);
+                registry.register(handler);
+                actionHandlers.put(descriptor.id(), handler);
+            });
+            lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore, actionHandlers);
+            authority = new AuthorityAdapter(approvalMode, fixture);
             var consumers = Map.<String, WorkspaceConsumer>of("planner", broadcast -> new WorkspaceConsumerReceipt(
                     "planner", broadcast.snapshot().id(), ConsumerReceiptStatus.ACCEPTED,
                     broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
@@ -501,6 +506,7 @@ class M8B4FullGraphWorkflowTest {
         private final Clock clock;
         private final ScenarioEffectStore effects;
         private final ScenarioWorldStore worldStore;
+        private final Map<ActionId, ReservationActionHandler> actionHandlers;
         private final AtomicInteger observationsReconciled = new AtomicInteger();
         private final AtomicInteger escalations = new AtomicInteger();
         private final AtomicInteger outcomeEpisodes = new AtomicInteger();
@@ -508,11 +514,13 @@ class M8B4FullGraphWorkflowTest {
         private final RecoveryObjective objective;
 
         private LifecycleAdapter(ScenarioFixture fixture, Clock clock, ApprovalMode approvalMode,
-                                 ScenarioEffectStore effects, ScenarioWorldStore worldStore) {
+                                 ScenarioEffectStore effects, ScenarioWorldStore worldStore,
+                                 Map<ActionId, ReservationActionHandler> actionHandlers) {
             this.fixture = fixture;
             this.clock = clock;
             this.effects = effects;
             this.worldStore = worldStore;
+            this.actionHandlers = Map.copyOf(actionHandlers);
             this.approvalMode = approvalMode;
             this.objective = fixture.planningRequest().objective();
         }
@@ -625,10 +633,18 @@ class M8B4FullGraphWorkflowTest {
             List<ActionDescriptor> descriptors = base.availableActionDefinitions();
             if (approvalMode == ApprovalMode.STALE_PLAN_THEN_DENY && revalidationRequests.get() == 1 && !descriptors.isEmpty()) {
                 ActionDescriptor descriptor = descriptors.getFirst();
-                descriptors = List.of(new ActionDescriptor(descriptor.id(), descriptor.name() + " (refreshed)",
+                ActionDescriptor refreshed = new ActionDescriptor(descriptor.id(), descriptor.name() + " (refreshed)",
                         descriptor.description(), descriptor.category(), descriptor.effect(),
-                        descriptor.requiredCapability(), descriptor.idempotencyRequired()));
+                        descriptor.requiredCapability(), descriptor.idempotencyRequired());
+                descriptors = List.of(refreshed);
                 worldStore.replaceActionDescriptors(descriptors);
+                ReservationActionHandler registered = actionHandlers.get(refreshed.id());
+                if (registered == null) {
+                    throw new IllegalStateException("trusted action refresh has no matching registered M3 handler");
+                }
+                // The M5 trusted grounding definition and the M3 handler registry are refreshed together.
+                // CognitiveCycleLifecycleServices intentionally rejects a mismatch between these two authorities.
+                registered.replaceDescriptor(refreshed);
             }
             return new PlanningRequest(context.executionId(), base.objective(), worldStore.snapshot(), latestWorkingMemory,
                     worldStore.evidence(base.evidence()), descriptors, base.hardConstraints(), base.scoringProfile(), base.riskPolicy(),
@@ -803,7 +819,7 @@ class M8B4FullGraphWorkflowTest {
             var line = order.lines().values().iterator().next();
             Quantity increased = line.requestedQuantity().plus(Quantity.of("10", line.requestedQuantity().unit()));
             var next = current.toBuilder().version(current.version() + 1).capturedAt(at)
-                    .customerOrder(order.withLine(line.withRequestedQuantity(increased)));
+                    .replaceCustomerOrder(order.withLine(line.withRequestedQuantity(increased)));
             current = next.build();
         }
     }
@@ -873,7 +889,7 @@ class M8B4FullGraphWorkflowTest {
     }
 
     private static final class ReservationActionHandler implements ActionHandler<SimulationCommand.ReserveInventory, String> {
-        private final ActionDescriptor descriptor;
+        private volatile ActionDescriptor descriptor;
         private final ScenarioEffectStore effects;
 
         private ReservationActionHandler(ActionDescriptor descriptor, ScenarioEffectStore effects) {
@@ -882,6 +898,12 @@ class M8B4FullGraphWorkflowTest {
         }
 
         @Override public ActionDescriptor descriptor() { return descriptor; }
+        void replaceDescriptor(ActionDescriptor replacement) {
+            if (!descriptor.id().equals(replacement.id())) {
+                throw new IllegalArgumentException("an action handler cannot be rebound to a different action id");
+            }
+            descriptor = replacement;
+        }
         @Override public Class<SimulationCommand.ReserveInventory> inputType() { return SimulationCommand.ReserveInventory.class; }
         @Override public Class<String> outputType() { return String.class; }
         @Override public PreconditionCheck precondition(ActionContext context, SimulationCommand.ReserveInventory input) {

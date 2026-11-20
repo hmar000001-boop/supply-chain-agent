@@ -95,3 +95,10 @@
 - Applied the same sparse-map projection to pending, committed and settled B6 budget assertions so zero reservations are not unboxed from `null`.
 - No production B6 ledger, schema, migration, action-ledger behavior, or application runtime code changed in this correction.
 - The CI log showed all seven B4-A reliability integration tests passing and three of four B4-C tests passing; the remaining error was a test assertion NPE at `M8B4CRestartReconciliationIntegrationTest.java:512`, not a PostgreSQL or graph-resume failure. Maven/JUnit were not re-run by the authoring session.
+
+
+## 2026-11-20 — M8-B4-B full-graph fixture corrections (prepared; user CI rerun pending)
+
+- Corrected the demand-change scenario to replace the existing customer order via `SupplyChainSnapshot.Builder.replaceCustomerOrder(...)`, avoiding the intentional duplicate-ID rejection of the insert-only builder method.
+- Corrected the trusted action-definition scenario to refresh both the M5 trusted descriptor and the matching registered M3 test handler descriptor under the same action ID. The production M5↔M3 descriptor equality check remains unchanged and active.
+- Latest CI evidence: all B4-A PostgreSQL probes (7) and B4-C restart/reconciliation probes (4) passed; eight of ten B4-B full-graph methods passed, while the two fixture errors above were reported. The patch contains test-only corrections and updated status documentation. No Maven/JUnit execution is claimed after these edits.
