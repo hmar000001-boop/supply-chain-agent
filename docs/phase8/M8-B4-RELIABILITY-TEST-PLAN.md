@@ -1,6 +1,6 @@
 # M8-B4 — End-to-end reliability and safety evaluation
 
-**Status:** In progress. B4-A (durable B6 budget ledger and PostgreSQL reliability probes) is prepared for CI validation. This document is the controlled B4 test plan; the first delivery does not claim the complete B4 acceptance criteria have been met.
+**Status:** In progress. B4-A, B4-B and B4-C implementation slices are prepared in one cumulative patch; user GitHub Actions CI validation is pending. This document is the controlled B4 test plan; the current delivery does not claim the complete B4 acceptance criteria have been met.
 
 ## Objective
 
@@ -14,10 +14,10 @@ M8-B4 evaluates the application using deterministic domain fixtures and strict a
 |---|---|---|
 | B4-A | Durable B6 computational-resource budget ledger; intention/approval/action-ledger restart probes; additive PostgreSQL migration V009 | `PostgresResourceBudgetLedger`, `M8B4ReliabilityIntegrationTest`, migration parser test; one budget-release expectation corrected from 2 to 4 after the first user CI run |
 | B4-B | Full graph request-to-terminal workflows, proposal/approved-write/denied paths, approval revalidation, observation invalidation and safe impasse | `M8B4FullGraphWorkflowTest` (10 methods, 12 fixture executions across 11 distinct scenario IDs) using `FullGraphEvaluationHost.compileFull(Ports)` and narrowly registered deterministic inventory-reservation action handler |
-| B4-C | Process interruption/restart at graph and business boundaries, timeout/unknown outcome reconciliation, duplicate delivery and concurrency/fault injection | Restart tests with new graph host objects and stateless codecs; authoritative PostgreSQL ledger assertions |
+| B4-C | Graph-host replacement, durable resume, timeout/unknown outcome reconciliation, safe retry after authoritative NOT_APPLIED, duplicate action dispatch and concurrent CAS/idempotency | `M8B4CRestartReconciliationIntegrationTest` (4 PostgreSQL-gated methods); a new pool/graph/adapters reload durable checkpoint and business state |
 | B4-D | Hostile/untrusted evidence, malformed provider output, authority confusion, budget exhaustion, PostgreSQL/provider outages and regression matrix | Negative/security tests and auditable structured results |
 
-B4-A is the first increment only. B4-B through B4-D remain open.
+B4-A, B4-B and B4-C are implementation-complete in source but remain pending user CI acceptance. B4-D remains open.
 
 ## Critical scenario matrix
 
@@ -32,11 +32,11 @@ B4-A is the first increment only. B4-B through B4-D remain open.
 | E2E-07 | Previously feasible plan becomes infeasible | Preserve objective/constraints and replan or stop safely | B4-B |
 | E2E-08 | Provider times out after possible commit | Persist UNKNOWN outcome; reconcile before retry; no duplicate external effect | B4-A/B4-C |
 | E2E-09 | Approval denied, expired, revoked or stale | Zero external dispatch | B4-A/B4-C |
-| E2E-10 | Process stops while intention is suspended | New host reloads intention, preserves objective fingerprint and resumes only after revalidation | B4-A/B4-C |
+| E2E-10 | Process stops while intention is suspended | Replacement graph host reloads intention, preserves objective fingerprint and resumes only after revalidation; OS process kill/relaunch remains unclaimed | B4-A/B4-C |
 | E2E-11 | Computational budget exhausted | Stop/interrupt according to B6 policy; no unaccounted subsequent computation | B4-A/B4-D |
 | E2E-12 | No feasible candidate / insufficient evidence | Typed impasse, evidence request or safe stop; never fabricate feasibility | B4-B/B4-D |
 | E2E-13 | PostgreSQL unavailable during resume/approval check | Fail closed; do not dispatch using stale in-memory authority | B4-D |
-| E2E-14 | Duplicate event/outbox delivery | Idempotent processing and at-most-one business effect | B4-C |
+| E2E-14 | Duplicate event/outbox delivery | Idempotent processing and at-most-one business effect; B4-C verifies duplicate action dispatch, while inbox/outbox envelope redelivery remains B4-D | B4-C/B4-D |
 | E2E-15 | Malicious supplier text or malformed model output | Treat as untrusted data; it cannot change instructions, identity, policy or authority | B4-D |
 | E2E-16 | Two runtime hosts reserve the same B6 budget | Transactional serialization prevents oversubscription | B4-A |
 
@@ -73,7 +73,7 @@ The adapter is exposed from `PostgresRuntimePersistence.resourceBudgets()`. M8-B
 
 B4-A integration tests replace repository/dispatcher instances and use stateless JSON test codecs for intention and action payloads. They check objective fingerprint and protected constraints through intention resume/method reconsideration, exact approval binding and revocation/expiry, and no blind redispatch after an ambiguous external outcome. The provider handler increments a controlled effect counter before returning an ambiguous failure; the replacement dispatcher must not invoke it again. A reconciled completion must return the recorded receipt.
 
-These are adapter-level PostgreSQL restart probes. They are not yet a full process restart of the complete `CognitiveCycleApplicationGraph`; that remains B4-C.
+These are adapter-level PostgreSQL restart probes; B4-C adds a focused LangGraph4j graph-host replacement workflow with a new checkpoint saver, pool and business adapters.
 
 ## B4-B full-graph workflow evidence and boundaries
 
@@ -87,8 +87,21 @@ This slice intentionally does not claim more than its executable adapters prove:
 - `REQ-04` verifies route/shipment evidence provenance and proposal/approval gating. It does not test an alternative route action because the fixture world-model adapter currently exposes inventory reservation actions only.
 - `REQ-03` verifies preservation of both stale and current inventory evidence references. It does not claim that the graph reconciles those references to a new authoritative inventory fact.
 - `REQ-05` may reserve only currently qualified secondary stock under an explicit approval; the objective remains unfulfilled and no successful outcome episode is recorded.
-- These tests use in-memory intention, checkpoint, action-batch and observation adapters; process-kill/restart and durable resume remain B4-C.
-- B6 receives a deterministic snapshot in the B4-B test port. The new PostgreSQL B6 ledger is not yet automatically wired into production lifecycle reserve/commit calls by this slice.
+- These tests use in-memory intention, checkpoint, action-batch and observation adapters; B4-B itself is not a process-restart test.
+- B6 receives a deterministic snapshot in the B4-B test port. The PostgreSQL B6 ledger is not automatically wired into production lifecycle reserve/commit calls by B4-B; B4-C explicitly exercises its register/reserve/commit contract across host replacement without claiming automatic full-application lifecycle wiring.
+
+
+## B4-C graph-host replacement and external reconciliation
+
+The focused `M8B4CRestartReconciliationIntegrationTest` uses a real PostgreSQL LangGraph4j saver and the production PostgreSQL intention, approval, B6 budget and M3 operation-ledger adapters. The first graph host stops at explicit approval and reconciliation boundaries; its Hikari pool is closed. A replacement host creates a new pool, graph, saver and repositories, reloads the persisted checkpoint and business records, and resumes.
+
+The main workflow simulates a provider commit followed by a lost response. The replacement host must observe the persisted M3 `UNKNOWN_OUTCOME`, must not dispatch again, must match the external provider's authoritative operation ID and input, and may then record a completed receipt. Replaying after reconciliation must return `ALREADY_COMPLETED`; the provider effect count remains one; the B6 reservation is committed exactly once.
+
+Three further tests cover: a retry permitted only after a provider confirms NOT_APPLIED and that fact is persisted; two dispatchers using separate PostgreSQL pools racing one idempotency key with one external effect; and two intention repositories using separate pools racing a version CAS while preserving objective fingerprint/protected constraints.
+
+The safe-retry flow exposed and fixes an M3 JDBC adapter defect: `PostgresActionExecutionLedger.inspect` now returns empty for `FAILED + retryable + !outcome_unknown`, matching `ActionExecutionLedger` and `InMemoryActionExecutionLedger`; `UNKNOWN_OUTCOME` remains visible and blocks retry. This is a scoped contract correction in the adapter, not a change to M7 schema/migrations.
+
+**Evidence limits:** the graph-host replacement occurs inside one JUnit process with the first Hikari pool closed and a new graph/adapter set constructed. It is not an OS-level process kill/relaunch. The provider state is a deterministic remote-system test double, not a real ERP/WMS/carrier integration. The focused B4-C graph is not `CognitiveCycleApplicationGraph.compileFull`; B4-B already covers the full application graph using deterministic adapters. Automatic production B6 register/reserve/commit wiring remains open. These constraints are tracked for B4-D/B5 and must appear in final reporting.
 
 ## Result reporting
 

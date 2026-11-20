@@ -303,7 +303,7 @@ class M8B4ReliabilityIntegrationTest {
                 .digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
-    private static JsonCodec<RecoveryIntention> recoveryIntentionCodec() {
+    static JsonCodec<RecoveryIntention> recoveryIntentionCodec() {
         return new JsonCodec<>() {
             @Override public String encode(RecoveryIntention value) {
                 String constraints = value.protectedConstraints().stream().map(Enum::name).sorted()
@@ -352,7 +352,7 @@ class M8B4ReliabilityIntegrationTest {
         };
     }
 
-    private static JsonCodec<ActionFailure> actionFailureCodec() {
+    static JsonCodec<ActionFailure> actionFailureCodec() {
         return new JsonCodec<>() {
             @Override public String encode(ActionFailure value) {
                 return "{\"code\":" + jsonQuote(value.code().name())
@@ -368,7 +368,7 @@ class M8B4ReliabilityIntegrationTest {
         };
     }
 
-    private static JsonCodec<ActionReceipt> actionReceiptCodec() {
+    static JsonCodec<ActionReceipt> actionReceiptCodec() {
         return new JsonCodec<>() {
             @Override public String encode(ActionReceipt value) {
                 String attributes = value.attributes().entrySet().stream()

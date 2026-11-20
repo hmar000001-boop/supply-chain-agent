@@ -87,7 +87,17 @@ public final class PostgresActionExecutionLedger implements FencedActionExecutio
                         return Optional.of(new ActionLedgerClaim(ActionLedgerClaim.Status.UNKNOWN_OUTCOME,
                                 operationId, null, failure));
                     }
-                    ActionLedgerClaim claim = mapClaim(operationId, state, row.getBoolean(4), row.getBoolean(5),
+                    boolean retryable = row.getBoolean(4);
+                    boolean outcomeUnknown = row.getBoolean(5);
+                    // The ActionExecutionLedger contract treats a definitively failed, safely
+                    // retryable operation as absent during inspection. ActionDispatcher will then
+                    // run preconditions and claim a new fenced attempt. UNKNOWN_OUTCOME is never
+                    // converted to absence and therefore cannot be blindly redispatched.
+                    if ("FAILED".equals(state) && retryable && !outcomeUnknown) {
+                        connection.commit();
+                        return Optional.empty();
+                    }
+                    ActionLedgerClaim claim = mapClaim(operationId, state, retryable, outcomeUnknown,
                             row.getString(6), row.getString(7));
                     connection.commit();
                     return Optional.of(claim);

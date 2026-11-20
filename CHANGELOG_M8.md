@@ -75,3 +75,15 @@
 - Preserved the boundaries of the test evidence: route evidence is preserved but rerouting is not tested; stale/current inventory evidence references are preserved but not reconciled into new facts; read-only/no-feasible paths fail closed because the graph has no typed read-only success terminal; process-kill/restart and B6 lifecycle wiring remain open.
 - Added the B4-B workflow matrix and updated M8 status, decisions, traceability and module test inventory.
 - No Maven, JUnit or GitHub Actions execution is claimed for this authoring delivery. The cumulative ZIP must be validated with `./mvnw -B -ntp -Dphase0.postgres=true clean verify`.
+
+
+## 2026-11-20 — M8-B4-C graph-host replacement and external reconciliation (prepared; user CI pending)
+
+- Retained the B4-A CI correction in the cumulative delivery: releasing a two-unit B6 reservation against a four-unit budget restores four available units; the prior expected value of two was incorrect.
+- Added `M8B4CRestartReconciliationIntegrationTest` with four PostgreSQL-gated methods. The main test pauses a real LangGraph4j graph at approval and reconciliation boundaries, closes the first Hikari pool, constructs a replacement pool/graph/saver/intention/approval/B6/M3 adapter set, reloads persisted state, blocks blind UNKNOWN_OUTCOME replay, reconciles a provider-confirmed commit and verifies one external effect plus one B6 usage commit.
+- Added a second host-replacement test in which a retry is permitted only after authoritative NOT_APPLIED evidence is durably recorded; a new pool/ledger then performs one safe retry and duplicate replay returns ALREADY_COMPLETED.
+- Added independent-pool concurrent dispatch/idempotency and recovery-intention version-CAS tests. Exactly one action effect and one intention CAS winner are asserted; protected objective fingerprint and constraints must remain unchanged.
+- Corrected `PostgresActionExecutionLedger.inspect(...)` to match `ActionExecutionLedger` and `InMemoryActionExecutionLedger`: a definitively FAILED + retryable + !outcome_unknown record is absent for inspection so `ActionDispatcher` can perform the fenced retry claim. UNKNOWN_OUTCOME remains present and cannot be blindly retried.
+- Replaced a fixed historical B4-C test timestamp with an execution-relative UTC timestamp to prevent approval/budget expiry as CI dates advance.
+- Documented evidence limits: host/pool/graph replacement is exercised inside one test process, not an OS process kill/relaunch; external provider state is a deterministic remote-system double; B4-B still owns full `CognitiveCycleApplicationGraph.compileFull(...)` workflow evidence; automatic production B6 lifecycle wiring remains open.
+- No Maven, JUnit or PostgreSQL test execution is claimed by the authoring delivery. User CI remains the acceptance gate.
