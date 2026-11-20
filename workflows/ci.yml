@@ -1,0 +1,123 @@
+name: Java CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Java 21 / Maven / LangGraph4j + LangChain4j
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16.4
+        env:
+          POSTGRES_DB: supply_chain_agent
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d supply_chain_agent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: supply_chain_agent
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify M8-B4-D lifecycle source in this checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java"
+          PORT="supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecyclePort.java"
+
+          echo "Checked-out commit: $(git rev-parse HEAD)"
+          echo "Checked-out branch/ref: ${GITHUB_REF} (${GITHUB_SHA})"
+          echo "Lifecycle source SHA-256:"
+          sha256sum "$FILE"
+
+          echo "Qualified B6 input references (expected exactly 2):"
+          grep -nF 'CognitiveCycleLifecyclePort.MetaControlInputs' "$FILE"
+          COUNT="$(grep -Fc 'CognitiveCycleLifecyclePort.MetaControlInputs' "$FILE")"
+          if [[ "$COUNT" -ne 2 ]]; then
+            echo "ERROR: expected 2 qualified MetaControlInputs references; found $COUNT" >&2
+            echo "All MetaControlInputs references in the checked-out source:" >&2
+            grep -n 'MetaControlInputs' "$FILE" >&2 || true
+            exit 1
+          fi
+
+          echo "Nested record declaration (expected 1):"
+          grep -nF 'record MetaControlInputs(' "$PORT"
+          DECLARATIONS="$(grep -Fc 'record MetaControlInputs(' "$PORT")"
+          if [[ "$DECLARATIONS" -ne 1 ]]; then
+            echo "ERROR: expected exactly one nested MetaControlInputs record declaration; found $DECLARATIONS" >&2
+            exit 1
+          fi
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Cache pinned Apache Maven distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper/dists/apache-maven-3.9.16
+          key: maven-dist-${{ runner.os }}-3.9.16-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
+      - name: Make Maven Wrapper executable
+        run: chmod +x ./mvnw
+
+      - name: Build and run all tests, including PostgreSQL checkpoint recovery
+        id: build
+        run: ./mvnw -B -ntp -Dphase0.postgres=true clean verify
+
+      - name: Verify PostgreSQL backup and isolated restore
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v pg_dump >/dev/null || ! command -v pg_restore >/dev/null || ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes postgresql-client-16
+          fi
+          BACKUP_PATH="$RUNNER_TEMP/supply-chain-agent-m7-backup.dump"
+          RESTORE_DATABASE="sca_m7_restore_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          ./scripts/postgres/backup.sh "$BACKUP_PATH"
+          createdb --maintenance-db=postgres "$RESTORE_DATABASE"
+          cleanup() {
+            dropdb --if-exists --maintenance-db=postgres "$RESTORE_DATABASE" || true
+            rm -f "$BACKUP_PATH" "$BACKUP_PATH.sha256"
+          }
+          trap cleanup EXIT
+          PGDATABASE="$RESTORE_DATABASE" PGRESTORE_TARGET_CONFIRM="$RESTORE_DATABASE" \
+            ./scripts/postgres/restore-verify.sh "$BACKUP_PATH"
+
+      - name: Capture resolved dependency tree
+        if: always() && steps.build.outcome == 'success'
+        run: ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt
+
+      - name: Upload test reports and dependency tree
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase0-test-and-dependency-reports
+          path: |
+            **/target/surefire-reports/**
+            target/dependency-tree.txt
+          if-no-files-found: warn
