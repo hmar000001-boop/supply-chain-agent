@@ -355,7 +355,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), expired,
                 fixture.domain.metaControl.requiredForNextStep());
 
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governIntention(context));
@@ -393,7 +393,7 @@ final class CognitiveCycleLifecycleServicesTest {
         CycleContext context = context("", 0, "", 0, "");
         var wrongRevision = uncertainty(0.1, new UncertaintyAssessment.Reference(
                 "uncertainty:execution:m6b", 2, "execution:m6b", SCOPE.value()));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), wrongRevision,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), wrongRevision,
                 fixture.domain.metaControl.requiredForNextStep());
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
 
@@ -403,7 +403,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), expired,
                 fixture.domain.metaControl.requiredForNextStep());
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
     }
