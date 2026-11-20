@@ -45,7 +45,7 @@
 - No production planner, router, simulator, action, authority, PostgreSQL or graph behavior changed. Tests were intentionally not executed during authoring at the user's request; CI acceptance is pending.
 
 
-## 2026-11-19 — M8-B3 mechanism ablations and results clarification (implementation delivered; CI pending)
+## 2026-11-19 — M8-B3 mechanism ablations and results clarification (accepted; user-confirmed CI green)
 
 - Added eight ablation studies across B1, B2, B3, B4, B6 and the B2+B4, B1+B3+B6 and B4+B6 interactions.
 - Registered 19 scenario units and generated 45 primary arm observations, 26 within-scenario paired contrasts and 18 deterministic replay rows (63 raw rows total). Replay rows are excluded from inference; all reported averages/deltas are descriptive.
@@ -53,3 +53,15 @@
 - Clarified the mixed B1 retrieval result, B2 duplicate consolidation, B3 workspace coverage, B4 objective-preserving method reconsideration, B6 uncertainty interruption, and the three selected compositions in `docs/phase8/M8-B3-RESULTS-CLARIFICATION.md`.
 - Marked B1/B3 outcome-attributed learning updates, B4 restart durability, B6 durable budget authority and full all-mechanism composition as not evaluated; B5/GraSP remains closed.
 - Executed the standalone Java 21 ablation CLI against production mechanism classes; 18/18 deterministic replay fingerprints matched. Maven/JUnit were not run; GitHub Actions remains the CI acceptance gate.
+
+
+## 2026-11-19 — M8-B4-A durable B6 budget ledger and reliability probes (CI pending)
+
+- Started M8-B4 from the exact user-uploaded M8-B3 source archive (`supply-chain-agent-main (3).zip`; SHA-256 `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`). The archive does not include Git history; source identity is recorded by archive hash and a per-file manifest.
+- Added `PostgresResourceBudgetLedger` implementing the existing B6 `ResourceBudgetLedger` contract. Budget account mutations lock `(scope_id, execution_id)` to serialize cross-host reservations; committed actual usage, including overruns, is durable; commit replay is idempotent and conflicting reuse is rejected.
+- Exposed the durable budget adapter through `PostgresRuntimePersistence.resourceBudgets()`. Clarified that `InMemoryResourceBudgetLedger` is a synchronized reference/test adapter, not production durable accounting.
+- Added additive migration V009 for budget accounts, limits, actual consumption, reservation identities, estimates and actual amounts. M7 migrations V001-V008 remain unchanged.
+- Added PostgreSQL integration probes for budget restart/concurrency/lifecycle and visible actual-usage overruns, intention/objective restore with stateless codecs, approval binding/revocation/expiry after host replacement, and unknown external outcomes with no blind redispatch and explicit reconciliation. Added V009 migration-parser coverage.
+- Updated the isolated backup/restore verifier to require contiguous V001-V009 history and assert that the six durable B6 tables are present after restore; M7 SQL migrations remain immutable.
+- Added the M8-B4 reliability matrix and slice plan. B4-A does not claim complete application-graph workflows or full process-kill/restart; those remain subsequent B4 work.
+- Maven/JUnit/CI were not run in the authoring environment. GitHub Actions remains the acceptance gate.

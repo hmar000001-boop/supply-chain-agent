@@ -1,6 +1,7 @@
 package dev.supplychain.agent.infrastructure.postgres.runtime;
 
 import dev.supplychain.agent.actions.api.ActionExecutionLedger;
+import dev.supplychain.agent.mechanisms.b6.ResourceBudgetLedger;
 import dev.supplychain.agent.mechanisms.b2.ImpasseCaseRepository;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionRepository;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
@@ -16,7 +17,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Scope-bound composition of durable M5/M6/B2/B4 artifacts and the M3 operation ledger.
+ * Scope-bound composition of durable M5/M6/B2/B4 artifacts, the M3 operation ledger, and M8-B4 B6 computational budgets.
  * Authentication/approval policy remains a host responsibility; this object exposes the
  * durable audit store and does not manufacture trusted principal identities.
  */
@@ -31,6 +32,7 @@ public final class PostgresRuntimePersistence {
     private final ImpasseCaseRepository impasseCases;
     private final PostgresApprovalStore approvals;
     private final PostgresActionExecutionLedger actionLedger;
+    private final ResourceBudgetLedger resourceBudgets;
     private final PostgresMessagingStore messaging;
     private final PostgresRuntimeMetrics metrics;
     private final String scopeId;
@@ -53,6 +55,7 @@ public final class PostgresRuntimePersistence {
         this.approvals = new PostgresApprovalStore(dataSource, scope);
         this.actionLedger = new PostgresActionExecutionLedger(dataSource, scope, codecs.actionReceipts(),
                 codecs.actionFailures(), codecs.operationLease());
+        this.resourceBudgets = new PostgresResourceBudgetLedger(dataSource, scope);
         this.messaging = new PostgresMessagingStore(dataSource, scope);
         this.metrics = new PostgresRuntimeMetrics(dataSource, scope);
     }
@@ -68,6 +71,7 @@ public final class PostgresRuntimePersistence {
     public PostgresApprovalStore approvals() { return approvals; }
     public ActionExecutionLedger actionLedger() { return actionLedger; }
     public PostgresActionExecutionLedger fencedActionLedger() { return actionLedger; }
+    public ResourceBudgetLedger resourceBudgets() { return resourceBudgets; }
     public PostgresMessagingStore messaging() { return messaging; }
     public PostgresRuntimeMetrics.Snapshot metrics() { return metrics.read(); }
 

@@ -33,18 +33,18 @@ pg_restore --list "$BACKUP" >/dev/null
 pg_restore --exit-on-error --single-transaction --no-owner --no-acl --dbname "$PGDATABASE" "$BACKUP"
 SCHEMA_VERSION="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
   --command "SELECT COALESCE(MAX(version),0) FROM agent_schema_history")"
-if [[ "$SCHEMA_VERSION" != "8" ]]; then
-  echo "Restore verification failed: expected schema version 8, found $SCHEMA_VERSION" >&2
+if [[ "$SCHEMA_VERSION" != "9" ]]; then
+  echo "Restore verification failed: expected schema version 9 (including M8-B4 V009), found $SCHEMA_VERSION" >&2
   exit 67
 fi
 MISSING_RUNTIME_TABLES="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
-  --command "SELECT COUNT(*) FROM (VALUES ('action_operation_ledger'),('outbox_message'),('inbox_message'),('planner_session'),('runtime_approval'),('action_execution_batch')) AS required(name) WHERE to_regclass('public.' || name) IS NULL")"
+  --command "SELECT COUNT(*) FROM (VALUES ('action_operation_ledger'),('outbox_message'),('inbox_message'),('planner_session'),('runtime_approval'),('action_execution_batch'),('b6_resource_budget'),('b6_resource_budget_limit'),('b6_resource_budget_consumption'),('b6_resource_budget_reservation'),('b6_resource_budget_reservation_item'),('b6_resource_budget_actual_item')) AS required(name) WHERE to_regclass('public.' || name) IS NULL")"
 if [[ "$MISSING_RUNTIME_TABLES" != "0" ]]; then
-  echo "Restore verification failed: $MISSING_RUNTIME_TABLES required M7 runtime tables are missing" >&2
+  echo "Restore verification failed: $MISSING_RUNTIME_TABLES required runtime tables (M7 plus M8-B4 B6 budget) are missing" >&2
   exit 68
 fi
 MIGRATION_HISTORY_OK="$(psql --no-psqlrc --tuples-only --no-align --set ON_ERROR_STOP=1 --dbname "$PGDATABASE" \
-  --command "SELECT CASE WHEN COUNT(*)=8 AND COUNT(DISTINCT version)=8 AND MIN(version)=1 AND MAX(version)=8 THEN 'ok' ELSE 'bad' END FROM agent_schema_history")"
+  --command "SELECT CASE WHEN COUNT(*)=9 AND COUNT(DISTINCT version)=9 AND MIN(version)=1 AND MAX(version)=9 THEN 'ok' ELSE 'bad' END FROM agent_schema_history")"
 if [[ "$MIGRATION_HISTORY_OK" != "ok" ]]; then
   echo "Restore verification failed: migration history is incomplete or non-contiguous" >&2
   exit 69

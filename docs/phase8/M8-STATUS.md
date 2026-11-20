@@ -18,8 +18,8 @@
 | M8-B0 | Baseline reconstruction, architecture audit, test inventory, evaluation protocol and scenario register | **Complete** |
 | M8-B1 | 25-row corpus (11 request + 14 failure/adversarial fixtures), five proposal-only comparators, JSONL experiment harness with pruning/backtracking/resource counters, advancing fixture-clock budget enforcement and full-graph composition probe | **Accepted — user confirmed CI green** |
 | M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Accepted — user confirmed CI green** |
-| M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Implementation and experiment execution delivered; CI pending** |
-| M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | Not started |
+| M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Accepted — user confirmed CI green** |
+| M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **In progress — B4-A implemented; CI pending** |
 | M8-B5 | Analyze results, perform final quality/security/architecture review and correct proven defects | Not started |
 | M8-B6 | Final application freeze and full repository checkpoint | Not started |
 | M8-B7 | Approve Chapter 19/20 outlines, then write against the frozen code | Not started |
@@ -40,7 +40,9 @@
 
 - User confirmed the complete M8-B2 GitHub Actions workflow is green. The 25-fixture × 5-procedure matched comparison harness and deterministic replay analysis are accepted.
 
-## M8-B3 mechanism ablations — implementation and experiment execution delivered; CI pending
+## M8-B3 mechanism ablations — accepted; user confirmed CI green
+
+- User confirmed the complete M8-B3 GitHub Actions workflow is green. M8-B3 is accepted and closed.
 
 - Added eight focused studies: B1, B2, B3, B4, B6, B2+B4, B1+B3+B6 and B4+B6.
 - Registered 19 scenario units, 45 primary condition observations, 26 within-scenario contrasts and 18 selected deterministic replay rows (63 raw rows total). Replay rows are excluded from primary counts and interpretation; scenario is the experimental unit.
@@ -77,3 +79,13 @@
 M8 evaluates the application and freezes it; it does not reopen M7 persistence infrastructure. WAL/PITR activation, tenant reconciliation for `__legacy_unscoped__`, deployment retention approval, external system credentials/adapters and enterprise identity integration remain deployment-owned rollout items. They are not silently marked complete by a green CI run.
 
 Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detailed outlines.
+
+
+## M8-B4 — end-to-end reliability and safety (in progress)
+
+- Baseline is the user-uploaded accepted M8-B3 repository `supply-chain-agent-main (3).zip` (SHA-256 `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`). No Git commit is claimed because the supplied archive does not contain Git history.
+- B4-A adds a durable, scope-bound PostgreSQL implementation of the B6 computational `ResourceBudgetLedger`, exposed through `PostgresRuntimePersistence.resourceBudgets()`. Its account-row lock serializes reservations across hosts; actual usage overruns remain recorded; repeated commits are idempotent.
+- B4-A adds forward-only migration V009. Existing M7 migrations V001-V008 are untouched; this additive M8 capability does not reopen M7.
+- B4-A adds PostgreSQL-gated probes for budget restart/actual-usage persistence and multi-host oversubscription, reservation release/deadline, intention restart/objective preservation using stateless JSON codecs, approval binding/revocation/expiry, and unknown external outcomes with no blind redispatch/reconciliation. V009 parser coverage is also added.
+- B4-A is an adapter-level reliability increment, not proof of full process restart of the complete cognitive-cycle graph. Full-graph request-to-terminal workflows, process-stop/resume at graph boundaries, adversarial evidence and broader fault injection remain in B4-B through B4-D.
+- The user will validate the complete Java 21 Maven/PostgreSQL reactor in GitHub Actions. No Maven/JUnit run is asserted by the authoring delivery.

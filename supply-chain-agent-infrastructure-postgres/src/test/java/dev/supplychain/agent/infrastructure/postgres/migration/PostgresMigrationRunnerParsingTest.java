@@ -37,8 +37,8 @@ class PostgresMigrationRunnerParsingTest {
         }
     }
     @Test void runtimeScopeMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
-        assertEquals(8, PostgresMigrationRunner.latestSupportedVersion());
-        assertEquals(8, PostgresMigrationRunner.supportedMigrationCount());
+        assertEquals(9, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(9, PostgresMigrationRunner.supportedMigrationCount());
         try (var stream = getClass().getClassLoader().getResourceAsStream(
                 "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql")) {
             assertNotNull(stream, "V008 runtime scope migration must be packaged in the infrastructure module");
@@ -48,6 +48,22 @@ class PostgresMigrationRunnerParsingTest {
             assertTrue(sql.contains("PRIMARY KEY (scope_id, principal_id, action_id, idempotency_key)"));
             assertTrue(sql.contains("PRIMARY KEY (scope_id, consumer_id, message_id)"));
             assertTrue(sql.contains("PRIMARY KEY (scope_id, message_id)"));
+        }
+    }
+
+
+    @Test void m8b4DurableBudgetMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
+        assertEquals(9, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(9, PostgresMigrationRunner.supportedMigrationCount());
+        try (var stream = getClass().getClassLoader().getResourceAsStream(
+                "db/migration/V009__durable_b6_resource_budget_ledger.sql")) {
+            assertNotNull(stream, "V009 M8-B4 durable B6 budget migration must be packaged");
+            String sql = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals(8, PostgresMigrationRunner.splitStatements(sql).size());
+            assertTrue(sql.contains("PRIMARY KEY (scope_id, execution_id)"));
+            assertTrue(sql.contains("b6_resource_budget_reservation_item"));
+            assertTrue(sql.contains("b6_resource_budget_actual_item"));
+            assertTrue(sql.contains("ON DELETE RESTRICT"));
         }
     }
 

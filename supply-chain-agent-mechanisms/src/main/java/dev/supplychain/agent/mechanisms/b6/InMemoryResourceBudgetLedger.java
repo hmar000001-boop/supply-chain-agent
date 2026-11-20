@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Synchronized per-execution reference ledger; M7 replaces it with transactional durable accounting. */
+/** Synchronized per-execution reference/test ledger; production hosts may inject a durable ResourceBudgetLedger adapter. */
 public final class InMemoryResourceBudgetLedger implements ResourceBudgetLedger{
     private static final class Account{
         final ResourceBudget budget;final EnumMap<ResourceUnit,Long> consumed=new EnumMap<>(ResourceUnit.class);

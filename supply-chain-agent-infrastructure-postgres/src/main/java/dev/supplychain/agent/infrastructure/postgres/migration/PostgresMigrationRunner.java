@@ -35,7 +35,8 @@ public final class PostgresMigrationRunner {
             new Migration(5, "ordered_memory_evidence_primary_keys", "db/migration/V005__ordered_memory_evidence_primary_keys.sql"),
             new Migration(6, "planner_session_checkpoints", "db/migration/V006__planner_session_checkpoints.sql"),
             new Migration(7, "durable_runtime_transactions_and_operations", "db/migration/V007__durable_runtime_transactions_and_operations.sql"),
-            new Migration(8, "scope_runtime_operation_and_messaging_keys", "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql"));
+            new Migration(8, "scope_runtime_operation_and_messaging_keys", "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql"),
+            new Migration(9, "durable_b6_resource_budget_ledger", "db/migration/V009__durable_b6_resource_budget_ledger.sql"));
 
     private final DataSource dataSource;
 

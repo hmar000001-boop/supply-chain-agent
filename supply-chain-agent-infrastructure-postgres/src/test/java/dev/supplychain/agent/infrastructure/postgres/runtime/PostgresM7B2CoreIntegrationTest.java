@@ -111,7 +111,7 @@ class PostgresM7B2CoreIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(8, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(9, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test void m3LedgerIsScopeBoundIdempotentAndRequiresReconciliationAfterLeaseExpiry() throws Exception {
@@ -468,8 +468,8 @@ class PostgresM7B2CoreIntegrationTest {
         var health = new PostgresOperationalHealth(dataSource);
         assertTrue(health.liveness(), "liveness is independent of transient database health");
         var readiness = health.readiness();
-        assertTrue(readiness.ready(), () -> "database should be ready after V008, found " + readiness.statusCode());
-        assertEquals(8, readiness.schemaVersion());
+        assertTrue(readiness.ready(), () -> "database should be ready after V009 (M8-B4), found " + readiness.statusCode());
+        assertEquals(9, readiness.schemaVersion());
 
         String activeScope = "metrics-active-" + UUID.randomUUID();
         String otherScope = "metrics-other-" + UUID.randomUUID();
