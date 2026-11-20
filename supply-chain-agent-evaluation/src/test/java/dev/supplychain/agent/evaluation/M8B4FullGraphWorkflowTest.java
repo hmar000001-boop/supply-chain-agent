@@ -32,6 +32,7 @@ import dev.supplychain.agent.infrastructure.postgres.config.PostgresDatabaseConf
 import dev.supplychain.agent.infrastructure.postgres.migration.PostgresMigrationRunner;
 import dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec;
 import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimeCodecs;
+import dev.supplychain.agent.infrastructure.postgres.runtime.ObservationProvenanceResolver;
 import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimePersistence;
 import dev.supplychain.agent.evaluation.planner.EvaluationPlannerFactory;
 import dev.supplychain.agent.memory.common.EvidenceReference;
@@ -154,9 +155,9 @@ class M8B4FullGraphWorkflowTest {
     private static void runFullGraphChild(String mode, String scenarioId, String threadId) throws Exception {
         String classpath = System.getProperty("surefire.test.class.path");
         if (classpath == null || classpath.isBlank()) classpath = System.getProperty("java.class.path");
-        String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        String javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java").toString();
         Path log = Files.createTempFile("r1def-full-graph-" + mode + "-", ".log");
-        Process process = new ProcessBuilder(java, "-cp", classpath,
+        Process process = new ProcessBuilder(javaExecutable, "-cp", classpath,
                 R1DefFullGraphForkedProbe.class.getName(), mode, scenarioId, threadId)
                 .redirectErrorStream(true).redirectOutput(log.toFile()).start();
         try {
@@ -517,7 +518,7 @@ class M8B4FullGraphWorkflowTest {
         private static PostgresRuntimeCodecs unusedRuntimeCodecs() {
             return PostgresRuntimeCodecs.withDefaults(
                     unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec(),
-                    observation -> new PostgresRuntimeCodecs.ObservationProvenance(
+                    observation -> new ObservationProvenanceResolver.ObservationProvenance(
                             "unused-execution", "unused-principal", "unused-source", ScenarioFixtureFactory.FIXTURE_AS_OF),
                     unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec(), unusedCodec());
         }

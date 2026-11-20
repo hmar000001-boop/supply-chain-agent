@@ -1,4 +1,2 @@
-path,change_type,description
-supply-chain-agent-infrastructure-postgres/src/main/java/dev/supplychain/agent/infrastructure/postgres/runtime/PostgresResourceBudgetLedger.java,replace,Canonicalize requested budget deadline to PostgreSQL microsecond precision during idempotent ensureRegistered verification; preserve strict conflict rejection
-supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/R1DefBudgetLeaseRecoveryIntegrationTest.java,replace,Mark concurrently held reservation as operation-started before owned commit
-supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/PostgresM7B2CoreIntegrationTest.java,replace,Expect schema version 10 after V010 migration
+path,operation,reason
+supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,replace_complete_source,Fix local variable shadowing of java package and reference actual ObservationProvenanceResolver.ObservationProvenance record
