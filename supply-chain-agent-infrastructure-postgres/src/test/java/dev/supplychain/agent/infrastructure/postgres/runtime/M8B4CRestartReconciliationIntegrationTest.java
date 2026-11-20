@@ -154,7 +154,7 @@ class M8B4CRestartReconciliationIntegrationTest {
                     replacementHost.bindingFrom(checkpoint), NOW.plusSeconds(2)),
                     "the replacement host must re-read and validate the exact persisted approval binding");
             var pendingBudget = replacementHost.budgets.snapshot(execution, NOW.plusSeconds(2));
-            assertEquals(2L, pendingBudget.reserved().get(ResourceUnit.MODEL_CALLS));
+            assertEquals(2L, amount(pendingBudget.reserved(), ResourceUnit.MODEL_CALLS));
             assertEquals(6L, pendingBudget.remaining(ResourceUnit.MODEL_CALLS));
             var blockedReplay = replacementHost.dispatcher.dispatch(ACTION_ID, String.class, String.class,
                     replacementHost.actionContext(), INPUT);
@@ -171,8 +171,8 @@ class M8B4CRestartReconciliationIntegrationTest {
             assertEquals(1, provider.effectCount(), "reconciliation must acknowledge the receipt without dispatching again");
 
             var finalBudget = replacementHost.budgets.snapshot(execution, NOW.plusSeconds(4));
-            assertEquals(2L, finalBudget.consumed().get(ResourceUnit.MODEL_CALLS));
-            assertEquals(0L, finalBudget.reserved().get(ResourceUnit.MODEL_CALLS));
+            assertEquals(2L, amount(finalBudget.consumed(), ResourceUnit.MODEL_CALLS));
+            assertEquals(0L, amount(finalBudget.reserved(), ResourceUnit.MODEL_CALLS));
             assertEquals(6L, finalBudget.remaining(ResourceUnit.MODEL_CALLS));
             var finalClaim = replacementHost.ledger.inspect(replacementHost.ledgerKey(), replacementHost.requestFingerprint())
                     .orElseThrow();
@@ -343,6 +343,11 @@ class M8B4CRestartReconciliationIntegrationTest {
         }
     }
 
+    /** ResourceBudgetSnapshot maps are sparse: an absent unit has an amount of zero. */
+    private static long amount(Map<ResourceUnit, Long> amounts, ResourceUnit unit) {
+        return amounts.getOrDefault(unit, 0L);
+    }
+
     private static StateGraph<RestartState> workflowGraph(WorkflowHost host) throws Exception {
         return new StateGraph<>(RestartState.SCHEMA, RestartState::new)
                 .addNode("prepare", node_async(state -> host.prepare(state)))
@@ -451,7 +456,7 @@ class M8B4CRestartReconciliationIntegrationTest {
                 throw new SecurityException("persisted intention no longer matches the approved objective/version");
             }
             var budget = budgets.snapshot(execution, NOW.plusSeconds(2));
-            if (budget.reserved().get(ResourceUnit.MODEL_CALLS) != 2L) {
+            if (amount(budget.reserved(), ResourceUnit.MODEL_CALLS) != 2L) {
                 throw new IllegalStateException("expected reserved B6 work was not restored before dispatch");
             }
             ActionContext context = actionContext();
@@ -488,7 +493,7 @@ class M8B4CRestartReconciliationIntegrationTest {
             }
             var committedBudget = budgets.commit(execution, "planning-reservation",
                     ResourceUsage.of(ResourceUnit.MODEL_CALLS, 2), NOW.plusSeconds(3));
-            if (committedBudget.consumed().get(ResourceUnit.MODEL_CALLS) != 2L) {
+            if (amount(committedBudget.consumed(), ResourceUnit.MODEL_CALLS) != 2L) {
                 throw new IllegalStateException("B6 actual usage was not committed exactly once");
             }
             return Map.of("workflowOutcome", "RECONCILED", "replayStatus", replay.status().name(),
@@ -508,8 +513,8 @@ class M8B4CRestartReconciliationIntegrationTest {
                 throw new IllegalStateException("final reconciliation invariants were not satisfied");
             }
             var snapshot = budgets.snapshot(execution, NOW.plusSeconds(4));
-            if (snapshot.consumed().get(ResourceUnit.MODEL_CALLS) != 2L
-                    || snapshot.reserved().get(ResourceUnit.MODEL_CALLS) != 0L) {
+            if (amount(snapshot.consumed(), ResourceUnit.MODEL_CALLS) != 2L
+                    || amount(snapshot.reserved(), ResourceUnit.MODEL_CALLS) != 0L) {
                 throw new IllegalStateException("B6 budget was not settled after restart");
             }
             return Map.of("workflowOutcome", "RECONCILED", "replayStatus", "ALREADY_COMPLETED",

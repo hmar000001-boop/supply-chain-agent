@@ -87,3 +87,11 @@
 - Replaced a fixed historical B4-C test timestamp with an execution-relative UTC timestamp to prevent approval/budget expiry as CI dates advance.
 - Documented evidence limits: host/pool/graph replacement is exercised inside one test process, not an OS process kill/relaunch; external provider state is a deterministic remote-system double; B4-B still owns full `CognitiveCycleApplicationGraph.compileFull(...)` workflow evidence; automatic production B6 lifecycle wiring remains open.
 - No Maven, JUnit or PostgreSQL test execution is claimed by the authoring delivery. User CI remains the acceptance gate.
+
+
+## 2026-11-20 — M8-B4-C CI correction — sparse resource snapshot maps
+
+- Corrected the restart/reconciliation integration test to treat absent `ResourceBudgetSnapshot` map entries as zero, matching the production snapshot contract (`remaining(...)` already uses `getOrDefault`).
+- Applied the same sparse-map projection to pending, committed and settled B6 budget assertions so zero reservations are not unboxed from `null`.
+- No production B6 ledger, schema, migration, action-ledger behavior, or application runtime code changed in this correction.
+- The CI log showed all seven B4-A reliability integration tests passing and three of four B4-C tests passing; the remaining error was a test assertion NPE at `M8B4CRestartReconciliationIntegrationTest.java:512`, not a PostgreSQL or graph-resume failure. Maven/JUnit were not re-run by the authoring session.

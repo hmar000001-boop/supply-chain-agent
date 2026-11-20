@@ -30,3 +30,8 @@ The action registry contains only explicit test-only inventory-reservation handl
 ## Validation boundary
 
 The archive, overlay and static metadata checks are validated by the delivery process. Maven, JUnit and PostgreSQL tests are intentionally not run here; this package is not claimed CI-green.
+
+
+### B4-C CI correction — sparse resource amounts
+
+The first cumulative CI run passed B4-A's seven reliability tests and three of four B4-C restart/reconciliation tests. The remaining final-verification assertion unboxed a missing key from the intentionally sparse `ResourceBudgetSnapshot.reserved()` map. Missing resource units mean zero (as already implemented by `ResourceBudgetSnapshot.remaining`). The B4-C test now uses `getOrDefault(unit, 0L)` consistently for zero and positive budget amounts. Production ledger code and migrations are unchanged by this correction.

@@ -57,3 +57,8 @@ B4-D remains responsible for malicious/untrusted evidence, malformed model/provi
 - Run `./mvnw -B -ntp -Dphase0.postgres=true clean verify` in GitHub Actions with the configured PostgreSQL service.
 - Confirm the B4-A release-capacity assertion, V009 migration/restore checks, B4-B full-graph tests and all four B4-C PostgreSQL integration methods pass.
 - Only the user's green CI confirmation accepts the cumulative B4-A/B/C code. B4-D remains open.
+
+
+## CI correction — sparse B6 snapshot maps
+
+The first GitHub Actions run of the cumulative B4-A+B4-B+B4-C patch passed all seven `M8B4ReliabilityIntegrationTest` methods and three of four `M8B4CRestartReconciliationIntegrationTest` methods. The remaining test errored in its final verification because `ResourceBudgetSnapshot.reserved()` intentionally omits resource units whose amount is zero; directly unboxing `reserved().get(MODEL_CALLS)` therefore caused a `NullPointerException`. The snapshot's `remaining(...)` implementation already defines absent amounts as zero through `getOrDefault`. The test now uses a small `amount(map, unit)` projection with `getOrDefault(unit, 0L)` for all pending/consumed/reserved assertions. This is a test-only correction; no ledger implementation or schema change was needed.
