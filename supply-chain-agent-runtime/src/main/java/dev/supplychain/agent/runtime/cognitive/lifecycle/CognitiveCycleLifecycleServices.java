@@ -6,6 +6,7 @@ import dev.supplychain.agent.actions.api.ActionDispatcher;
 import dev.supplychain.agent.actions.api.ActionEffect;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.ActionStatus;
+import dev.supplychain.agent.actions.internal.ReasoningAction;
 import dev.supplychain.agent.core.interpretation.RequestInterpreter;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
@@ -28,6 +29,7 @@ import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlGovernor;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.*;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleAuthorityPort.ApprovalBinding;
@@ -70,6 +72,7 @@ public final class CognitiveCycleLifecycleServices {
     private final ObservationStore observations;
     private final ChildInvestigationStepStore childSteps;
     private final Clock clock;
+    private final ResourceBudgetExecutionGuard resourceBudgetGuard;
 
     public CognitiveCycleLifecycleServices(
             WorkingMemoryService workingMemory,
@@ -112,6 +115,31 @@ public final class CognitiveCycleLifecycleServices {
             ObservationStore observations,
             ChildInvestigationStepStore childSteps,
             Clock clock) {
+        this(workingMemory, episodicMemory, impasses, intentions, metaControl, actionDispatcher, actionRegistry,
+                interpreter, decisionServices, domain, authority, actionPlans, childArtifacts, actionBatches,
+                observations, childSteps, null, clock);
+    }
+
+    /** Production constructor with the same durable B6 execution guard used by decision services. */
+    public CognitiveCycleLifecycleServices(
+            WorkingMemoryService workingMemory,
+            EpisodicMemoryService episodicMemory,
+            ImpasseResolutionService impasses,
+            RecoveryIntentionService intentions,
+            MetaControlGovernor metaControl,
+            ActionDispatcher actionDispatcher,
+            ActionRegistry actionRegistry,
+            RequestInterpreter interpreter,
+            CognitiveCycleDecisionServices decisionServices,
+            CognitiveCycleLifecyclePort domain,
+            CognitiveCycleAuthorityPort authority,
+            AuthorizedActionPlanStore actionPlans,
+            ImpasseChildArtifactStore childArtifacts,
+            ActionExecutionBatchStore actionBatches,
+            ObservationStore observations,
+            ChildInvestigationStepStore childSteps,
+            ResourceBudgetExecutionGuard resourceBudgetGuard,
+            Clock clock) {
         this.workingMemory = Objects.requireNonNull(workingMemory, "workingMemory");
         this.episodicMemory = Objects.requireNonNull(episodicMemory, "episodicMemory");
         this.impasses = Objects.requireNonNull(impasses, "impasses");
@@ -129,9 +157,12 @@ public final class CognitiveCycleLifecycleServices {
         this.observations = Objects.requireNonNull(observations, "observations");
         this.childSteps = childSteps;
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.resourceBudgetGuard = resourceBudgetGuard;
+        validateBudgetedReasoningActionBinding();
     }
 
     public CognitiveCycleDecisionServices decisionServices() { return decisionServices; }
+    public ResourceBudgetExecutionGuard resourceBudgetGuard() { return resourceBudgetGuard; }
 
     public InterpretationResult interpret(CycleContext context) {
         var interpreted = Objects.requireNonNull(interpreter.interpret(
@@ -371,12 +402,20 @@ public final class CognitiveCycleLifecycleServices {
     }
 
     public dev.supplychain.agent.mechanisms.b6.MetaControlDecision governMetaControl(CycleContext context) {
-        var inputs = Objects.requireNonNull(domain.metaControlInputs(context, clock.instant()), "B6 meta-control inputs");
+        Instant now = clock.instant();
+        MetaControlInputs inputs = Objects.requireNonNull(domain.metaControlInputs(context, now), "B6 meta-control inputs");
         if (!inputs.budget().executionId().equals(context.executionId())) {
             throw new SecurityException("B6 budget snapshot belongs to a different execution");
         }
+        if (resourceBudgetGuard != null) {
+            var durable = resourceBudgetGuard.snapshot(context.executionId(), now);
+            if (!durable.budget().equals(inputs.budget().budget())) {
+                throw new SecurityException("domain B6 budget definition differs from the durable execution account");
+            }
+            inputs = new MetaControlInputs(durable, inputs.uncertainty(), inputs.requiredForNextStep());
+        }
         var decision = metaControl.evaluate(inputs.budget(), inputs.uncertainty(),
-                inputs.requiredForNextStep(), clock.instant());
+                inputs.requiredForNextStep(), now);
         domain.recordMetaControlDecision(context, inputs, decision, clock.instant());
         return decision;
     }
@@ -593,7 +632,21 @@ public final class CognitiveCycleLifecycleServices {
         domain.recordEscalation(context, required(reason, "reason"), clock.instant());
     }
 
+    private void validateBudgetedReasoningActionBinding() {
+        if (resourceBudgetGuard == null) return;
+        actionRegistry.findHandler(ReasoningAction.ID).ifPresent(handler -> {
+            if (!(handler instanceof ReasoningAction reasoning)
+                    || !reasoning.isBoundToBudgetIdentity(resourceBudgetGuard)) {
+                throw new SecurityException(
+                        "registered M3 reasoning action must use the exact shared B6 execution guard");
+            }
+        });
+    }
+
     private AuthorizedActionPlan actionPlan(CycleContext context) {
+        // ActionRegistry is intentionally mutable during host startup. Revalidate at each
+        // authorization/dispatch boundary so a later registration cannot bypass B6 composition.
+        validateBudgetedReasoningActionBinding();
         var selected = decisionServices.selectedCandidate(context);
         if (context.intentionId().isBlank()) throw new SecurityException("M3 action plan is not bound to a persistent B4 intention");
         var commands = List.copyOf(domain.actionCommands(context, selected, clock.instant()));

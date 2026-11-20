@@ -22,6 +22,9 @@ public final class CognitiveCycleServiceOperations implements CognitiveCycleOper
         if (lifecycle.decisionServices() != decisions) {
             throw new IllegalArgumentException("decision and lifecycle composition must share the same decision-service instance");
         }
+        if (lifecycle.resourceBudgetGuard() != decisions.resourceBudgetGuard()) {
+            throw new IllegalArgumentException("M5 planning, B6 meta-control and M3 reasoning must share the same durable resource-budget guard");
+        }
     }
 
     @Override public InterpretationResult interpret(CycleContext context) { return lifecycle.interpret(context); }

@@ -1,74 +1,86 @@
 # M8-B4 status — End-to-end reliability and safety evaluation
 
-**Overall status:** In progress. B4-A, B4-B and B4-C source increments are implemented in the cumulative delivery; user CI validation is pending. No Maven/JUnit execution is claimed by this delivery.
+**Overall status:** B4-A, B4-B and B4-C are accepted following the user's green GitHub Actions CI confirmation. B4-D is implemented in source and awaiting the next CI run. No Maven/JUnit execution is claimed by the B4-D authoring delivery.
 
 ## Baseline
 
-- **Accepted source:** user-uploaded `supply-chain-agent-main (3).zip`, accepted M8-B3 repository after the user-confirmed green CI.
+- **Accepted source:** user-uploaded `supply-chain-agent-main (3).zip`, accepted M8-B3 repository after user-confirmed green CI.
 - **Upload ZIP SHA-256:** `84cc3ef2482235092189ed89a43752166de44afbef201836611dd29bf0c833f2`.
-- **Git metadata:** the supplied archive does not provide a Git commit; this delivery therefore identifies the source using the uploaded ZIP hash and the per-file source-tree manifest.
-- **M7:** remains frozen and accepted. M8-B4 does not edit migrations V001-V008.
+- **Git metadata:** the supplied archive does not provide Git history; source identity is recorded by the uploaded archive hash and per-file manifests.
+- **M7:** remains frozen and accepted. M8 adds only migration V009; M7 migrations V001-V008 are byte-for-byte unchanged.
 
 ## B4 slices
 
 | Slice | Scope | Status |
 |---|---|---|
-| B4-A | Durable B6 computational budget store; PostgreSQL restart/authority/unknown-outcome probes; additive V009 | **Implemented; first CI run exposed one incorrect assertion; corrected in this cumulative patch; re-run pending** |
-| B4-B | Full-graph request-to-terminal workflows using deterministic simulator and strict adapters | **Implemented; latest CI exposed two scenario-fixture errors; corrected in this patch; rerun pending** |
-| B4-C | Graph-host replacement, durable resume, ambiguous external outcome reconciliation, safe retry after authoritative NOT_APPLIED, duplicate action replay, independent-pool idempotency race and intention CAS | **Implemented in source; CI pending** |
-| B4-D | Adversarial evidence, malformed model output, dependency outages and comprehensive safety regression | Not started |
+| B4-A | Durable B6 computational budget store; PostgreSQL restart/authority/unknown-outcome probes; additive V009 | **Accepted — user confirmed cumulative CI green** |
+| B4-B | Full-graph request-to-terminal workflows using deterministic simulator and strict adapters | **Accepted — user confirmed cumulative CI green** |
+| B4-C | Graph-host replacement, durable resume, ambiguous external outcome reconciliation, safe retry after authoritative NOT_APPLIED, duplicate replay, independent-pool idempotency race and intention CAS | **Accepted — user confirmed cumulative CI green** |
+| B4-D | Actual JVM process boundary, shared M5/M3/B6 budget guard, adversarial reasoning evidence, malformed model output, dependency failure and composition/security regression | **Implemented in source; CI pending** |
 
-## B4-A changes
+## B4-A — Durable B6 budget persistence
 
-- Added `PostgresResourceBudgetLedger` implementing `ResourceBudgetLedger`, scoped by execution and tenant/runtime scope.
-- Added transactionally serialized budget-account mutations and reservations. The account row is locked before availability calculation to prevent multiple hosts from oversubscribing one execution budget.
-- Persisted deadline, per-unit limits, active reservations, released/committed states and actual usage. Actual overruns remain visible; an idempotent repeated commit cannot charge usage twice or replace its actual amount.
-- Exposed the production adapter from `PostgresRuntimePersistence.resourceBudgets()`.
-- Added forward-only migration V009. V001-V008 are untouched. Updated the isolated backup/restore verification script to require schema version 9 and verify the six B6 tables, so CI restore smoke remains aligned with the latest schema.
-- Added PostgreSQL-gated integration tests for budget persistence/replacement, concurrent oversubscription, deadline and reservation lifecycle, intention restore/objective preservation, approval binding/revocation/expiry, and ambiguous external write/no blind redispatch/reconciliation.
-- Added a migration parser test for V009.
-- Updated the reference in-memory ledger documentation to make clear that it is a test/reference adapter and hosts can inject a durable implementation.
+- Added `PostgresResourceBudgetLedger` implementing `ResourceBudgetLedger`, scoped by execution and scope/tenant. Account-row locking serializes independent-host reservations so they cannot oversubscribe one execution budget.
+- Persisted immutable limits/deadlines, reservations, actual consumption, reservation states and actual amounts. Actual usage overrun remains recorded; repeated commit is idempotent and contradictory reuse is rejected.
+- Exposed the adapter through `PostgresRuntimePersistence.resourceBudgets()`.
+- Added additive migration V009 with six B6 tables. V001-V008 remain untouched. Backup/restore verification now checks V009 and the six B6 tables; the workflow invokes PostgreSQL scripts through Bash and preserves executable modes.
+- Added seven PostgreSQL reliability tests for budget persistence/concurrency/release/deadline, intention/objective restore, approval binding/revocation/expiry and unknown external outcome/reconciliation.
+- Corrected the release assertion from two to four remaining units: releasing a two-unit reservation against a four-unit budget restores all four units.
 
-## B4-A correction from first CI run
+## B4-B — Full cognitive-cycle workflows
 
-The first user CI execution compiled all 12 reactor projects and passed all existing module tests up to the PostgreSQL integration suite. One B4-A assertion failed in `releasedReservationCannotBeReusedAndDeadlineIsEnforcedAfterRestart`: it expected two remaining MODEL_CALLS after releasing a two-unit reservation from an initial budget of four. The ledger correctly restores the released capacity, so the expected remaining budget is **four**. The cumulative B4-A+B4-B patch corrects this assertion. CI must be rerun before B4-A can be marked accepted.
+`M8B4FullGraphWorkflowTest` drives the actual `CognitiveCycleApplicationGraph.compileFull(...)` through `FullGraphEvaluationHost.compileFull(Ports)`. Ten JUnit methods cover twelve fixture executions and eleven scenario IDs. Coverage includes an approved write and verified observation, proposal/denial, quality-held partial fulfilment without false completion, route and conflicting-evidence provenance, denied/revoked/stale approvals, action-definition drift, demand change and quality-observation replanning, and safe fail-closed paths.
 
-## B4-A limitations
+The accepted CI fixes corrected test fixtures without weakening production safety: the demand scenario updates the existing customer order with `replaceCustomerOrder`, and the changed-action scenario updates both the trusted M5 definition and corresponding M3 test handler under the same action ID. Checked exceptions from LangGraph4j state updates are declared by their test helpers.
 
-- Tests use a PostgreSQL repository/dispatcher replacement boundary and deterministic stateless JSON test codecs, not an operating-system process kill/restart of the entire application.
-- The durable B6 adapter is exposed through `PostgresRuntimePersistence.resourceBudgets()`. B4-C proves persistence/reload and explicit register/reserve/commit across replacement in a focused graph fixture. The current production `CognitiveCycleApplicationGraph` lifecycle does not yet automatically register, snapshot, reserve and commit that ledger at each real meta-control boundary. Automatic production B6 lifecycle wiring remains open and must not be claimed from the fixture tests.
-- No ERP/WMS/carrier integration or autonomous production write is added.
+B4-B still uses deterministic test ports and explicit test handlers. It does not claim live supplier/carrier/ERP/WMS integration, a successful typed read-only terminal (the graph currently escalates/fails closed), route rerouting, or authoritative fact reconciliation beyond the evidence references explicitly asserted by the fixtures.
 
-## B4-B full-graph workflow coverage
+## B4-C — Host replacement and external-outcome reconciliation
 
-`M8B4FullGraphWorkflowTest` drives the actual `CognitiveCycleApplicationGraph.compileFull(...)` through `FullGraphEvaluationHost.compileFull(Ports)`. It supplies deterministic, process-local test adapters and an explicitly registered inventory-reservation handler; it does not call real suppliers, carriers, ERP/WMS endpoints or production identities.
+`M8B4CRestartReconciliationIntegrationTest` adds four PostgreSQL-gated tests. The main scenario interrupts a LangGraph4j graph backed by the PostgreSQL checkpoint saver, closes the first Hikari pool, creates a replacement pool/graph/repository set, reloads checkpoint/intention/approval/B6/M3 state, blocks replay while M3 is `UNKNOWN_OUTCOME`, reconciles the provider-confirmed commit and verifies one effect and one budget settlement. Additional tests cover authoritative `NOT_APPLIED` followed by a single safe retry, independent-pool idempotency concurrency and intention-version CAS.
 
-The ten full-graph test methods cover twelve fixture executions across eleven distinct scenario IDs (REQ-08 is exercised twice under different invalidation modes): approved write and verified observation (`REQ-09`); supplier delay proposal/denial (`REQ-01`); quality-held inventory with qualified partial reservation and no false completion (`REQ-05`); blocked-route and conflicting-inventory evidence provenance with no write (`REQ-04`, `REQ-03`); denied and revoked approval (`FAIL-07`, `FAIL-08`); stale action-definition replan requiring a new approval (`REQ-08`); demand change after approval requiring a new plan and new approval (`FAIL-04`); post-approval quality observation invalidation and replanning (`REQ-08`); and read-only/no-feasible fail-closed paths (`REQ-10`, `FAIL-11`). The exact mapping is in `M8-B4-B-WORKFLOW-MATRIX.csv`.
+The safe-retry correction in `PostgresActionExecutionLedger.inspect(...)` keeps `UNKNOWN_OUTCOME` visible/non-retriable while making definitively failed, retryable and not-unknown records eligible for a fenced retry. Sparse budget snapshot maps are read with absent units treated as zero.
 
-### B4-B fixture corrections from latest CI run
+## B4-D — Adversarial, fault-injection and lifecycle work
 
-The latest CI run completed the B4-A PostgreSQL suite (7/7) and B4-C restart/reconciliation suite (4/4), and ran all ten B4-B full-graph methods; eight passed and two errored in fixture setup/revalidation. No production safety guard or persistence adapter failed.
+### D1 — Independent JVM process restart
 
-1. `demandChangeAfterApprovalInvalidatesTheOldPlanAndRequiresASecondApproval` attempted to add an already-present customer order with `SupplyChainSnapshot.Builder.customerOrder(...)`, which correctly rejects duplicate identifiers. The fixture now uses `replaceCustomerOrder(...)` to update the existing authoritative order while incrementing the snapshot version.
-2. `changedTrustedActionDefinitionRequiresFreshApprovalBeforeDispatch` changed the trusted M5 action descriptor but left the corresponding registered M3 handler descriptor unchanged. `CognitiveCycleLifecycleServices.actionPlan(...)` correctly rejected this authority mismatch. The fixture now refreshes both the trusted descriptor and the registered handler descriptor together under the same `ActionId`; the production M5↔M3 validation remains unchanged and enabled.
+`M8B4ForkedJvmProcessRestartIntegrationTest` launches two distinct Java processes. Process 1 creates the persisted intention, approval, B6 reservation, PostgreSQL checkpoint and an M3 `UNKNOWN_OUTCOME` after a deterministic provider writes an external marker and loses its response. It exits. Process 2 builds new pools, graph, saver and repositories, restores the state, blocks redispatch, verifies the marker against the operation ID, reconciles the confirmed effect and settles the B6 reservation.
 
-These corrections affect only the deterministic B4-B test fixture. The earlier CI run also showed that the B4-C `ResourceBudgetSnapshot` sparse-map assertion correction is effective: all four B4-C tests passed. Maven/JUnit has not been rerun after the two B4-B fixture corrections; B4-A/B/C remain pending a green full reactor CI.
+**Boundary:** this is an OS/JVM process boundary over a small LangGraph4j test graph using the real PostgreSQL saver and persistence adapters. It is not a forked execution of the entire production application graph. The remote provider is deterministic/file-backed, not live.
 
-Important limits are explicit: the current graph has no typed read-only assessment terminal, so the read-only fixture is expected to escalate safely rather than claim a successful assessment; the blocked-route test verifies evidence binding and no dispatch, not rerouting, because this fixture's executable planning/action adapter only registers inventory reservations; the conflicting-evidence test verifies both provenance references survive into the request, not that a new authoritative inventory observation is resolved. B4-C now covers targeted graph-host replacement, external timeout reconciliation, safe retry after authoritative NOT_APPLIED, duplicate action dispatch and repository concurrency. It does not claim an operating-system process kill/relaunch, real external provider integration or automatic production B6 lifecycle wiring.
+### D2 — Shared durable B6 guard at M5/M3/B6 boundaries
 
-## B4-C host-replacement and reconciliation evidence
+Added `ResourceBudgetExecutionGuard` as one host-owned identity shared by M5 planning, M3 reasoning and B6 meta-control:
 
-`M8B4CRestartReconciliationIntegrationTest` adds four PostgreSQL-gated methods. The principal scenario interrupts a real LangGraph4j `StateGraph` backed by `PostgresLangGraph4jCheckpointSaverFactory`, closes the first Hikari pool, reconstructs the graph and all persistence adapters on a second pool, reloads the intention/approval/B6 budget/M3 operation state, blocks a direct replay while the operation is UNKNOWN_OUTCOME, queries a simulated remote provider, reconciles the confirmed commit, and verifies that no second external effect occurs and budget usage settles once.
+- M5 reserves the request's declared search/evaluation/model/rollout ceiling before planner invocation and commits actual `PlanningStatistics`. A denied reservation creates a typed `RESOURCE_BUDGET_EXHAUSTED` planning result; an infrastructure failure does not trigger an unbudgeted fallback.
+- M3 `BudgetedReasoningProvider` reserves one model call and one reasoning evaluation before invoking the provider. It commits fixed observable call counts, does not guess token usage, and conservatively charges the reservation if an invoked provider fails before a usage measurement is returned.
+- B6 meta-control reads the durable snapshot through the same guard and rejects a different immutable budget definition.
+- `CognitiveCycleServiceOperations` rejects distinct guard instances between decision and lifecycle services. If the M3 registry contains `ReasoningAction`, lifecycle composition requires it to use the exact same guard.
+- `FullGraphEvaluationHost.Ports` accepts a shared guard for evaluation composition.
+- PostgreSQL integration tests exercise M5-planning and M3-reasoning accounting against the same `PostgresResourceBudgetLedger`, and prove that a closed budget store blocks provider invocation.
 
-The other methods cover (1) authoritative NOT_APPLIED reconciliation followed by a single safe retry from a replacement pool, (2) two dispatchers on independent PostgreSQL pools using the same idempotency key with one external effect, and (3) two intention repositories racing the same version with exactly one winning CAS and no objective/constraint drift.
+**Boundary:** provider tokens are not counted because the current provider contract has no trusted token-usage metric. The B6 ledger accounts for computational resources, not inventory/money/business side effects. A hard process kill in the middle of a guarded call can leave an active reservation; it remains held conservatively. Automatic reclamation of such an orphan reservation is not implemented and must not be claimed.
 
-B4-C also corrects `PostgresActionExecutionLedger.inspect(...)` to follow the `ActionExecutionLedger` contract for `FAILED + retryable + !outcome_unknown`: inspection returns empty so `ActionDispatcher` can attempt the fenced retry. UNKNOWN_OUTCOME remains a present claim and is never converted to a safe retry. Test time is relative to the execution clock to avoid a fixed historical approval expiry. The B4-A release assertion remains corrected to four available units after releasing a two-unit reservation from a four-unit budget.
+### D3/D4 — Untrusted evidence and malformed structured output
 
-These tests demonstrate replacement of the graph host and connection pool inside one test process, not an OS process kill. The external provider is a deterministic remote-system test double. The B4-C focused graph is not a claim that all B6 budget operations are automatically wired through the production full application lifecycle. See `M8-B4-C-RESTART-RECONCILIATION-PLAN.md` for the full boundary and test sequence.
+Caller-controlled task/context data is JSON-string encoded before insertion into the reasoning prompt. System instructions explicitly treat those strings/evidence labels as untrusted data, forbid tool/credential/authority requests and limit citations to exact supplied evidence keys. `ReasoningAction` remains read-only and cannot add handlers or operational capabilities.
 
-## Acceptance gate for cumulative B4-A + B4-B + B4-C
+Typed output checks reject blank required fields, invented citation keys and oversized findings/assumptions/gaps. Missing or unknown confidence labels degrade to `UNASSESSED`, never approval or certainty. Tests cover prompt injection, fake role labels, fabricated citations, malformed/oversized assessments and confidence fallback.
 
-1. Apply the latest targeted B4-B fixture correction over the current cumulative B4-A+B4-B+B4-C repository, or use the updated cumulative archive supplied with this correction.
-2. Run `./mvnw -B -ntp -Dphase0.postgres=true clean verify` with the configured PostgreSQL service.
-3. Confirm V009 migration/restore checks, all B4-A PostgreSQL probes, all ten B4-B full-graph methods and all four B4-C host-replacement/reconciliation/concurrency tests pass.
-4. Only after the user confirms green CI mark B4-A/B/C accepted. B4-D adversarial and dependency-failure coverage remains open.
+### D5/D6 — Dependency failure and authority composition
+
+Tests cover provider failure after invocation (conservative charge), PostgreSQL budget-store outage (fail closed before provider call), refusal to compose an unbudgeted reasoning action with B6 enabled, and refusal to compose M5/lifecycle services with different B6 guard identities. Existing B4-B/C tests continue to cover approval denial/revocation/staleness, duplicate effects, intention CAS and unknown-outcome replay suppression.
+
+## Production composition requirement
+
+A production host must obtain `ResourceBudgetLedger` from `PostgresRuntimePersistence.resourceBudgets()`, construct one `ResourceBudgetExecutionGuard` for the execution budget provider and pass that *same object* to `CognitiveCycleDecisionServices`, `CognitiveCycleLifecycleServices`, and `BudgetedReasoningProvider` used by the registered `ReasoningAction`. The current `Phase0Application` remains a deterministic intake smoke entry point; it is not a production `compileFull` deployment host. Hosts using legacy constructors with a null guard do not receive durable B6 enforcement.
+
+## Acceptance gate for B4-D
+
+1. Apply the B4-D change-only ZIP over the accepted B4-A/B/C repository.
+2. Run the complete Java 21 Maven/PostgreSQL CI workflow with `-Dphase0.postgres=true`.
+3. Confirm the forked-JVM process test, PostgreSQL budget wiring/outage tests, model-boundary tests and all existing B4-A/B/C regressions pass.
+4. Preserve the evidence boundaries above; no green CI establishes a live ERP/provider deployment or production PITR/identity/retention configuration.
+
+The authoring environment does not have Maven 3.9.16 cached and cannot resolve the Maven distribution host. No Maven/JUnit execution is claimed for B4-D.

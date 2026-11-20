@@ -81,6 +81,10 @@ import dev.supplychain.agent.planning.api.PlanEvaluation;
 import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
+import dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger;
+import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
+import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.simulator.SupplyChainSimulator;
 import dev.supplychain.agent.simulator.command.SimulationCommand;
 import org.junit.jupiter.api.Test;
@@ -160,6 +164,62 @@ final class CognitiveCycleDecisionServicesTest {
         assertEquals(CognitiveCycleOperations.EvaluationDisposition.NO_FEASIBLE_CANDIDATE,
                 evaluated.disposition());
         assertTrue(evaluated.reason().contains("NO_AVAILABLE_ACTIONS"));
+    }
+
+    @Test
+    void durableB6BudgetRefusalPreventsM5PlannerInvocationAndProducesTypedStopResult() {
+        var port = new TestDecisionPort();
+        var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
+        port.planningRequest = planningRequest("execution:test", workingMemory);
+        var ledger = new InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(ResourceUnit.SEARCH_EXPANSIONS, 0L), NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var world = new SimulatorBackedPlanningWorldModel(new SupplyChainSimulator(),
+                (request, state) -> List.of(), "decision-test-world-v1");
+        var evaluator = new DeterministicCandidateEvaluator(world);
+        var services = services(port, workspaceBroadcast(), world, evaluator, guard);
+
+        var prepared = services.proposeCandidates(context(workingMemory, ""));
+        var evaluated = services.evaluateCandidates(context(workingMemory, prepared.candidateSetId(),
+                prepared.plannerId().name(), prepared.plannerSessionId()));
+
+        assertEquals(PlannerTerminationReason.RESOURCE_BUDGET_EXHAUSTED, prepared.terminationReason());
+        assertEquals(CognitiveCycleOperations.EvaluationDisposition.NEEDS_MORE_SEARCH, evaluated.disposition());
+        assertTrue(port.plannerInvocations.isEmpty(), "B6 must refuse the work before entering a planner");
+        assertEquals(0L, ledger.snapshot("execution:test", NOW).consumed()
+                .getOrDefault(ResourceUnit.SEARCH_EXPANSIONS, 0L));
+    }
+
+    @Test
+    void m5PlannerCommitsMeasuredStatisticsToTheSharedB6Budget() {
+        var port = new TestDecisionPort();
+        var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
+        port.planningRequest = planningRequest("execution:test", workingMemory);
+        port.plannerResultFactory = request -> new PlanningResult(PlannerId.COT_SEQUENTIAL, List.of(),
+                PlannerTerminationReason.NO_AVAILABLE_ACTIONS,
+                new PlanningStatistics(1, 1, 0, 0, 0, 0, Duration.ofMillis(2)),
+                "budgeted-planner-session", "bounded deterministic no-action result", List.of());
+        var ledger = new InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(
+                ResourceUnit.SEARCH_EXPANSIONS, 10L,
+                ResourceUnit.REASONING_EVALUATIONS, 10L,
+                ResourceUnit.MODEL_CALLS, 5L,
+                ResourceUnit.MCTS_ROLLOUTS, 5L), NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var world = new SimulatorBackedPlanningWorldModel(new SupplyChainSimulator(),
+                (request, state) -> List.of(), "decision-test-world-v1");
+        var services = services(port, workspaceBroadcast(), world, new DeterministicCandidateEvaluator(world), guard);
+
+        var prepared = services.proposeCandidates(context(workingMemory, ""));
+
+        assertEquals(PlannerTerminationReason.NO_AVAILABLE_ACTIONS, prepared.terminationReason());
+        assertEquals(List.of(PlannerId.COT_SEQUENTIAL), port.plannerInvocations);
+        var snapshot = ledger.snapshot("execution:test", NOW);
+        assertEquals(1L, snapshot.consumed().get(ResourceUnit.SEARCH_EXPANSIONS));
+        assertEquals(1L, snapshot.consumed().get(ResourceUnit.REASONING_EVALUATIONS));
+        assertEquals(0L, snapshot.consumed().getOrDefault(ResourceUnit.MODEL_CALLS, 0L));
+        assertEquals(0L, snapshot.consumed().getOrDefault(ResourceUnit.MCTS_ROLLOUTS, 0L));
+        assertEquals(0L, snapshot.reserved().getOrDefault(ResourceUnit.SEARCH_EXPANSIONS, 0L));
     }
 
     @Test
@@ -299,6 +359,14 @@ final class CognitiveCycleDecisionServicesTest {
                                                             WorkspaceBroadcastService broadcast,
                                                             PlanningWorldModel world,
                                                             CandidateEvaluator evaluator) {
+        return services(port, broadcast, world, evaluator, null);
+    }
+
+    private static CognitiveCycleDecisionServices services(TestDecisionPort port,
+                                                            WorkspaceBroadcastService broadcast,
+                                                            PlanningWorldModel world,
+                                                            CandidateEvaluator evaluator,
+                                                            ResourceBudgetExecutionGuard budgetGuard) {
         var working = new InMemoryWorkingMemoryRepository();
         var episodic = new InMemoryEpisodeRepository();
         var semantic = new InMemorySemanticFactRepository();
@@ -315,7 +383,7 @@ final class CognitiveCycleDecisionServicesTest {
         return new CognitiveCycleDecisionServices(retrieval, new B1MemoryCandidateFactory(), selector,
                 workspaceAdmission, broadcast, router, world, evaluator,
                 new InMemoryPlanningArtifactStore(), port,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), budgetGuard);
     }
 
     private static WorkspaceBroadcastService workspaceBroadcast() {

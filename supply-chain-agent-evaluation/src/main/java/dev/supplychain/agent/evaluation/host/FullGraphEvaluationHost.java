@@ -44,6 +44,7 @@ import dev.supplychain.agent.planning.api.WorldTransition;
 import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleState;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.decision.InMemoryPlanningArtifactStore;
@@ -98,7 +99,22 @@ public final class FullGraphEvaluationHost {
             List<PlanningStrategy> plannerStrategies,
             Clock clock,
             ActionRegistry actionRegistry,
-            Map<String, WorkspaceConsumer> workspaceConsumers) {
+            Map<String, WorkspaceConsumer> workspaceConsumers,
+            ResourceBudgetExecutionGuard resourceBudgetGuard) {
+        public Ports(CognitiveCycleDecisionPort decisionDomain,
+                     CognitiveCycleLifecyclePort lifecycleDomain,
+                     CognitiveCycleAuthorityPort authority,
+                     RequestInterpreter interpreter,
+                     PlanningWorldModel worldModel,
+                     CandidateEvaluator candidateEvaluator,
+                     List<PlanningStrategy> plannerStrategies,
+                     Clock clock,
+                     ActionRegistry actionRegistry,
+                     Map<String, WorkspaceConsumer> workspaceConsumers) {
+            this(decisionDomain, lifecycleDomain, authority, interpreter, worldModel, candidateEvaluator,
+                    plannerStrategies, clock, actionRegistry, workspaceConsumers, null);
+        }
+
         public Ports {
             Objects.requireNonNull(decisionDomain, "decisionDomain");
             Objects.requireNonNull(lifecycleDomain, "lifecycleDomain");
@@ -150,7 +166,7 @@ public final class FullGraphEvaluationHost {
                 new WorkspaceBroadcastService(ports.workspaceConsumers()),
                 new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
                 ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
-                ports.decisionDomain(), ports.clock());
+                ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard());
 
         // The same repository instances back write/read memory services and decision-side retrieval.
         // This prevents a test host from accidentally validating two disconnected in-memory stores.
@@ -164,7 +180,8 @@ public final class FullGraphEvaluationHost {
                 new ActionDispatcher(actionRegistry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger()),
                 actionRegistry, ports.interpreter(), decisionServices, ports.lifecycleDomain(), ports.authority(),
                 new InMemoryAuthorizedActionPlanStore(), new InMemoryImpasseChildArtifactStore(),
-                new InMemoryActionExecutionBatchStore(), new InMemoryObservationStore(), ports.clock());
+                new InMemoryActionExecutionBatchStore(), new InMemoryObservationStore(), null,
+                ports.resourceBudgetGuard(), ports.clock());
         return CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, new MemorySaver());
     }
 

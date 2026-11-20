@@ -12,6 +12,11 @@ public final class ReasoningAction implements ActionHandler<ReasoningRequest, Re
             ActionEffect.READ_ONLY, Capability.REASONING_INVOKE, false);
     private final ReasoningProvider provider;
     public ReasoningAction(ReasoningProvider provider) { this.provider = Objects.requireNonNull(provider, "provider"); }
+    /** Trusted composition check; does not expose or grant any action authority. */
+    public boolean isBoundToBudgetIdentity(Object budgetIdentity) {
+        return provider instanceof BudgetBoundReasoningProvider budgeted
+                && budgeted.usesBudgetIdentity(Objects.requireNonNull(budgetIdentity, "budgetIdentity"));
+    }
     @Override public ActionDescriptor descriptor() { return DESCRIPTOR; }
     @Override public Class<ReasoningRequest> inputType() { return ReasoningRequest.class; }
     @Override public Class<ReasoningAssessment> outputType() { return ReasoningAssessment.class; }
@@ -19,7 +24,11 @@ public final class ReasoningAction implements ActionHandler<ReasoningRequest, Re
         return input.evidence().stream().map(ref -> new ResourceReference("evidence", ref.evidenceType() + ":" + ref.evidenceId())).collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
     @Override public ReasoningAssessment execute(ActionContext context, ReasoningRequest input) {
-        ReasoningAssessment assessment = Objects.requireNonNull(provider.assess(input), "reasoning provider result");
+        ReasoningAssessment assessment = Objects.requireNonNull(
+                provider instanceof ExecutionAwareReasoningProvider executionAware
+                        ? executionAware.assess(context, input)
+                        : provider.assess(input),
+                "reasoning provider result");
         Set<?> supplied = new HashSet<>(input.evidence());
         if (!supplied.containsAll(assessment.supportingEvidence())) {
             throw new ActionExecutionException(new ActionFailure(ActionFailureCode.INVALID_INPUT,

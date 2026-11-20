@@ -109,6 +109,25 @@ class M8B4ReliabilityIntegrationTest {
                 ResourceUsage.of(ResourceUnit.MODEL_CALLS, 1), NOW.plusSeconds(5)));
     }
 
+    @Test void budgetAccountInitializationIsIdempotentButCannotRebindLimits() {
+        String scope = "m8b4-budget-init-" + UUID.randomUUID();
+        String execution = "execution-" + UUID.randomUUID();
+        var ledger = new PostgresResourceBudgetLedger(dataSource, scope);
+        var budget = new ResourceBudget(Map.of(ResourceUnit.MODEL_CALLS, 3L,
+                ResourceUnit.REASONING_EVALUATIONS, 5L), NOW.plusSeconds(120));
+
+        ledger.ensureRegistered(execution, budget);
+        new PostgresResourceBudgetLedger(dataSource, scope).ensureRegistered(execution, budget);
+
+        assertEquals(budget, ledger.snapshot(execution, NOW).budget(),
+                "repeated host startup may verify but must not replace the registered account");
+        var changed = new ResourceBudget(Map.of(ResourceUnit.MODEL_CALLS, 30L,
+                ResourceUnit.REASONING_EVALUATIONS, 50L), NOW.plusSeconds(120));
+        assertThrows(SecurityException.class,
+                () -> new PostgresResourceBudgetLedger(dataSource, scope).ensureRegistered(execution, changed),
+                "a resumed execution cannot silently receive a larger budget");
+    }
+
     @Test void independentBudgetLedgerInstancesCannotOversubscribeOneExecution() throws Exception {
         String scope = "m8b4-budget-concurrency-" + UUID.randomUUID();
         String execution = "execution-" + UUID.randomUUID();

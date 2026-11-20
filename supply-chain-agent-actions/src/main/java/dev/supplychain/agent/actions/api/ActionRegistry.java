@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class ActionRegistry {
     private final Map<ActionId, ActionHandler<?, ?>> handlers = new LinkedHashMap<>();
@@ -24,6 +25,11 @@ public final class ActionRegistry {
         ActionHandler<?, ?> handler = handlers.get(Objects.requireNonNull(id, "id"));
         if (handler == null) throw new IllegalArgumentException("Unknown action: " + id);
         return handler;
+    }
+
+    /** Returns a handler only to trusted application composition/validation code. */
+    public synchronized Optional<ActionHandler<?, ?>> findHandler(ActionId id) {
+        return Optional.ofNullable(handlers.get(Objects.requireNonNull(id, "id")));
     }
 
     /** Returns the registered descriptor for trusted application-side action-plan validation. */

@@ -19,11 +19,17 @@ import dev.supplychain.agent.planning.api.PlannerTerminationReason;
 import dev.supplychain.agent.planning.api.WorldTransition;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
+import dev.supplychain.agent.mechanisms.b6.ResourceBudgetExceededException;
+import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
+import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.CandidateEvaluation;
@@ -53,6 +59,7 @@ public final class CognitiveCycleDecisionServices {
     private final PlanningArtifactStore planningArtifacts;
     private final CognitiveCycleDecisionPort domainPort;
     private final Clock clock;
+    private final ResourceBudgetExecutionGuard budgetGuard;
 
     public CognitiveCycleDecisionServices(
             MemoryRetrievalService memoryRetrieval,
@@ -66,6 +73,24 @@ public final class CognitiveCycleDecisionServices {
             PlanningArtifactStore planningArtifacts,
             CognitiveCycleDecisionPort domainPort,
             Clock clock) {
+        this(memoryRetrieval, b1CandidateFactory, b1Selector, workspaceAdmission, workspaceBroadcast,
+                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort, clock, null);
+    }
+
+    /** Production composition constructor with the shared durable B6 execution guard. */
+    public CognitiveCycleDecisionServices(
+            MemoryRetrievalService memoryRetrieval,
+            B1MemoryCandidateFactory b1CandidateFactory,
+            B1RetrievalSelector b1Selector,
+            WorkspaceAdmissionService workspaceAdmission,
+            WorkspaceBroadcastService workspaceBroadcast,
+            PlannerRouter plannerRouter,
+            PlanningWorldModel planningWorldModel,
+            CandidateEvaluator candidateEvaluator,
+            PlanningArtifactStore planningArtifacts,
+            CognitiveCycleDecisionPort domainPort,
+            Clock clock,
+            ResourceBudgetExecutionGuard budgetGuard) {
         this.memoryRetrieval = Objects.requireNonNull(memoryRetrieval, "memoryRetrieval");
         this.b1CandidateFactory = Objects.requireNonNull(b1CandidateFactory, "b1CandidateFactory");
         this.b1Selector = Objects.requireNonNull(b1Selector, "b1Selector");
@@ -77,7 +102,10 @@ public final class CognitiveCycleDecisionServices {
         this.planningArtifacts = Objects.requireNonNull(planningArtifacts, "planningArtifacts");
         this.domainPort = Objects.requireNonNull(domainPort, "domainPort");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.budgetGuard = budgetGuard;
     }
+
+    public ResourceBudgetExecutionGuard resourceBudgetGuard() { return budgetGuard; }
 
     public EvidenceRetrieved retrieveEvidence(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
@@ -160,7 +188,31 @@ public final class CognitiveCycleDecisionServices {
         if (!request.initialWorld().recoveryObjectives().containsKey(request.objective().id())) {
             throw new SecurityException("planning objective is not present in the authoritative world snapshot");
         }
-        PlanningResult result = plannerRouter.plan(request);
+        PlanningResult result;
+        if (budgetGuard == null) {
+            result = plannerRouter.plan(request);
+        } else {
+            var plannerBudget = request.budget();
+            ResourceUsage reserved = new ResourceUsage(Map.of(
+                    ResourceUnit.SEARCH_EXPANSIONS, (long) plannerBudget.maxExpansions(),
+                    ResourceUnit.REASONING_EVALUATIONS, (long) plannerBudget.maxEvaluations(),
+                    ResourceUnit.MODEL_CALLS, (long) plannerBudget.maxModelCalls(),
+                    ResourceUnit.MCTS_ROLLOUTS, (long) plannerBudget.maxRollouts()));
+            try {
+                result = budgetGuard.execute(context.executionId(), "m5-planner:" + request.fingerprint(), reserved,
+                        () -> plannerRouter.plan(request), planned -> new ResourceUsage(Map.of(
+                                ResourceUnit.SEARCH_EXPANSIONS, planned.statistics().expansions(),
+                                ResourceUnit.REASONING_EVALUATIONS, planned.statistics().evaluations(),
+                                ResourceUnit.MODEL_CALLS, planned.statistics().modelCalls(),
+                                ResourceUnit.MCTS_ROLLOUTS, planned.statistics().rollouts())));
+            } catch (ResourceBudgetExceededException exhausted) {
+                var selection = plannerRouter.select(request);
+                result = new PlanningResult(selection.plannerId(), List.of(), PlannerTerminationReason.RESOURCE_BUDGET_EXHAUSTED,
+                        new dev.supplychain.agent.planning.api.PlanningStatistics(0, 0, 0, 0, 0, 0, Duration.ZERO),
+                        "budget-blocked-" + request.fingerprint().substring(0, 12),
+                        selection.explanation() + "; durable B6 reservation refused: " + exhausted.getMessage(), List.of());
+            }
+        }
         String candidateSetId = planningArtifacts.store(request, result, clock.instant());
         return new PlanningPrepared(result.plannerId(), result.sessionId(), candidateSetId,
                 result.candidates().size(), result.terminationReason());

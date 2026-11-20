@@ -9,6 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.supplychain.agent.actions.api.ActionDispatcher;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
+import dev.supplychain.agent.actions.internal.ReasoningAction;
+import dev.supplychain.agent.actions.internal.ReasoningAssessment;
+import dev.supplychain.agent.actions.internal.ReasoningConfidence;
+import dev.supplychain.agent.runtime.cognitive.CognitiveCycleServiceOperations;
 import dev.supplychain.agent.actions.api.InMemoryActionExecutionLedger;
 import dev.supplychain.agent.core.interpretation.InterpretationOutcome;
 import dev.supplychain.agent.core.interpretation.RequestInterpretation;
@@ -93,6 +97,7 @@ import dev.supplychain.agent.planning.api.PlanEvaluation;
 import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
+import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.decision.InMemoryPlanningArtifactStore;
@@ -264,6 +269,72 @@ final class CognitiveCycleLifecycleServicesTest {
     }
 
     @Test
+    void b6GuardRejectsAnUnbudgetedRegisteredReasoningAction() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
+                NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var unbudgeted = new ReasoningAction(request -> new ReasoningAssessment("Supplier assessment", List.of(),
+                List.of(), List.of(), List.of(), List.of(), ReasoningConfidence.UNASSESSED, "No evidence-backed conclusion"));
+        var registry = new ActionRegistry().register(unbudgeted);
+
+        assertThrows(SecurityException.class, () -> new Fixture(guard, guard, registry));
+    }
+
+    @Test
+    void lateUnbudgetedReasoningRegistrationIsRejectedAtAuthorizationBoundary() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
+                NOW.plusSeconds(60));
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var registry = new ActionRegistry();
+        Fixture fixture = new Fixture(guard, guard, registry);
+        registry.register(new ReasoningAction(request -> new ReasoningAssessment("Unbudgeted assessment", List.of(),
+                List.of(), List.of(), List.of(), List.of(), ReasoningConfidence.UNASSESSED,
+                "No trusted execution budget was bound")));
+
+        assertThrows(SecurityException.class,
+                () -> fixture.lifecycle.prepareAuthorization(context("", 0, "", 0, "")));
+    }
+
+    @Test
+    void completeCompositionRejectsDifferentB6GuardInstancesForM5AndLifecycle() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 3L),
+                NOW.plusSeconds(60));
+        var decisionGuard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var lifecycleGuard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        var fixture = new Fixture(decisionGuard, lifecycleGuard, new ActionRegistry());
+
+        assertThrows(IllegalArgumentException.class, () -> new CognitiveCycleServiceOperations(
+                fixture.lifecycle.decisionServices(), fixture.lifecycle));
+    }
+
+    @Test
+    void b6MetaControlUsesTheSharedDurableLedgerSnapshotRatherThanHostSuppliedCounters() {
+        var ledger = new dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger();
+        var budget = new ResourceBudget(Map.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 2L),
+                NOW.plusSeconds(60));
+        ledger.register("execution:m6b", budget);
+        ledger.reserve("execution:m6b", "prior-model-work",
+                ResourceUsage.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 2L), NOW);
+        ledger.commit("execution:m6b", "prior-model-work",
+                ResourceUsage.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 2L), NOW);
+        var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, Clock.fixed(NOW, ZoneOffset.UTC));
+        Fixture fixture = new Fixture(guard);
+        // Deliberately stale host counters: the durable ledger is authoritative when B6 is wired.
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(
+                new ResourceBudgetSnapshot("execution:m6b", budget, Map.of(), Map.of(), NOW),
+                uncertainty(0.1), ResourceUsage.of(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS, 1));
+
+        var decision = fixture.lifecycle.governMetaControl(context("", 0, "", 0, ""));
+
+        assertEquals(MetaControlAction.INTERRUPT_FOR_HUMAN, decision.action());
+        assertEquals(2L, fixture.domain.lastMetaControlInputs.budget().consumed()
+                .get(dev.supplychain.agent.mechanisms.b6.ResourceUnit.MODEL_CALLS));
+    }
+
+    @Test
     void b2ResolutionRunsOnlyDeclaredChildCapabilitiesAndReturnsToParentIntention() {
         Fixture fixture = new Fixture();
         ContextLoaded loaded = fixture.lifecycle.loadContext(context("", 0, "", 0, ""));
@@ -354,12 +425,19 @@ final class CognitiveCycleLifecycleServicesTest {
         private final TestDomainPort domain = new TestDomainPort();
         private final CognitiveCycleLifecycleServices lifecycle;
 
-        private Fixture() {
+        private Fixture() { this(null, null, new ActionRegistry()); }
+
+        private Fixture(ResourceBudgetExecutionGuard budgetGuard) {
+            this(budgetGuard, budgetGuard, new ActionRegistry());
+        }
+
+        private Fixture(ResourceBudgetExecutionGuard decisionGuard,
+                        ResourceBudgetExecutionGuard lifecycleGuard,
+                        ActionRegistry registry) {
             var scope = SCOPE;
-            var registry = new ActionRegistry();
             var working = new WorkingMemoryService(workingRepository, Duration.ofDays(1));
             var episodic = new EpisodicMemoryService(episodeRepository, Duration.ofDays(7));
-            var decisions = noOpDecisionServices();
+            var decisions = noOpDecisionServices(decisionGuard);
             dev.supplychain.agent.core.interpretation.RequestInterpreter interpreter = request -> new RequestInterpretation(InterpretationOutcome.READY,
                     request.originalText(), "deterministic test interpretation");
             lifecycle = new CognitiveCycleLifecycleServices(working, episodic,
@@ -368,7 +446,7 @@ final class CognitiveCycleLifecycleServicesTest {
                     new ActionDispatcher(registry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger()), registry,
                     interpreter, decisions, domain, new TestAuthority(), new InMemoryAuthorizedActionPlanStore(),
                     new InMemoryImpasseChildArtifactStore(), new InMemoryActionExecutionBatchStore(),
-                    new InMemoryObservationStore(), Clock.fixed(NOW, ZoneOffset.UTC));
+                    new InMemoryObservationStore(), null, lifecycleGuard, Clock.fixed(NOW, ZoneOffset.UTC));
             domain.objective = objective();
         }
     }
@@ -381,6 +459,10 @@ final class CognitiveCycleLifecycleServicesTest {
     }
 
     private static CognitiveCycleDecisionServices noOpDecisionServices() {
+        return noOpDecisionServices(null);
+    }
+
+    private static CognitiveCycleDecisionServices noOpDecisionServices(ResourceBudgetExecutionGuard budgetGuard) {
         var working = new InMemoryWorkingMemoryRepository();
         var retrieval = new MemoryRetrievalService(working, new InMemoryEpisodeRepository(),
                 new InMemorySemanticFactRepository(), new InMemoryProceduralMemoryRepository());
@@ -410,7 +492,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 new WorkspaceAdmissionService(new InMemoryWorkspaceRepository()),
                 new WorkspaceBroadcastService(Map.of()), new PlannerRouter(strategies, new DefaultPlannerSelectionPolicy()),
                 world, evaluator, new InMemoryPlanningArtifactStore(), new NoopDecisionPort(),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), budgetGuard);
     }
 
     private static final class NoopDecisionPort implements CognitiveCycleDecisionPort {
@@ -433,6 +515,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 new ResourceBudgetSnapshot("execution:m6b", new ResourceBudget(Map.of(), NOW.plusSeconds(60)), Map.of(), Map.of(), NOW),
                 uncertainty(0.1), new ResourceUsage(Map.of()));
         private MetaControlDecision lastMetaControlDecision;
+        private MetaControlInputs lastMetaControlInputs;
         private int metaControlRecords;
         private ImpasseOpenRequest impasseRequest;
         private ChildInvestigationPlan childPlan;
@@ -481,6 +564,7 @@ final class CognitiveCycleLifecycleServicesTest {
         @Override public void recordMetaControlDecision(CycleContext context, MetaControlInputs inputs,
                 dev.supplychain.agent.mechanisms.b6.MetaControlDecision decision, Instant at) {
             metaControlRecords++;
+            lastMetaControlInputs = inputs;
             lastMetaControlDecision = decision;
         }
         @Override public PlanningRequest revalidationRequest(CycleContext context,
