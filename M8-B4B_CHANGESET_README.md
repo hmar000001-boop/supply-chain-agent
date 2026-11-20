@@ -35,3 +35,7 @@ The archive, overlay and static metadata checks are validated by the delivery pr
 ### B4-C CI correction — sparse resource amounts
 
 The first cumulative CI run passed B4-A's seven reliability tests and three of four B4-C restart/reconciliation tests. The remaining final-verification assertion unboxed a missing key from the intentionally sparse `ResourceBudgetSnapshot.reserved()` map. Missing resource units mean zero (as already implemented by `ResourceBudgetSnapshot.remaining`). The B4-C test now uses `getOrDefault(unit, 0L)` consistently for zero and positive budget amounts. Production ledger code and migrations are unchanged by this correction.
+
+### Follow-up CI correction — checked exceptions from graph state updates
+
+The next CI run exposed two Java test-compilation errors in `M8B4FullGraphWorkflowTest`: `CompiledGraph.updateState(...)` declares a checked exception, but the scenario helper methods `resumeUntilNextApproval(...)` and `resumeApproval(...)` did not declare or handle it. Both helpers now declare `throws Exception`; all callers are JUnit test methods that already declare `throws Exception`. This preserves the original exception and avoids wrapping or swallowing graph update failures.

@@ -381,7 +381,7 @@ class M8B4FullGraphWorkflowTest {
             return interrupted;
         }
 
-        boolean resumeUntilNextApproval(String responseId, String approverId) {
+        boolean resumeUntilNextApproval(String responseId, String approverId) throws Exception {
             var updated = graph.updateState(config, Map.of(
                     CognitiveCycleState.APPROVAL_RESPONSE_ID, responseId,
                     CognitiveCycleState.APPROVER_ID, approverId), null);
@@ -390,7 +390,7 @@ class M8B4FullGraphWorkflowTest {
             return org.bsc.langgraph4j.GraphResult.from(stream).isInterruptionMetadata();
         }
 
-        TerminalOutput resumeApproval(String responseId, String approverId) {
+        TerminalOutput resumeApproval(String responseId, String approverId) throws Exception {
             var updated = graph.updateState(config, Map.of(
                     CognitiveCycleState.APPROVAL_RESPONSE_ID, responseId,
                     CognitiveCycleState.APPROVER_ID, approverId), null);
