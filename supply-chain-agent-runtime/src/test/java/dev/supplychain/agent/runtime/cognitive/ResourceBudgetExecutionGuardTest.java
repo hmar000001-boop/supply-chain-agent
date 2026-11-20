@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger;
+import dev.supplychain.agent.mechanisms.b6.ReservationStatus;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
 import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
