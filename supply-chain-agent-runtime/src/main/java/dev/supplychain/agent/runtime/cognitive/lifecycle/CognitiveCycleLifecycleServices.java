@@ -403,7 +403,7 @@ public final class CognitiveCycleLifecycleServices {
 
     public dev.supplychain.agent.mechanisms.b6.MetaControlDecision governMetaControl(CycleContext context) {
         Instant now = clock.instant();
-        MetaControlInputs inputs = Objects.requireNonNull(domain.metaControlInputs(context, now), "B6 meta-control inputs");
+        CognitiveCycleLifecyclePort.MetaControlInputs inputs = Objects.requireNonNull(domain.metaControlInputs(context, now), "B6 meta-control inputs");
         if (!inputs.budget().executionId().equals(context.executionId())) {
             throw new SecurityException("B6 budget snapshot belongs to a different execution");
         }
@@ -412,7 +412,7 @@ public final class CognitiveCycleLifecycleServices {
             if (!durable.budget().equals(inputs.budget().budget())) {
                 throw new SecurityException("domain B6 budget definition differs from the durable execution account");
             }
-            inputs = new MetaControlInputs(durable, inputs.uncertainty(), inputs.requiredForNextStep());
+            inputs = new CognitiveCycleLifecyclePort.MetaControlInputs(durable, inputs.uncertainty(), inputs.requiredForNextStep());
         }
         var decision = metaControl.evaluate(inputs.budget(), inputs.uncertainty(),
                 inputs.requiredForNextStep(), now);
