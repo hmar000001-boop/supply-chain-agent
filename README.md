@@ -1,51 +1,31 @@
-# M8-PreB7 R2 — Outcome Feedback, Guarded Adaptation and Final Evidence Validation
+# M8-PreB7 R2 CI Fix 1 — PostgreSQL backup/restore schema verification
 
-**Delivery:** one integrated R2 changes-only package combining the former R2, R3 and R4 workstreams.  
-**Baseline:** project-owner-confirmed green R1-DEF source state (2026-11-20).  
-**Package shape:** complete source files at repository-relative paths; no patch files and no full-repository snapshot.
+## Purpose
+
+The R2 delivery adds forward-only migration `V011__b2_procedure_drafts_and_b3_outcome_evidence.sql`. The existing PostgreSQL backup/restore verifier still expected R1-DEF schema version 10 and stopped after restoring a valid R2 backup whose schema history correctly reached version 11.
+
+This changeset replaces the complete repository file:
+
+- `scripts/postgres/restore-verify.sh`
+
+## What changed
+
+1. Derives the expected schema version from all checked-in module migration resources under `*/src/main/resources/db/migration/`. This deliberately includes V001, which is owned by the memory module, and V002–V011, which are owned by the PostgreSQL infrastructure module.
+2. Requires migration filenames to form one contiguous sequence beginning at V001. A missing or duplicated version fails closed before restore.
+3. Compares the restored `agent_schema_history` maximum, row count and distinct-version count against that derived sequence.
+4. Verifies the R1-DEF B6 lease columns and the R2 B2/B3 evidence tables and critical columns after restore.
+5. Preserves the existing isolated-empty-target guard, backup checksum verification, `pg_restore --list`, single-transaction restore, and no-clean/no-overwrite behavior.
+
+No migration SQL, migration checksums, application code, workflow build mode, or production authorization behavior is changed.
 
 ## Apply
 
-1. Use the project repository at the accepted green R1-DEF revision.
-2. Extract this ZIP at the repository root, allowing the included files to overwrite their matching paths.
-3. Review `CHANGE_MANIFEST.csv` and `VALIDATION_REPORT.md`.
-4. Commit the cumulative R2 change and push it.
-5. Run the single hosted acceptance command:
+Extract this ZIP at the repository root, overwriting `scripts/postgres/restore-verify.sh`. This is an incremental correction to the already-applied R2 changeset; do not remove the R2 V011 migration or other R2 files.
+
+Then run the normal hosted acceptance command:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-The active and mirrored GitHub Actions workflows include the same R2 evidence, CodeQL and Trivy steps. The hosted CI run is the acceptance gate for the complete Maven reactor, live PostgreSQL migration/repository integration, and scanner artifacts.
-
-## Scope
-
-- **B2:** typed, scope/version/evidence-bound recovery-procedure drafts built only from registered action references. Draft approval changes review state only; it does not authorize or dispatch actions.
-- **B3:** durable consumer receipts and separately verified downstream-outcome evidence. The active workspace remains cycle-bounded and ephemeral. Receipts alone are not usefulness signals.
-- **B1/B3 feedback:** verified-evidence-only bounded training, disjoint holdout evaluation, scope-bound shadow candidates and a distinct host-authorized activation boundary. Neutral baseline behavior remains the default.
-- **Persistence:** forward-only PostgreSQL migration V011, typed B2 draft/history repository, B3 receipt/outcome repository, and migration/integration tests.
-- **Evidence/security:** reproducible M8-B3 ablation outputs, explicit no-corpus R2 status output, provenance/checksums, CodeQL and Trivy SARIF artifacts, source inventory, conformance and acceptance records.
-
-## Important empirical boundary
-
-The accepted inputs contain no independently verified downstream-outcome corpus and no independent holdout dataset. The deterministic R2 evidence artifact therefore reports:
-
-- `NO_VERIFIED_OUTCOME_CORPUS`
-- zero verified downstream outcomes and zero holdout scenarios
-- candidate `SHADOW`, activation `DISABLED`
-- `baselinePreserved=true`
-- no empirical adaptive-policy advantage claimed
-
-The R2 feedback implementation is a guarded capability and evaluation protocol. It is not evidence that adaptive selection outperforms the accepted B1/top-k or B3 baseline.
-
-## Package integrity
-
-`CHANGE_MANIFEST.csv` lists every added/replaced repository file. `SHA256SUMS.txt` contains a SHA-256 digest for every package file except the checksum file itself. Verify with:
-
-```bash
-sha256sum -c SHA256SUMS.txt
-```
-
-## Acceptance status
-
-R1-DEF is accepted on project-owner-confirmed green CI. R2 has passed the local Java 21 compilation and focused source-level checks described in `VALIDATION_REPORT.md`, but is **not accepted** until the one full hosted Java 21/PostgreSQL CI run succeeds and CodeQL/Trivy findings are reviewed and dispositioned. Trivy is intentionally non-blocking in this initial evidence-producing run; a successful workflow is not equivalent to a clean scan or penetration-test certification.
+The CI backup/restore step will back up the migrated database and restore it into a separate empty database. The restore verifier now expects the latest contiguous migration sequence present in the source tree, including V011.

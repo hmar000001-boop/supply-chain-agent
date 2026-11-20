@@ -1,35 +1,33 @@
-# R2 local validation report
+# Validation report — R2 PostgreSQL restore-verifier correction
 
-**Date:** 2026-11-20  
-**JDK:** `javac 21.0.12.1`  
-**Baseline:** reconstructed project-owner-confirmed green R1-DEF state  
-**Result:** all completed local checks below passed; hosted Maven/PostgreSQL acceptance remains pending.
+## Root cause
 
-## Compilation completed
+The R1-DEF restore verifier hardcoded schema version 10 and required exactly ten migration-history records. R2 correctly adds V011, so backup creation and SHA-256 validation succeeded, restore itself completed, but verification rejected the restored schema as newer than the stale R1-DEF expectation.
 
-- `javac --release 21 -Xlint:all` clean-room compilation passed for 294 production Java sources across domain (53), memory (52), simulator (5), core (4), actions (58), and mechanisms (122).
-- All nine mechanism test-source files compiled against the freshly compiled mechanism production classes and a local JUnit API compatibility stub set.
-- The two new PostgreSQL repositories, PostgreSQL JDBC/JSON support used by them, migration runner, and `PostgresAgentPersistence` R2 composition methods compiled. External peer adapters not part of this focused compile were represented by narrow compile-only stubs.
-- The new `R2OutcomeEvidencePostgresIntegrationTest` and migration parsing test sources compiled.
-- The R2 evidence CLI, M8-B3 ablation runner/CLI and R2 CLI test compiled.
+## Changes
 
-## Tests and executable evidence completed
+One complete source replacement: `scripts/postgres/restore-verify.sh`.
 
-- **101 focused tests passed, zero failures:** 93 mechanism tests (including B2, B3 and feedback), seven migration-runner parsing tests (including V011 registration and six-statement parsing), and one deterministic R2 evidence CLI test. Tests were executed using an assertion-capable local reflection runner with JUnit API stubs, not Maven Surefire.
-- M8-B3 ablation CLI executed: 19 scenarios, 45 primary observations, 18 deterministic replay rows, 63 raw rows, 26 paired contrasts, and 18/18 replay matches. JSONL records parsed successfully.
-- R2 evidence CLI executed and its SHA-256 manifest verified. It reports zero verified outcomes, zero holdout scenarios, `SHADOW`, `DISABLED`, and baseline preserved.
-- `scripts/verify-m8-b5-architecture.py`: PASS.
-- `scripts/verify-m8-r2-evidence.py`: PASS.
-- Both GitHub Actions YAML files parsed successfully and were byte-identical.
-- All modified/added CSV files are rectangular and parse successfully.
+Expected schema version is derived from all repository module migration resource paths. V001 is in `supply-chain-agent-memory`; later migrations are in `supply-chain-agent-infrastructure-postgres`. Migration filenames must form a contiguous version sequence. Restored schema version and migration-history count must match it. R2 evidence tables and required columns are explicitly checked.
 
-## Not completed locally
+## Checks executed
 
-- The complete Maven reactor command `./mvnw -B -ntp -Dphase0.postgres=true clean install` was not run. Maven is not installed in the authoring environment and the Maven Wrapper distribution could not be retrieved from its host.
-- Live PostgreSQL execution of V011 and the R2 repository integration test was not run locally. The test source compiled; hosted CI must exercise it.
-- CodeQL and Trivy scans were not executed locally. The workflow now captures their SARIF outputs and tool versions; the owner must review and triage findings in the hosted artifact before R2 acceptance.
-- No production downstream-outcome corpus or independent holdout dataset was available. No adaptive-policy performance advantage is claimed and no feedback policy is active.
+- `bash -n scripts/postgres/restore-verify.sh`: passed.
+- Simulated restore with schema V011 and all expected tables/columns: passed.
+- Simulated stale restored schema V010 while source contains V011: correctly failed with exit 67.
+- Simulated missing R2 evidence table: correctly failed with exit 71.
+- Simulated missing R2 evidence column: correctly failed with exit 72.
+- Simulated non-contiguous migration files (V010 absent): correctly failed with exit 67.
+- Simulated incomplete migration history: correctly failed with exit 70.
+- Backup SHA-256 verification path: passed using a test backup and generated checksum.
+- `unzip -t` and packaged source SHA-256: passed.
 
-## Interpretation
+The restore tests used local command stubs for `psql` and `pg_restore`. No live PostgreSQL backup/restore was run locally. GitHub Actions remains the authoritative end-to-end acceptance for the actual PostgreSQL server, backup, restore and workflow.
 
-The local evidence establishes source compilation for the listed source sets, focused control/protocol test behavior, migration parser registration, deterministic evidence generation, and static architecture/workflow guardrails. It does **not** establish full reactor compilation, live database behavior, clean security scans, operational readiness, or empirical adaptive superiority. The single hosted CI cycle is the R2 acceptance gate.
+## Safety properties retained
+
+- Restore target must be explicitly confirmed and empty.
+- Backup checksum is checked when its `.sha256` sidecar exists.
+- `pg_restore --list` is checked before restoration.
+- Restore remains single-transaction and uses neither `--clean` nor `--if-exists`.
+- Existing runtime and B6 lease checks remain.
