@@ -98,7 +98,6 @@ import dev.supplychain.agent.planning.api.PlanEvaluation;
 import dev.supplychain.agent.planning.routing.DefaultPlannerSelectionPolicy;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
-import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleLifecyclePort.MetaControlInputs;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
@@ -356,7 +355,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), expired,
                 fixture.domain.metaControl.requiredForNextStep());
 
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governIntention(context));
@@ -394,7 +393,7 @@ final class CognitiveCycleLifecycleServicesTest {
         CycleContext context = context("", 0, "", 0, "");
         var wrongRevision = uncertainty(0.1, new UncertaintyAssessment.Reference(
                 "uncertainty:execution:m6b", 2, "execution:m6b", SCOPE.value()));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), wrongRevision,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), wrongRevision,
                 fixture.domain.metaControl.requiredForNextStep());
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
 
@@ -404,7 +403,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "evidence", 1),
                 UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.1, "hypothesis", 1),
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan", 1)));
-        fixture.domain.metaControl = new MetaControlInputs(fixture.domain.metaControl.budget(), expired,
+        fixture.domain.metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(fixture.domain.metaControl.budget(), expired,
                 fixture.domain.metaControl.requiredForNextStep());
         assertThrows(SecurityException.class, () -> fixture.lifecycle.governMetaControl(context));
     }
@@ -681,11 +680,11 @@ final class CognitiveCycleLifecycleServicesTest {
     private static final class TestDomainPort implements CognitiveCycleLifecyclePort {
         private RecoveryObjective objective;
         private IntentionDirective nextIntentionDirective = new IntentionDirective(IntentionAction.CONTINUE, "continue", null, "", "");
-        private MetaControlInputs metaControl = new MetaControlInputs(
+        private CognitiveCycleLifecyclePort.MetaControlInputs metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(
                 new ResourceBudgetSnapshot("execution:m6b", new ResourceBudget(Map.of(), NOW.plusSeconds(60)), Map.of(), Map.of(), NOW),
                 uncertainty(0.1), new ResourceUsage(Map.of()));
         private MetaControlDecision lastMetaControlDecision;
-        private MetaControlInputs lastMetaControlInputs;
+        private CognitiveCycleLifecyclePort.MetaControlInputs lastMetaControlInputs;
         private int metaControlRecords;
         private ImpasseOpenRequest impasseRequest;
         private ChildInvestigationPlan childPlan;
@@ -747,7 +746,7 @@ final class CognitiveCycleLifecycleServicesTest {
                 uncertaintyByReference.put(reference, created);
                 return created;
             });
-            metaControl = new MetaControlInputs(metaControl.budget(), next, metaControl.requiredForNextStep());
+            metaControl = new CognitiveCycleLifecyclePort.MetaControlInputs(metaControl.budget(), next, metaControl.requiredForNextStep());
             return next;
         }
         @Override public UncertaintyAssessment currentUncertaintyAssessment(CycleContext context, Instant at) {
@@ -757,8 +756,8 @@ final class CognitiveCycleLifecycleServicesTest {
             if (metaControl.uncertainty().reference().equals(reference)) return metaControl.uncertainty();
             throw new SecurityException("uncertainty revision was not found in the test assessment store");
         }
-        @Override public MetaControlInputs metaControlInputs(CycleContext context, Instant at) { return metaControl; }
-        @Override public void recordMetaControlDecision(CycleContext context, MetaControlInputs inputs,
+        @Override public CognitiveCycleLifecyclePort.MetaControlInputs metaControlInputs(CycleContext context, Instant at) { return metaControl; }
+        @Override public void recordMetaControlDecision(CycleContext context, CognitiveCycleLifecyclePort.MetaControlInputs inputs,
                 dev.supplychain.agent.mechanisms.b6.MetaControlDecision decision, Instant at) {
             metaControlRecords++;
             lastMetaControlInputs = inputs;
