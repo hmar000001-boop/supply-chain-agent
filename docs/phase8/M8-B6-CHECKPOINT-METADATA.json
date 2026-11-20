@@ -1,0 +1,79 @@
+{
+  "archive_policy": {
+    "exclude": [
+      ".git history",
+      "target build outputs",
+      "local .env and secrets",
+      "IDE metadata",
+      "transient logs"
+    ],
+    "include": [
+      "source",
+      "tests",
+      "pom.xml files",
+      "Maven wrapper and configuration",
+      "SQL migrations",
+      "scripts",
+      "GitHub Actions workflow and mirror",
+      "documentation",
+      ".env.example"
+    ],
+    "unix_executable_bits_preserved": true
+  },
+  "b2_artifact_review": {
+    "content_available_in_this_workspace": false,
+    "content_review_status": "pending; do not state empirical planner results until actual artifact is inspected",
+    "expected_files": [
+      "target/m8-b2-results/m8-b2-raw-runs.jsonl",
+      "target/m8-b2-results/m8-b2-comparison-report.jsonl",
+      "target/m8-b2-results/m8-b2-determinism-check.jsonl",
+      "target/m8-b2-results/SHA256SUMS.txt",
+      "target/m8-b2-results/RUN-PROVENANCE.txt"
+    ],
+    "generation_and_nonempty_checks": "passed as part of user-confirmed green B5 workflow",
+    "workflow_artifact_name": "phase0-test-evaluation-and-dependency-reports"
+  },
+  "checkpoint_date": "2026-11-20",
+  "checkpoint_id": "SUPPLY-CHAIN-AGENT-M8-B6-SOURCE-2026-11-20",
+  "freeze_boundary": "source checkpoint only; production deployment and B2 result-content review gates remain open",
+  "inventory": {
+    "maven_modules": 11,
+    "maven_poms_including_parent": 12,
+    "production_java_files": 404,
+    "project_file_count_before_b6_docs_and_manifest": 655,
+    "sha256_manifest_entries": 658,
+    "source_files_excluding_manifest": 658,
+    "source_files_including_manifest": 659,
+    "test_annotation_or_factory_occurrences": 334,
+    "test_java_source_files": 62
+  },
+  "local_validation": {
+    "b5_architecture_guard": "PASS",
+    "junit_executed_for_b6_packaging": false,
+    "maven_build_executed_for_b6_packaging": false,
+    "reason": "Maven is not installed/cached in the authoring environment; B5 user-confirmed hosted CI is the executable-code acceptance evidence. B6 changes only documentation and checkpoint metadata."
+  },
+  "m8_status": {
+    "m8_b0": "accepted",
+    "m8_b1": "accepted_user_confirmed_ci_green",
+    "m8_b2": "accepted_user_confirmed_ci_green; latest_b5_ci_generated_artifacts_but_content_review_pending",
+    "m8_b3": "accepted_user_confirmed_ci_green",
+    "m8_b4": "accepted_user_confirmed_ci_green",
+    "m8_b5": "ci_build_architecture_and_artifact_generation_accepted_user_confirmed_green_2026-11-20; artifact_content_review_pending",
+    "m8_b6": "source_checkpoint_packaged; final_evidence_freeze_pending_b2_artifact_review",
+    "m8_b7": "not_started; gated_on_final_freeze_and_outline_approval"
+  },
+  "migrations": "V001-V009 present; no migrations modified by B6",
+  "project": "Supply-Chain Disruption Management Agent",
+  "source_baseline": {
+    "accepted_b4d_correction_zip_sha256": "e2a20540b21cc584919fc87e1540dab4dece53edcba8977dab24e82602f46a32",
+    "b5_ci_run_id": null,
+    "b5_ci_status": "user_confirmed_green",
+    "b5_git_commit_sha": null,
+    "b5_overlay": "M8_B5_FINAL_QUALITY_AND_ARCHITECTURE_REVIEW_CHANGESET_ONLY.zip",
+    "b5_overlay_sha256": "3d88cdc24fded3b0222bca326b6520676f2a74f63ba927a40adcfb76d9cf7a65",
+    "note": "GitHub Actions run ID and source commit SHA were not supplied in the conversation. The hosted RUN-PROVENANCE.txt is expected to bind those values to the B2 experiment artifact.",
+    "user_uploaded_archive": "supply-chain-agent-main (4).zip",
+    "user_uploaded_archive_sha256": "8632ae0c2008b23253bb6582f2a55a33a6ed38c6f4445245ec4c42710418d4b9"
+  }
+}

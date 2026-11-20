@@ -2,7 +2,7 @@
 
 **Review baseline:** user-uploaded `supply-chain-agent-main (4).zip`, SHA-256 `8632ae0c2008b23253bb6582f2a55a33a6ed38c6f4445245ec4c42710418d4b9`, with accepted `M8_B4_D_LATEST_REPO_CI_FIX_CHANGESET_ONLY.zip` applied, SHA-256 `e2a20540b21cc584919fc87e1540dab4dece53edcba8977dab24e82602f46a32`.  
 **Review date:** 2026-11-20.  
-**Status:** review corrections and guardrails prepared; B5 acceptance awaits the next complete CI run and inspection of the generated B2 JSONL artifact set.  
+**Status:** the user confirmed the complete B5 GitHub Actions workflow is green on 2026-11-20. The CI/build/architecture and artifact-generation gates are accepted. The hosted B2 JSONL payload was not attached to the source archive available for this checkpoint, so content-level result interpretation remains pending and is not claimed here.  
 **M8-B4-D:** accepted separately; the user confirmed the complete B4-D CI run is green.
 
 ## Executive assessment
@@ -52,7 +52,7 @@ The latest source archive did not include the three results files. B5 therefore 
 - `target/m8-b2-results/m8-b2-comparison-report.jsonl`
 - `target/m8-b2-results/m8-b2-determinism-check.jsonl`
 
-The next hosted CI output must be downloaded and examined before the B5 review can claim an empirical result. The review will check matrix completeness, run counts, all ten paired comparisons, bootstrap metadata, replay count/fingerprint status, and the explicit planner-only/no-external-dispatch boundary. No B2 outcome numbers are fabricated or inferred from the source-only archive.
+The user-confirmed green hosted CI completes the B2 CLI execution, required non-empty file checks, checksum/provenance generation, and workflow artifact upload. The actual artifact payload was not present in the repository source archive or the authoring workspace for this checkpoint. Consequently, matrix completeness, actual run counts, ten paired-comparison contents, bootstrap metadata, replay fingerprint status and planner-only/no-dispatch claims still require inspection of the downloaded CI artifact. No B2 outcome numbers are fabricated or inferred from the green build alone.
 
 ## Security and failure-boundary review
 
@@ -102,4 +102,11 @@ B5 can close only after:
 4. The downloaded JSONL records are inspected; counts/matrix/paired analysis/replays are reported from the actual output and reconciled with the B2 protocol. If replays mismatch, the mismatches are preserved and explained rather than hidden.
 5. The workflow mirror remains synchronized and the dependency tree artifact is captured.
 
-Only then should M8-B6 create the final frozen source checkpoint and release-readiness summary. Chapters 19 and 20 remain gated on B6 and approval of their detailed outlines.
+The user-confirmed green CI accepts the B5 build/architecture and artifact-generation gates. M8-B6 may package the source checkpoint while recording the B2 result-content review as an explicit evidence-only gate. Final empirical interpretation and chapter claims remain blocked until the hosted JSONL payload is archived and inspected. Chapters 19 and 20 remain gated on final B6 evidence reconciliation and approval of their detailed outlines.
+
+
+## Hosted CI acceptance — 2026-11-20
+
+The user confirmed that the complete M8-B5 GitHub Actions workflow is green. The workflow runs the architecture guard, the Java 21/PostgreSQL Maven `clean install`, the M8-B2 CLI, non-empty checks for all three JSONL files, SHA-256 generation, source/run provenance, the PostgreSQL backup/isolated-restore smoke, dependency-tree capture and artifact upload. B5 is therefore accepted for its CI/build/architecture and artifact-generation gates.
+
+**Evidence boundary:** the actual uploaded artifact files were not attached to this authoring session. This report does not claim that their content was independently inspected. The B2 experimental interpretation gate remains open until the artifact is downloaded and reconciled against the 25 × 5 matrix and 125 logical replay design.

@@ -20,8 +20,8 @@
 | M8-B2 | Compare CoT-style, ToT-inspired, deterministic/greedy, RAP-inspired MCTS and the hybrid router with matched analysis, paired uncertainty intervals and logical replay | **Accepted — user confirmed CI green** |
 | M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Accepted — user confirmed CI green** |
 | M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **Accepted — B4-A/B/C/D; user confirmed complete B4-D CI green on 2026-11-20** |
-| M8-B5 | Final quality, security and architecture review; reproducible experiment evidence | **In progress — static review/guardrails prepared; final CI and B2 artifact interpretation pending** |
-| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Not started — gated on B5 closure** |
+| M8-B5 | Final quality, security and architecture review; reproducible experiment evidence | **CI accepted — user confirmed the complete workflow is green on 2026-11-20; B2 artifact-content review remains open** |
+| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Source checkpoint packaged on 2026-11-20; final evidence freeze awaits B2 JSONL content review and companion-artifact archival** |
 | M8-B7 | Approve Chapter 19/20 outlines and write chapters | **Not started — gated on B6 freeze and outline approval** |
 
 ## M8-B1 implementation delivered and accepted — CI green
@@ -83,6 +83,8 @@
 - Important boundaries: the forked-JVM test uses a small LangGraph4j test graph, not the entire application graph; its external provider is a deterministic marker-file double. Provider tokens are not inferred. A hard process kill between B6 reserve and commit conservatively leaves an active reservation; automatic orphan reservation reclamation is not implemented. The current `Phase0Application` remains an intake smoke entry point; production full-graph hosts must wire the single guard explicitly as documented in `M8-B4-D-PRODUCTION-B6-COMPOSITION.md`.
 - Acceptance: the user confirmed the complete GitHub Actions CI workflow is green on 2026-11-20. This confirms the configured build/test workflow, including the two-process PostgreSQL integration path; it does not establish the live external integrations or deployment-owned controls listed below.
 
+
+
 ## Phase boundaries
 
 M8 evaluates the application and freezes it; it does not reopen M7 persistence infrastructure. WAL/PITR activation, tenant reconciliation for `__legacy_unscoped__`, deployment retention approval, external system credentials/adapters and enterprise identity integration remain deployment-owned rollout items. They are not silently marked complete by a green CI run.
@@ -90,7 +92,7 @@ M8 evaluates the application and freezes it; it does not reopen M7 persistence i
 Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detailed outlines.
 
 
-## M8-B5 — final quality, security and architecture review (in progress)
+## M8-B5 — final quality, security and architecture review (CI accepted; evidence interpretation outstanding)
 
 - B4-D is accepted based on the user's confirmation that the complete GitHub Actions workflow is green on 2026-11-20. B4-A/B/C/D are closed.
 - Source audit found missing direct LangGraph4j dependency declarations in the app, evaluation and PostgreSQL infrastructure modules; B5 adds those explicit dependencies and a static guardrail for direct framework dependencies and the framework-neutral module boundary.
@@ -98,4 +100,13 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 - Removed the temporary B4-D troubleshooting step from the active workflow and made `workflows/ci.yml` byte-identical to `.github/workflows/ci.yml`.
 - B2's comparison runner was present, but its three JSONL result outputs were absent from the latest repository archive. B5 makes CI clean-install the tested reactor, execute `M8ComparisonCli` against those installed artifacts, and upload raw runs, comparison report, replay-check JSONL, SHA-256 checksums and CI source/run provenance. The next CI artifact must be inspected before B5 empirical interpretation is closed.
 - Static security review found no obvious unsafe Java deserialization, production process execution, or hard-coded secret patterns in the inspected source. This is not a SAST/SCA scan or penetration test. See `M8-B5-FINAL-QUALITY-REVIEW.md` for detailed scope and limits.
-- B5 remains open until the architecture guard and full Java 21/PostgreSQL CI pass and the actual B2 JSONL artifact is reviewed.
+- The user confirmed that the complete B5 GitHub Actions workflow is green on 2026-11-20. This accepts the architecture guard, full Java 21/PostgreSQL `clean install`, comparison CLI execution, non-empty result-file checks, checksum/provenance generation, backup/restore smoke and artifact upload path. The raw hosted JSONL contents were not included in the source archive supplied for M8-B6; matrix/result/replay content interpretation remains an explicit evidence-only task and must not be inferred from the green status.
+
+## M8-B6 — application source freeze and repository checkpoint (source package prepared)
+
+- Created the full source checkpoint `SUPPLY_CHAIN_AGENT_M8_B6_FROZEN_SOURCE_2026-11-20.zip` from the B5-reviewed repository tree after the user-confirmed green B5 CI. The ZIP includes source, tests, Maven wrapper/configuration, migrations, scripts, GitHub Actions workflow, architecture/phase documentation and this freeze record; it intentionally excludes `.git`, `target/`, local `.env` files and transient IDE/log output.
+- The B6 documentation-only changes do not alter Java, Maven POMs, SQL migrations, scripts, or CI workflow behavior. The B5-accepted source/CI gate therefore remains the latest executable-code validation. No new Maven/JUnit run is claimed for this packaging step.
+- A sorted SHA-256 file manifest and checkpoint metadata bind the exact source tree. The project archive does not contain Git history; no commit SHA or GitHub Actions run ID was supplied, so the source archive digest and user-confirmed workflow state are the checkpoint identity available here.
+- The B5 workflow's green run confirms its B2 CLI and non-empty result-file/provenance steps completed. The actual three JSONL files and GitHub Actions artifact payload were not supplied to this workspace; their record counts, ten paired comparisons and 125 replay outcomes are therefore not content-verified here. Archive that CI artifact beside the source checkpoint and review it before stating planner-result conclusions in Chapters 19/20.
+- The readiness register preserves open production/deployment gates: production `compileFull` host wiring, full production-graph OS restart, orphan B6 reservation recovery, trusted token-level usage, ERP/WMS/supplier/carrier adapters, production IAM, PITR/RPO/RTO, tenant reconciliation, retention/legal-hold operations and formal SAST/SCA/penetration testing.
+- M8-B6 does not convert a source archive into a production deployment certification. The source checkpoint is packaged; final evidence freeze is conditional on the companion B2 experiment artifact being archived/reviewed and no further source edits being introduced without a new checkpoint version.

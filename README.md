@@ -1,11 +1,11 @@
 
 ## Current milestone status — M8 (2026-11-20)
 
-M6 and M7 are accepted. The user confirmed that the complete Java 21/Maven/PostgreSQL GitHub Actions workflow is green after the final M7-B2 timestamp and batch-contract corrections. M7 is frozen and closed; no M7-B3 or further persistence phase is planned. M8-B0 froze the exact M7-accepted source baseline. M8-B1 adds the versioned evaluation corpus, deterministic planner-comparison harness, evaluation-only greedy comparator and a fail-closed full-graph composition probe; the user confirmed its CI is green. M8-B2 adds matched comparative analysis and the user confirmed its CI is green. M8-B3 adds mechanism ablations and a results clarification; its CI is user-confirmed green. M8-B4-A/B/C/D are now accepted after the user confirmed the complete B4-D GitHub Actions workflow is green. M8-B5 is the final quality, security and architecture review; its new dependency/architecture gate and reproducible B2 result-artifact capture are awaiting CI and artifact review.
+M6 and M7 are accepted and frozen. M8-B0 through M8-B4 are accepted; the user confirmed the full B4-D CI green on 2026-11-20. M8-B5 is accepted at the CI/build and architecture-gate level after the user confirmed the complete workflow is green; the workflow generates, checksums and uploads the B2 JSONL result set. The content-level review of those hosted JSONL files remains an explicit evidence task because the artifact payload was not included in the source archive used for this checkpoint. M8-B6 now records and packages the source freeze candidate and release-readiness boundaries. M8-B7 (Chapters 19 and 20) remains gated on evidence reconciliation, final freeze acceptance and approval of the detailed chapter outlines.
 
 # Supply-Chain Disruption Management Agent
 
-**Current milestone: M8 — Evaluation and application freeze (M7 frozen; M8-B0 through M8-B4 accepted; M8-B5 final review in progress; M8-B6 freeze and M8-B7 chapter gates remain)**
+**Current milestone: M8 — Evaluation and application freeze (M7 frozen; M8-B0 through M8-B4 accepted; M8-B5 CI accepted with B2 artifact-content review outstanding; M8-B6 source checkpoint packaged, final evidence freeze pending; M8-B7 chapter gates remain)**
 
 This is the reference application for Part III of *From Cognitive Architectures to Production Agentic Systems*. The scope is one request-driven enterprise supply-chain disruption management agent. The complete production-oriented Java application will be developed, tested and frozen before Chapters 19 and 20 are written. The chapters will explain selected architecture and implementation blocks and link to the complete source repository; they will not reproduce every source file.
 

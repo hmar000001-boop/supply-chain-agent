@@ -124,3 +124,12 @@
 - The latest source archive contained the B2 runner but not its actual three JSONL result files. CI is now configured to clean-install the exact reactor, run the B2 CLI and upload raw runs, comparison analysis and determinism output with SHA-256 and source/run provenance for review. No empirical output is fabricated; B5 acceptance awaits the hosted artifact inspection.
 - Updated M8/B4 status, decisions, traceability and README. Deployment limitations (live ERP/WMS/carrier/IAM, production graph host, orphan B6 reservation recovery, trusted token accounting, PITR/RPO/RTO, retention and tenant reconciliation) remain open and are not implied complete by green CI.
 - Local checks for the B5 patch: Python guard execution, XML parsing, workflow YAML parsing, shell syntax and package overlay/integrity checks. Maven/JUnit/CI were not run locally; the next hosted GitHub Actions run is the acceptance gate.
+
+
+## 2026-11-20 — M8-B5 CI accepted; M8-B6 source checkpoint packaged
+
+- The user confirmed the complete M8-B5 GitHub Actions workflow is green. The architecture guard, Java 21/PostgreSQL `clean install`, M8-B2 CLI, required result-file checks, checksums/provenance, PostgreSQL backup/isolated-restore smoke, dependency-tree capture and artifact-upload step therefore passed in the hosted run.
+- Marked B5's CI/build/architecture gate accepted. The actual hosted B2 JSONL payload was not provided to this workspace; its content-level matrix, paired-comparison and replay interpretation remains open and no result values are claimed.
+- Added the M8-B6 freeze record, source-checkpoint metadata, source-file SHA-256 manifest and release-readiness register. Produced a complete source ZIP from the B5-accepted tree.
+- M8-B6 packaging is documentation/checkpoint work only; no Java source, Maven POM, SQL migration, shell script or CI workflow was changed after the green B5 run. No additional Maven/JUnit execution is claimed for the checkpoint packaging step.
+- Preserved open rollout gates: complete production application host/guard wiring, production-graph process restart, orphan B6 reservation recovery, trusted token-level usage, live ERP/WMS/supplier/carrier/provider adapters, production IAM, WAL/PITR RPO/RTO, tenant reconciliation, retention/legal-hold operation and formal SAST/SCA/penetration testing.

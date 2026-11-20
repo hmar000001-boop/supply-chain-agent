@@ -1,0 +1,21 @@
+gate_id,gate,evidence_or_scope,status,boundary_or_next_action
+B6-01,Source archive created,Full 11-module source snapshot; checkpoint ID SUPPLY-CHAIN-AGENT-M8-B6-SOURCE-2026-11-20,PACKAGED,Verify ZIP and per-file SHA-256 manifest before use
+B6-02,B5 architecture guard,scripts/verify-m8-b5-architecture.py; local execution after B5 patch returned PASS,PASS,Hosted B5 workflow also green per user confirmation
+B6-03,Java 21 Maven reactor and PostgreSQL integration,B5 CI clean install with phase0.postgres=true,USER-CONFIRMED GREEN,No new Maven run claimed for documentation/checkpoint packaging
+B6-04,PostgreSQL backup and isolated restore smoke,B5 active GitHub Actions workflow backup/restore step,USER-CONFIRMED GREEN,CI smoke only; not measured PITR/RPO/RTO certification
+B6-05,B2 raw/comparison/determinism artifact generation,B5 workflow runs M8ComparisonCli and asserts each JSONL file is non-empty,GENERATED IN CI; CONTENT REVIEW PENDING,"Download artifact phase0-test-evaluation-and-dependency-reports; verify exact 125 planner rows, ten pairs, 125 replay records and mismatch IDs"
+B6-06,B2 artifact provenance/checksums,B5 workflow writes SHA256SUMS.txt and RUN-PROVENANCE.txt,GENERATED IN CI; NOT LOCALLY ARCHIVED,"Archive companion artifact with repository SHA, workflow run URL/attempt and baseline identity"
+B6-07,Dependency graph and module ownership,11 modules; acyclic graph; direct LangGraph4j dependencies in importing modules,PASS,Framework-neutral modules remain free of framework imports
+B6-08,Source and test inventory,404 production Java; 62 test source files; 334 annotated test/factory occurrences,PASS (STATIC INVENTORY),"Counts are source inventory, not executed test totals"
+B6-09,Migrations,V001-V009 in current accepted source; no B6 migration changes,FROZEN,M7 V001-V008 remain immutable; B4-A adds V009
+B6-10,Full production application host,Phase0Application remains intake smoke host; full trusted compileFull deployment host not supplied,OPEN — PRODUCTION,Wire authoritative domain/authority adapters and shared durable B6 guard
+B6-11,Full production application OS restart,B4-D tested a small LangGraph4j test graph over two child JVMs,OPEN — NOT CLAIMED,Add full compileFull application kill/relaunch test
+B6-12,Orphan B6 reservation recovery,Hard-kill between reservation and commit can leave an active reservation,OPEN — PRODUCTION,Add durable ownership/lease or reconciliation policy and fault-injection test
+B6-13,Provider usage precision,"Current guard commits observable planner/provider/evaluation usage, not trusted token counts",OPEN — PROVIDER CAPABILITY,Integrate authoritative provider usage when available; retain conservative charging
+B6-14,Live ERP/WMS/supplier/carrier integrations,Current evaluation uses deterministic simulator and strict test adapters,OPEN — EXTERNAL INTEGRATION,"Contract, idempotency, timeout, reconciliation, auth and certification per provider"
+B6-15,Production IAM and tenant configuration,Contracts and scoped principals exist; real identity deployment is not connected,OPEN — SECURITY/DEPLOYMENT,"Configure authoritative principals, tenant boundaries and secret management"
+B6-16,PITR and disaster recovery targets,CI backup/isolated-restore smoke only,OPEN — OPERATIONS,Enable WAL/PITR; measure and approve RPO/RTO and operational runbooks
+B6-17,Tenant legacy reconciliation,Legacy __legacy_unscoped__ records require explicit mapping,OPEN — DATA GOVERNANCE,Reconcile before multi-tenant production use
+B6-18,Retention and legal holds,Policy not established by repository CI,OPEN — GOVERNANCE,"Approve retention, purge, legal-hold and audit requirements"
+B6-19,Formal SAST/SCA/CVE and penetration tests,B5 bounded static source inspection only; no formal scanner or pentest claimed,OPEN — SECURITY ASSURANCE,Run approved scanning and independent security assessment before release
+B6-20,Chapters 19/20 gate,M8-D013,BLOCKED ON FINAL FREEZE AND OUTLINE APPROVAL,Review B2 result artifact; approve detailed chapter outlines before drafting
