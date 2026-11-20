@@ -3,6 +3,7 @@ package dev.supplychain.agent.runtime.cognitive.lifecycle;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -235,6 +236,99 @@ final class CognitiveCycleLifecycleServicesTest {
         var unchanged = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
         assertEquals(IntentionStatus.RECONSIDERATION_PENDING, unchanged.status());
         assertEquals("method-initial", unchanged.currentMethod().methodId());
+    }
+
+    @Test
+    void b4LifecycleRejectsMethodReplacementBeforeExplicitReconsideration() {
+        Fixture fixture = new Fixture();
+        ContextLoaded loaded = fixture.lifecycle.loadContext(context("", 0, "", 0, ""));
+        CycleContext active = context(loaded.workingMemoryId(), loaded.workingMemoryVersion(),
+                loaded.intentionId(), loaded.intentionVersion(), "");
+        fixture.domain.nextIntentionDirective = new CognitiveCycleLifecyclePort.IntentionDirective(
+                IntentionAction.CHANGE_METHOD, "replace the method without a reconsideration transition",
+                new RecoveryMethodReference("supplier-alternative", "candidate:new"),
+                fixture.domain.objectiveFingerprint(active), "");
+
+        assertThrows(IllegalStateException.class, () -> fixture.lifecycle.governIntention(active));
+
+        var unchanged = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
+        assertEquals(IntentionStatus.ACTIVE, unchanged.status());
+        assertEquals("method-initial", unchanged.currentMethod().methodId());
+        assertEquals(loaded.intentionVersion(), unchanged.version());
+    }
+
+    @Test
+    void b4LifecycleAcceptsMethodChangeOnlyAfterExplicitReconsiderationAndPreservesObjective() {
+        Fixture fixture = new Fixture();
+        ContextLoaded loaded = fixture.lifecycle.loadContext(context("", 0, "", 0, ""));
+        CycleContext active = context(loaded.workingMemoryId(), loaded.workingMemoryVersion(),
+                loaded.intentionId(), loaded.intentionVersion(), "");
+        var original = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
+        String objectiveFingerprint = original.objectiveFingerprint();
+
+        fixture.domain.nextIntentionDirective = new CognitiveCycleLifecyclePort.IntentionDirective(
+                IntentionAction.RECONSIDER, "authoritative supplier-capacity evidence invalidated the current method", null, "", "");
+        IntentionGovernance reconsidered = fixture.lifecycle.governIntention(active);
+        assertEquals(IntentionAction.RECONSIDER, reconsidered.action());
+
+        fixture.domain.nextIntentionDirective = new CognitiveCycleLifecyclePort.IntentionDirective(
+                IntentionAction.CHANGE_METHOD, "select an alternative registered recovery method",
+                new RecoveryMethodReference("supplier-alternative", "candidate:verified-alternative"),
+                objectiveFingerprint, "");
+        CycleContext pending = context(loaded.workingMemoryId(), loaded.workingMemoryVersion(),
+                loaded.intentionId(), reconsidered.intentionVersion(), "");
+        IntentionGovernance changed = fixture.lifecycle.governIntention(pending);
+
+        var accepted = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
+        assertEquals(IntentionAction.CHANGE_METHOD, changed.action());
+        assertEquals(IntentionStatus.ACTIVE, accepted.status());
+        assertEquals("supplier-alternative", accepted.currentMethod().methodId());
+        assertEquals("candidate:verified-alternative", accepted.currentMethod().candidatePlanReference());
+        assertEquals(objectiveFingerprint, accepted.objectiveFingerprint());
+        assertEquals(original.objectiveId(), accepted.objectiveId());
+        assertEquals(original.protectedConstraints(), accepted.protectedConstraints());
+        assertEquals(reconsidered.intentionVersion() + 1, accepted.version());
+    }
+
+    @Test
+    void b4LifecycleRejectsStaleIntentionBeforeConsultingTheDirectivePort() {
+        Fixture fixture = new Fixture();
+        ContextLoaded loaded = fixture.lifecycle.loadContext(context("", 0, "", 0, ""));
+        CycleContext stale = context(loaded.workingMemoryId(), loaded.workingMemoryVersion(),
+                loaded.intentionId(), loaded.intentionVersion(), "");
+        new RecoveryIntentionService(fixture.intentionRepository).requestReconsideration(
+                new RecoveryIntentionId(loaded.intentionId()), loaded.intentionVersion(),
+                "concurrent authoritative update", NOW.plusSeconds(1));
+        fixture.domain.nextIntentionDirective = new CognitiveCycleLifecyclePort.IntentionDirective(
+                IntentionAction.CONTINUE, "stale graph must not continue", null, "", "");
+
+        assertThrows(IllegalStateException.class, () -> fixture.lifecycle.governIntention(stale));
+
+        assertEquals(0, fixture.domain.intentionDirectiveCalls,
+                "stale graph state must be rejected before a new host directive is requested");
+        var latest = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
+        assertEquals(IntentionStatus.RECONSIDERATION_PENDING, latest.status());
+        assertEquals(loaded.intentionVersion() + 1, latest.version());
+    }
+
+    @Test
+    void b4AuthorizedTerminationIsExplicitAndCannotMasqueradeAsObjectiveCompletion() {
+        Fixture fixture = new Fixture();
+        ContextLoaded loaded = fixture.lifecycle.loadContext(context("", 0, "", 0, ""));
+        CycleContext active = context(loaded.workingMemoryId(), loaded.workingMemoryVersion(),
+                loaded.intentionId(), loaded.intentionVersion(), "");
+        fixture.domain.nextIntentionDirective = new CognitiveCycleLifecyclePort.IntentionDirective(
+                IntentionAction.TERMINATE, "authorized operator explicitly abandons this recovery", null, "", "authorized-operator");
+
+        IntentionGovernance terminated = fixture.lifecycle.governIntention(active);
+
+        var finalIntention = fixture.intentionRepository.findById(new RecoveryIntentionId(loaded.intentionId())).orElseThrow();
+        assertEquals(IntentionAction.TERMINATE, terminated.action());
+        assertEquals(IntentionStatus.TERMINATED, finalIntention.status());
+        assertEquals(loaded.intentionVersion() + 1, finalIntention.version());
+        assertEquals(ObjectiveFingerprint.from(fixture.domain.objective).value(), finalIntention.objectiveFingerprint());
+        assertNull(finalIntention.completionProof(), "termination must not be represented as verified objective completion");
+        assertThrows(IllegalStateException.class, () -> fixture.lifecycle.governIntention(active));
     }
 
     @Test
@@ -521,6 +615,7 @@ final class CognitiveCycleLifecycleServicesTest {
         private ChildInvestigationPlan childPlan;
         private List<ResolutionFinding> findings = List.of();
         private int executedChildSteps;
+        private int intentionDirectiveCalls;
 
         @Override public MemoryScopeId memoryScope(CycleContext context) { return new MemoryScopeId(context.memoryScopeId()); }
         @Override public dev.supplychain.agent.memory.working.WorkingMemoryId workingMemoryId(CycleContext context) {
@@ -559,7 +654,10 @@ final class CognitiveCycleLifecycleServicesTest {
             return new ParentContextSnapshot(latestWorkingMemory.scopeId(), context.requestId(), latestWorkingMemory.version(), objectiveFingerprint(context));
         }
         @Override public IntentionDirective intentionDirective(CycleContext context,
-                dev.supplychain.agent.mechanisms.b4.RecoveryIntention current, Instant at) { return nextIntentionDirective; }
+                dev.supplychain.agent.mechanisms.b4.RecoveryIntention current, Instant at) {
+            intentionDirectiveCalls++;
+            return nextIntentionDirective;
+        }
         @Override public MetaControlInputs metaControlInputs(CycleContext context, Instant at) { return metaControl; }
         @Override public void recordMetaControlDecision(CycleContext context, MetaControlInputs inputs,
                 dev.supplychain.agent.mechanisms.b6.MetaControlDecision decision, Instant at) {

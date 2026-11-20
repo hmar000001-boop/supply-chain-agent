@@ -5,7 +5,7 @@
 **Source archive:** `SUPPLY_CHAIN_AGENT_M8_B6_FROZEN_SOURCE_2026-11-20.zip`  
 **Source archive SHA-256:** `e68c91eb2112d76d15d80340b44424a56f2e99c03abb5d2246bb41f18887ec37`  
 **R0 status:** Accepted — documentation and conformance-baseline corrections complete  
-**Execution status:** R1 in progress — R1-A implementation added; awaiting CI validation  
+**Execution status:** R1 in progress — R1-A CoALA working-memory projection and R1-B B4 lifecycle adversarial tests prepared; R1-A must pass CI before R1-B is applied and validated  
 **Change class in R0:** Documentation only; no executable source, tests, POMs, migrations or CI workflows changed.
 
 ## 1. Purpose
