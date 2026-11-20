@@ -65,3 +65,13 @@
 - Updated the isolated backup/restore verifier to require contiguous V001-V009 history and assert that the six durable B6 tables are present after restore; M7 SQL migrations remain immutable.
 - Added the M8-B4 reliability matrix and slice plan. B4-A does not claim complete application-graph workflows or full process-kill/restart; those remain subsequent B4 work.
 - Maven/JUnit/CI were not run in the authoring environment. GitHub Actions remains the acceptance gate.
+
+
+## 2026-11-20 — M8-B4-A CI correction and M8-B4-B full-graph workflow suite (prepared; user CI pending)
+
+- Corrected the B4-A reservation-release assertion: releasing a two-unit hold against a four-unit budget restores four available units; the prior expectation of two was incorrect.
+- Added ten full-graph test methods covering twelve fixture executions across eleven distinct scenario IDs via `FullGraphEvaluationHost.compileFull(Ports)` and the real `CognitiveCycleApplicationGraph.compileFull(...)` composition.
+- Added exact approval-binding assertions, distinct approval identities after stale-plan/demand-change replanning, and assertions that replanning uses updated trusted definitions and authoritative world version.
+- Preserved the boundaries of the test evidence: route evidence is preserved but rerouting is not tested; stale/current inventory evidence references are preserved but not reconciled into new facts; read-only/no-feasible paths fail closed because the graph has no typed read-only success terminal; process-kill/restart and B6 lifecycle wiring remain open.
+- Added the B4-B workflow matrix and updated M8 status, decisions, traceability and module test inventory.
+- No Maven, JUnit or GitHub Actions execution is claimed for this authoring delivery. The cumulative ZIP must be validated with `./mvnw -B -ntp -Dphase0.postgres=true clean verify`.

@@ -67,10 +67,24 @@ public final class EvaluationPlannerFactory {
                 GreedyDeterministicComparator.ID, PlannerId.RAP_INSPIRED_MCTS.name(), HYBRID_ID);
     }
 
+    /**
+     * Returns the three real planner implementations for full-graph reliability scenarios.
+     * Their clocks are fixed at the fixture timestamp so a CI scheduling delay cannot turn a
+     * deterministic workflow test into an accidental planner-deadline test.
+     */
+    public List<PlanningStrategy> strategiesForFullGraph(ScenarioFixture fixture) {
+        Objects.requireNonNull(fixture, "fixture");
+        return nativeStrategies(fixture, Clock.fixed(fixture.planningRequest().requestedAt(),
+                java.time.ZoneOffset.UTC)).strategies();
+    }
+
     private NativeStrategyBundle nativeStrategies(ScenarioFixture fixture) {
+        return nativeStrategies(fixture, fixtures.advancingFixtureClock());
+    }
+
+    private NativeStrategyBundle nativeStrategies(ScenarioFixture fixture, Clock clock) {
         var model = fixtures.worldModel();
         var evaluator = fixtures.evaluator(model);
-        Clock clock = fixtures.advancingFixtureClock();
         var sequentialMeter = new RecordingPlannerResourceMeter();
         var totMeter = new RecordingPlannerResourceMeter();
         var mctsMeter = new RecordingPlannerResourceMeter();

@@ -1,6 +1,7 @@
 package dev.supplychain.agent.evaluation.host;
 
 import dev.supplychain.agent.actions.api.ActionDispatcher;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceConsumer;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
 import dev.supplychain.agent.actions.api.InMemoryActionExecutionLedger;
@@ -78,9 +79,10 @@ import java.util.Objects;
  * invoked as a scenario. {@link #compileFailClosedProbe()} exists only to verify composition; all
  * host-domain, decision-domain and authority calls from that probe fail closed.
  *
- * <p>This class is not the M8-B4 end-to-end workflow runner and does not claim that a compiled graph
- * has processed a business scenario. M8-B1 uses the independent planner-only harness for matched
- * algorithm comparisons; full lifecycle scenario execution remains a later M8 workstream.</p>
+ * <p>M8-B4 supplies explicit test-only action handlers and workspace consumers through {@link Ports}.
+ * The host still defaults to an empty action registry and does not manufacture domain authority.
+ * A caller can therefore exercise the real application composition only by supplying every trusted
+ * adapter and the narrowly scoped disposable effects it intends to observe.</p>
  */
 public final class FullGraphEvaluationHost {
     public static final Instant HOST_TIME = Instant.parse("2026-11-20T12:00:00Z");
@@ -94,7 +96,9 @@ public final class FullGraphEvaluationHost {
             PlanningWorldModel worldModel,
             CandidateEvaluator candidateEvaluator,
             List<PlanningStrategy> plannerStrategies,
-            Clock clock) {
+            Clock clock,
+            ActionRegistry actionRegistry,
+            Map<String, WorkspaceConsumer> workspaceConsumers) {
         public Ports {
             Objects.requireNonNull(decisionDomain, "decisionDomain");
             Objects.requireNonNull(lifecycleDomain, "lifecycleDomain");
@@ -104,6 +108,13 @@ public final class FullGraphEvaluationHost {
             Objects.requireNonNull(candidateEvaluator, "candidateEvaluator");
             plannerStrategies = List.copyOf(Objects.requireNonNull(plannerStrategies, "plannerStrategies"));
             Objects.requireNonNull(clock, "clock");
+            Objects.requireNonNull(actionRegistry, "actionRegistry");
+            workspaceConsumers = Map.copyOf(Objects.requireNonNull(workspaceConsumers, "workspaceConsumers"));
+            workspaceConsumers.forEach((id, consumer) -> {
+                if (id == null || id.isBlank() || consumer == null) {
+                    throw new IllegalArgumentException("workspace consumer registry contains an invalid entry");
+                }
+            });
             var actualIds = plannerStrategies.stream().map(PlanningStrategy::id).toList();
             if (actualIds.size() != PlannerId.values().length
                     || actualIds.stream().distinct().count() != PlannerId.values().length
@@ -120,8 +131,9 @@ public final class FullGraphEvaluationHost {
     }
 
     /**
-     * Compile the real application graph using caller-supplied, explicit scenario adapters.
-     * No action handlers are accepted or registered by this test host.
+     * Compile the real application graph using caller-supplied, explicit scenario adapters,
+     * trusted action handlers and workspace consumers. The supplied action registry is the
+     * only registry used by the M3 dispatcher in this host.
      */
     public CompiledGraph<CognitiveCycleState> compileFull(Ports ports) throws GraphStateException {
         Objects.requireNonNull(ports, "ports");
@@ -135,14 +147,14 @@ public final class FullGraphEvaluationHost {
                 new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
                         new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000)),
                 new WorkspaceAdmissionService(new InMemoryWorkspaceRepository()),
-                new WorkspaceBroadcastService(Map.of()),
+                new WorkspaceBroadcastService(ports.workspaceConsumers()),
                 new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
                 ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
                 ports.decisionDomain(), ports.clock());
 
         // The same repository instances back write/read memory services and decision-side retrieval.
         // This prevents a test host from accidentally validating two disconnected in-memory stores.
-        var actionRegistry = new ActionRegistry();
+        var actionRegistry = ports.actionRegistry();
         var lifecycleServices = new CognitiveCycleLifecycleServices(
                 new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1)),
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),
@@ -184,7 +196,8 @@ public final class FullGraphEvaluationHost {
         RequestInterpreter interpreter = request -> new RequestInterpretation(
                 InterpretationOutcome.READY, request.originalText(), "M8-B1 fail-closed composition probe");
         return new Ports(failClosed(CognitiveCycleDecisionPort.class), failClosed(CognitiveCycleLifecyclePort.class),
-                failClosed(CognitiveCycleAuthorityPort.class), interpreter, world, evaluator, strategies, clock);
+                failClosed(CognitiveCycleAuthorityPort.class), interpreter, world, evaluator, strategies, clock,
+                new ActionRegistry(), Map.of());
     }
 
     private static <T> T failClosed(Class<T> portType) {

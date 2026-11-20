@@ -154,8 +154,9 @@ class M8B4ReliabilityIntegrationTest {
         ResourceUsage requested = ResourceUsage.of(ResourceUnit.MODEL_CALLS, 2);
         ledger.reserve(execution, "reservation", requested, NOW);
         var restarted = new PostgresResourceBudgetLedger(dataSource, scope);
-        assertEquals(2L, restarted.release(execution, "reservation", NOW.plusSeconds(1))
-                .remaining(ResourceUnit.MODEL_CALLS));
+        assertEquals(4L, restarted.release(execution, "reservation", NOW.plusSeconds(1))
+                .remaining(ResourceUnit.MODEL_CALLS),
+                "releasing a held reservation must restore its two units to the available budget");
         assertThrows(IllegalStateException.class,
                 () -> restarted.reserve(execution, "reservation", requested, NOW.plusSeconds(2)));
         assertThrows(ResourceBudgetExceededException.class,

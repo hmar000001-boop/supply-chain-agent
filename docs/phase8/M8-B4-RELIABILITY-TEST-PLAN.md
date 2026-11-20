@@ -12,9 +12,9 @@ M8-B4 evaluates the application using deterministic domain fixtures and strict a
 
 | Slice | Scope | Delivery evidence |
 |---|---|---|
-| B4-A | Durable B6 computational-resource budget ledger; intention/approval/action-ledger restart probes; additive PostgreSQL migration V009 | `PostgresResourceBudgetLedger`, `M8B4ReliabilityIntegrationTest`, migration parser test |
-| B4-B | Full graph request-to-terminal workflows, read-only and approved-write paths, observation-driven invalidation and re-planning | Full-graph tests with stateful deterministic adapters; no unregistered external effects |
-| B4-C | Process interruption/restart at graph and business boundaries, timeout/unknown outcome reconciliation, duplicate delivery and concurrency/fault injection | Restart tests with stateless codecs and new host objects; authoritative PostgreSQL ledger assertions |
+| B4-A | Durable B6 computational-resource budget ledger; intention/approval/action-ledger restart probes; additive PostgreSQL migration V009 | `PostgresResourceBudgetLedger`, `M8B4ReliabilityIntegrationTest`, migration parser test; one budget-release expectation corrected from 2 to 4 after the first user CI run |
+| B4-B | Full graph request-to-terminal workflows, proposal/approved-write/denied paths, approval revalidation, observation invalidation and safe impasse | `M8B4FullGraphWorkflowTest` (10 methods, 12 fixture executions across 11 distinct scenario IDs) using `FullGraphEvaluationHost.compileFull(Ports)` and narrowly registered deterministic inventory-reservation action handler |
+| B4-C | Process interruption/restart at graph and business boundaries, timeout/unknown outcome reconciliation, duplicate delivery and concurrency/fault injection | Restart tests with new graph host objects and stateless codecs; authoritative PostgreSQL ledger assertions |
 | B4-D | Hostile/untrusted evidence, malformed provider output, authority confusion, budget exhaustion, PostgreSQL/provider outages and regression matrix | Negative/security tests and auditable structured results |
 
 B4-A is the first increment only. B4-B through B4-D remain open.
@@ -25,7 +25,7 @@ B4-A is the first increment only. B4-B through B4-D remain open.
 |---|---|---|---|
 | E2E-01 | Supplier delay/outage | Replan only against current supplier evidence and capacity; do not silently relax commitments | B4-B |
 | E2E-02 | Conflicting inventory evidence | Preserve provenance; reconcile authoritative state before a write | B4-B/B4-D |
-| E2E-03 | Route blocked | Invalidate affected route-dependent plan and produce a feasible alternative or typed impasse | B4-B |
+| E2E-03 | Route blocked | Preserve shipment/route evidence and require host approval before any write; alternative-route execution is not covered by this fixture adapter | B4-B (evidence/gating only; reroute deferred) |
 | E2E-04 | Quality failure after allocation | Reject stale/invalid lot allocations; no dispatch using quarantined stock | B4-B |
 | E2E-05 | Demand change after plan approval | Old approval must not authorize the changed plan | B4-B/B4-C |
 | E2E-06 | Competing disruptions share stock/capacity | Atomic authoritative reservation; no double allocation or lost update | B4-C |
@@ -74,6 +74,21 @@ The adapter is exposed from `PostgresRuntimePersistence.resourceBudgets()`. M8-B
 B4-A integration tests replace repository/dispatcher instances and use stateless JSON test codecs for intention and action payloads. They check objective fingerprint and protected constraints through intention resume/method reconsideration, exact approval binding and revocation/expiry, and no blind redispatch after an ambiguous external outcome. The provider handler increments a controlled effect counter before returning an ambiguous failure; the replacement dispatcher must not invoke it again. A reconciled completion must return the recorded receipt.
 
 These are adapter-level PostgreSQL restart probes. They are not yet a full process restart of the complete `CognitiveCycleApplicationGraph`; that remains B4-C.
+
+## B4-B full-graph workflow evidence and boundaries
+
+The B4-B workflow suite invokes the actual `CognitiveCycleApplicationGraph.compileFull(...)` composition through `FullGraphEvaluationHost.compileFull(Ports)`. The graph still uses the real B1 retrieval/selection, B3 admission/broadcast, planner router and common deterministic evaluator, B2 impasse service, B4 intention service, B6 governor and M3 action dispatcher. Scenario adapters are deterministic, in-memory and scoped to the disposable test; the action registry only contains explicit inventory-reservation handlers for the two fixture lot IDs.
+
+The ten test methods execute twelve fixture runs across eleven distinct scenario IDs (REQ-08 is deliberately executed twice with different invalidation modes). Coverage includes: exact action-plan approval binding and successful observation; supplier-delay proposal with denied approval; quality-held lot exclusion with only qualified partial stock reserved and no false objective completion; blocked-route/shipment evidence preserved without a write; conflicting inventory observations kept as distinct references and denied without a write; approval denied and revoked immediately before dispatch; changed trusted action definition causing stale-plan rejection and a second approval; demand change causing fresh-world replanning and a second approval; post-approval quality observation invalidating all candidate actions and forcing replan/impasse/escalation; read-only and no-feasible scenarios terminating without a state-changing dispatch. See `M8-B4-B-WORKFLOW-MATRIX.csv` for test-to-fixture mapping.
+
+This slice intentionally does not claim more than its executable adapters prove:
+
+- `REQ-10` read-only has no typed success terminal in the current graph. The expected safe result is escalation with zero writes, not a completed read-only assessment.
+- `REQ-04` verifies route/shipment evidence provenance and proposal/approval gating. It does not test an alternative route action because the fixture world-model adapter currently exposes inventory reservation actions only.
+- `REQ-03` verifies preservation of both stale and current inventory evidence references. It does not claim that the graph reconciles those references to a new authoritative inventory fact.
+- `REQ-05` may reserve only currently qualified secondary stock under an explicit approval; the objective remains unfulfilled and no successful outcome episode is recorded.
+- These tests use in-memory intention, checkpoint, action-batch and observation adapters; process-kill/restart and durable resume remain B4-C.
+- B6 receives a deterministic snapshot in the B4-B test port. The new PostgreSQL B6 ledger is not yet automatically wired into production lifecycle reserve/commit calls by this slice.
 
 ## Result reporting
 
