@@ -1,0 +1,23 @@
+{
+  "phase": "3",
+  "title": "B1/B2/B3 source-level conformance and integration audit",
+  "source_archive": "supply-chain-agent-main (6).zip",
+  "source_sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6",
+  "audit_date": "2026-11-21",
+  "source_code_modified": false,
+  "maven_reexecuted": false,
+  "test_sources_reviewed": 7,
+  "mechanism_package_types": 89,
+  "review_register_rows": 108,
+  "mechanism_package_counts": {
+    "B1": 23,
+    "B2": 24,
+    "B3": 29,
+    "Feedback": 13
+  },
+  "limitations": [
+    "No full Maven rerun; CI-green status based on user confirmation.",
+    "Review depth is labelled per row; not every support type received exhaustive method-by-method inspection.",
+    "No verified real outcome corpus or independent holdout data is present per repository evidence CLI."
+  ]
+}

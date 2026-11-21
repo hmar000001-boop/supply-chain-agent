@@ -1,0 +1,23 @@
+finding,source_locator,what_source_supports
+B1 retrieval path,CognitiveCycleDecisionServices.java:143-179,"M2 retrieval is adapted to B1 candidates, selected, persisted as evidence set, then selected long-term references are projected into working memory."
+B1 projection contract,CognitiveCycleDecisionServices.java:181-264,"Reference-only projection, scope/expiry checks, optimistic version check and narrowly identified replay behavior."
+B1 scoring,B1RetrievalSelector.java:26-71,Activation→accessibility probability; predicted cognitive latency; infrastructure latency; maintenance; additive bounded feedback; greedy capacity selection.
+B1 host features,B1CandidateFeatureProvider.java; CognitiveCycleDecisionPort.java,Feature metadata is a host adapter; no production app implementation was found in main sources.
+B1 maintenance,MemoryMaintenanceAccountingService.java; InMemoryMemoryMaintenanceLedger.java,"Actual maintenance can be counted, but current ledger is in-memory and accounting is not fed back into selector feature acquisition."
+B2 child lifecycle,CognitiveCycleLifecycleServices.java:263-374,Impasse opening/delegation; bounded child steps; result stored as typed child artifact.
+B2 parent return + draft,CognitiveCycleLifecycleServices.java:377-423,"Parent scope/request/version/objective checked, case resolved, delegated intention returned, and optional typed draft created and ID carried into graph state."
+B2 draft creation/approval,RecoveryProcedureDraftService.java:33-121,Resolved case/version and parent binding; evidence verification; registered action descriptor; draft only; approval rechecks parent/evidence/action and authority.
+B2 no procedural bridge,Repository-wide Java main-source search for RecoveryProcedureDraft/ProceduralMemoryService/ProcedureVersion,No call from RecoveryProcedureDraftService or lifecycle service to ProceduralMemoryService.stage/validate/activate; approved draft remains a separate artifact.
+B2 Postgres persistence,PostgresRecoveryProcedureDraftRepository.java:25-101; V011 schema,"Scope-bound JSONB state, CAS version, append-only version history."
+B3 admission algorithm,WorkspaceAdmissionService.java:23-64,Mandatory-first then greedy item-by-item score/capacity/conflict/coverage selection; coalition generated after admission.
+B3 coalition semantics,WorkspaceCoalition.java; WorkspaceSnapshot.java:35-70,Coalition aggregates members already chosen and validates accounting/coverage; not a separately scored candidate alternative.
+B3 broadcast receipts,WorkspaceBroadcastService.java:20-41,Synchronous broadcast; validate consumer identity and candidate subset; persist receipt; fail if receipt recorder fails.
+B3 outcome verification,B3OutcomeEvidenceService.java:28-101,"Receipt is not treated as positive outcome; outcome linked to accepted consumed candidate; trainer inputs revalidate receipt, fingerprints, scope and verifier."
+B3 Postgres evidence,PostgresB3OutcomeEvidenceRepository.java:31-105; V011 schema,Transactional append-only receipt/outcome persistence and idempotency conflict checks.
+R2 overlay injection,FullGraphEvaluationHost.java:214-273,Same activated feedback overlay injected into B1 selector and B3 workspace admission in full evaluation graph.
+R2 full graph tests,"M8B4FullGraphWorkflowTest.java:439-484, 487-585","Full-graph tests cover receipt/outcome evidence, B2 draft reference return, and authorized overlay affecting actual B1 and B3 choices."
+R2 synthetic holdout caveat,M8B4FullGraphWorkflowTest.java:536-539,Test explicitly labels paired-run evidence synthetic/in-memory and says it is not an empirical benchmark.
+R2 no corpus,"M8R2OutcomeFeedbackEvidenceCli.java:19-24, 47-109","Repository status artifact intentionally sets zero verified outcomes and zero holdout scenarios, SHADOW and DISABLED."
+Trainer/holdout/activation,OutcomeFeedbackPolicyTrainer.java; FeedbackPolicyHoldoutEvaluator.java; FeedbackPolicyActivationService.java,Training is deterministic and bounded; holdout is separated by experiment-unit hashes and verified by host; activation requires independent approval.
+Evaluation host boundary,FullGraphEvaluationHost.java:214-273,FullGraph host uses in-memory WM/episode/semantic/procedural/impasse/workspace/action/artifact/intention stores; durable production adapters are not all composed here.
+Workspace snapshot persistence decision,"V011__b2_procedure_drafts_and_b3_outcome_evidence.sql:1-2, WorkspaceRepository implementations",Migration explicitly states active workspace snapshots remain ephemeral/cycle-bounded; only B3 audit evidence persists. There is only an in-memory WorkspaceRepository implementation.
