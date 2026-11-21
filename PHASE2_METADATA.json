@@ -1,0 +1,17 @@
+{
+  "baseline_archive": "supply-chain-agent-main (6).zip",
+  "baseline_sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6",
+  "audit_phase": "Phase 2 \u2014 B4/B6 planner-control integration",
+  "date": "2026-11-21",
+  "source_changes_made": false,
+  "maven_reactor_rerun": false,
+  "targeted_review_rows": 43,
+  "test_evidence_rows": 13,
+  "inspected_source_files_present": 34,
+  "findings": [
+    "F-01 B4 method-to-planner control link",
+    "F-02 B6 downshift-to-next-planning enforcement",
+    "F-03 missing full-graph test evidence for B4/B6 planning effects"
+  ],
+  "disposition": "Phase 2 complete; continue to Phase 3 memory/evidence/recovery learning audit."
+}
