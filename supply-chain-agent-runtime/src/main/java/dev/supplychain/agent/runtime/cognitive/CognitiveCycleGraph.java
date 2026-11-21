@@ -30,6 +30,7 @@ public final class CognitiveCycleGraph {
     public static final String NODE_INTERPRET = "interpret";
     public static final String NODE_AWAIT_CLARIFICATION = "await-clarification";
     public static final String NODE_LOAD_CONTEXT = "load-context";
+    public static final String NODE_ASSESS_UNCERTAINTY_BEFORE_RETRIEVAL = "assess-uncertainty-before-retrieval";
     public static final String NODE_RETRIEVE = "retrieve-evidence";
     public static final String NODE_ASSESS_UNCERTAINTY = "assess-uncertainty-after-retrieval";
     public static final String NODE_REFRESH_UNCERTAINTY = "refresh-uncertainty-after-planning";
@@ -134,7 +135,29 @@ public final class CognitiveCycleGraph {
                     CognitiveCycleState.DECISION_STATUS, "CONTEXT_READY");
         };
 
+        // B1 retrieval now consumes B6-governed selection directives. Establish the exact
+        // execution/scope-bound uncertainty revision before the first retrieval call; the
+        // post-retrieval node below then refreshes it with the newly selected evidence set.
+        NodeAction<CognitiveCycleState> assessUncertaintyBeforeRetrieval = state -> {
+            var previous = state.uncertaintyAssessmentReference();
+            String predecessor = previous == null ? "initial"
+                    : previous.assessmentId() + "-v" + previous.version();
+            String trigger = "pre-retrieval:working-memory-" + state.text(CognitiveCycleState.WORKING_MEMORY_ID)
+                    + ":version-" + state.number(CognitiveCycleState.WORKING_MEMORY_VERSION)
+                    + ":intention-" + state.text(CognitiveCycleState.INTENTION_ID)
+                    + ":intention-version-" + state.number(CognitiveCycleState.INTENTION_VERSION)
+                    + ":method-" + state.text(CognitiveCycleState.PLANNING_METHOD_ID)
+                    + ":evidence-request-" + state.integer(CognitiveCycleState.EVIDENCE_REQUEST_COUNT)
+                    + ":planning-round-" + state.integer(CognitiveCycleState.PLANNING_ROUND)
+                    + ":clarification-round-" + state.integer(CognitiveCycleState.CLARIFICATION_ROUND)
+                    + ":predecessor-" + predecessor;
+            return assessUncertaintyUpdate(state, operations, trigger, "uncertainty-assessed-before-retrieval");
+        };
+
         NodeAction<CognitiveCycleState> retrieve = state -> {
+            // This is an intentional fail-closed invariant: B1 selection must never run without
+            // the exact current B6 assessment that governs its access/utility/context decisions.
+            state.context().requireUncertaintyAssessmentReference();
             var result = Objects.requireNonNull(operations.retrieveEvidence(state.context()), "evidence result");
             if (result.workingMemoryId().isBlank()) {
                 return update("evidence-retrieval:" + result.disposition().name(),
@@ -587,6 +610,7 @@ public final class CognitiveCycleGraph {
                 .addNode(NODE_INTERPRET, node_async(interpret))
                 .addNode(NODE_AWAIT_CLARIFICATION, node_async(acceptClarification))
                 .addNode(NODE_LOAD_CONTEXT, node_async(loadContext))
+                .addNode(NODE_ASSESS_UNCERTAINTY_BEFORE_RETRIEVAL, node_async(assessUncertaintyBeforeRetrieval))
                 .addNode(NODE_RETRIEVE, node_async(retrieve))
                 .addNode(NODE_ASSESS_UNCERTAINTY, node_async(assessUncertainty))
                 .addNode(NODE_REFRESH_UNCERTAINTY, node_async(refreshUncertainty))
@@ -618,7 +642,8 @@ public final class CognitiveCycleGraph {
                         "await-clarification", NODE_AWAIT_CLARIFICATION,
                         "escalate", NODE_ESCALATE))
                 .addEdge(NODE_AWAIT_CLARIFICATION, NODE_INTERPRET)
-                .addEdge(NODE_LOAD_CONTEXT, NODE_RETRIEVE)
+                .addEdge(NODE_LOAD_CONTEXT, NODE_ASSESS_UNCERTAINTY_BEFORE_RETRIEVAL)
+                .addEdge(NODE_ASSESS_UNCERTAINTY_BEFORE_RETRIEVAL, NODE_RETRIEVE)
                 .addConditionalEdges(NODE_RETRIEVE, edge_async(evidenceRoute), Map.of(
                         "workspace", NODE_ASSESS_UNCERTAINTY,
                         "await-evidence", NODE_AWAIT_EVIDENCE,

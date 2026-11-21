@@ -1,44 +1,43 @@
-# GAP-01–GAP-05 implementation candidate — changeset and frozen source
+# GAP-01–GAP-05 CI Fix 1 — Initial B6 assessment ordering
 
-**Project:** Supply-Chain Disruption Management Agent  
-**Date:** 2026-11-21  
-**Base:** owner-confirmed F-01–F-04 hosted-CI-green stack  
-**Increment:** GAP-01 through GAP-05  
-**Hosted CI:** pending for this candidate.
+**Apply this changeset at the repository root, over the GAP-01–GAP-05 candidate already applied to the F-01–F-04 accepted stack.** It contains complete replacements for two Java files and one validation-document correction.
 
-## Application order
+## Root cause
 
-The changeset is repository-root-relative. Apply it only over the source stack containing the accepted F-01/F-02 and F-03/F-04 increments. Do not apply it directly to the original base ZIP without those overlays. A complete source snapshot accompanies this delivery as a reproducible checkpoint.
+The GAP-01–GAP-05 implementation correctly made B1 retrieval require the exact current, versioned B6 uncertainty assessment. `CognitiveCycleDecisionServices.retrieveEvidence(...)` uses that assessment to create the B6 governance directive for the B1 selection request.
 
-## What this increment implements
+The graph's initial control order did not satisfy that contract: `load-context -> retrieve-evidence -> assess-uncertainty-after-retrieval`. Therefore the first retrieval failed before the graph could create the first assessment. The evaluation failures all surfaced the same missing-reference exception; the forked-JVM resume failure was the same defect on the resumed graph path.
 
-- **GAP-01 / B1:** durable exact-memory-revision retrieval-access and verified-use histories, cue associations and expected utility; only verifier-bound B3 outcomes update learned features; PostgreSQL V014.
-- **GAP-02 / B2:** approved recovery procedures are retrieved in later normal planning cycles by trusted condition keys, revalidated for scope/evidence/live action-descriptor identity, and supplied to M5 as typed non-executable planning knowledge and soft search priority. No capability or execution authority is granted.
-- **GAP-03 / B3:** exact coalition/proposal/member/receipt/outcome attribution; shadow preference trainer; disjoint paired holdout, resource/safety gates and separate activation approval; future admission can use an active coalition preference adjustment; PostgreSQL V015.
-- **GAP-04 / B4:** persisted rationale, plan reference, continuation condition, typed reconsideration triggers, authority and termination semantics; F-01's protected method-to-next-planner binding remains.
-- **GAP-05 / B6:** target-specific train/holdout/calibration/review/approval lifecycle; assessment/profile binding; directives for selected B1/B3/M5/plan-verification boundaries; PostgreSQL V013. F-02 downshift and the immutable execution-wide resource ceiling remain.
+## Fix
 
-## Local evidence
+The graph now runs:
 
-- Eight framework-neutral production modules compile with Java 21, including changed runtime decision/lifecycle sources.
-- Thirty-seven PostgreSQL production Java sources compile locally; six classes requiring unavailable HikariCP/pgJDBC/LangGraph4j dependencies were excluded.
-- **140 targeted tests passed, zero failed:** 48 runtime, 83 mechanism/planning and 9 migration parser tests. Execution used a lightweight JUnit-compatible runner, not Maven Surefire/JUnit.
-- Three source/architecture guards pass: M8-B5 architecture, R2 evidence and F-03/F-04 integration.
-- The migration chain is registered through V015 (V001 in the memory module, V002–V015 in PostgreSQL infrastructure).
-- Full Maven reactor/Surefire, live PostgreSQL integration for V013–V015 and full LangGraph4j hosted graph tests were not run locally.
-- The predecessor F-01–F-04 stack was owner-confirmed hosted-CI green. **Hosted CI for this GAP-01–GAP-05 candidate is pending.**
+`load-context -> assess-uncertainty-before-retrieval -> retrieve-evidence -> assess-uncertainty-after-retrieval`
 
-## Evidence limits and remaining gaps
+The new pre-retrieval assessment is execution/scope-bound and uses a deterministic trigger containing working-memory identity/version, intention identity/version, selected method, retrieval/planning/clarification counters and the predecessor assessment revision. The existing lifecycle service's idempotency key also binds the trigger to the exact predecessor. The graph still fails closed if the reference is absent.
 
-- R2 still has no verified outcome corpus or independent holdout. B1/B3 feedback remains `SHADOW`/`DISABLED`; no adaptive superiority is claimed.
-- B6 remains `NOT_CALIBRATED` until a real target-specific labelled corpus, independent validation and authorized activation exist.
-- GAP-06 (GraSP-like governor for full Fan & Lan §VI-E synthesis runtime), GAP-07 (full selected CoALA learning-action surface), GAP-08 (durable full application host/repeat-cycle ingress), GAP-09 (independent matched experiments/calibration/transfer) and GAP-10 (two uncompiled root-level Java shadow files) remain open.
-- Total paper conformance is **not** claimed. These are application-adapted realizations of the selected concepts and mechanism bundles, not literal reproductions of the historical architectures.
+The existing post-retrieval assessment remains in place so it can refresh uncertainty using the newly selected evidence. Impasse handling still performs its additional pre-child assessment, and the B2 subgraph still refreshes after child investigation.
 
-## Build command
+## Regression coverage
+
+`CognitiveCycleGraphTest` now asserts that the first retrieval receives uncertainty revision 1, that B2 opens under revision 2 and validates under revision 3, and that the resumed B6 human-control path consumes revision 4 after the added initial assessment.
+
+## Scope
+
+- Project source files modified: 2
+- Project documentation files modified: 1
+- Project files added: 0
+- Project files deleted: 0
+- Database migrations: unchanged
+- POM/dependency changes: none
+- B1/B2/B3/B4/B6 policies: no weakening or fail-open behavior introduced
+
+## Apply and validate
+
+Extract at the repository root, then run:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-Hosted CI on this exact candidate is required before accepting the increment. See `VALIDATION_REPORT.md`, `docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md` and `docs/research/FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md`. Chapters 19 and 20 remain blocked pending owner approval of conformance.
+Send the complete CI result if any failure remains.

@@ -38,6 +38,8 @@ class CognitiveCycleGraphTest {
         assertEquals("TOT_BOUNDED_SEARCH", finalOutput.state().text(CognitiveCycleState.PLANNER_ID));
         assertEquals("wm-1", finalOutput.state().text(CognitiveCycleState.WORKING_MEMORY_ID));
         assertEquals("workspace-1", finalOutput.state().text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID));
+        assertEquals(1L, operations.uncertaintyVersionAtRetrieve,
+                "the initial B6 uncertainty assessment must exist before B1 retrieval consumes it");
         assertEquals(1, operations.executeCalls);
         assertEquals(1, operations.observationCalls);
         assertEquals(1, operations.episodeCalls);
@@ -166,13 +168,15 @@ class CognitiveCycleGraphTest {
         assertEquals(1, operations.openImpasseCalls);
         assertEquals(1, operations.investigateImpasseCalls);
         assertEquals(1, operations.validateImpasseCalls);
-        assertEquals(1L, operations.uncertaintyVersionAtOpen,
-                "the child must begin under the exact parent assessment revision");
-        assertEquals(1L, operations.uncertaintyVersionAtInvestigation,
+        assertEquals(1L, operations.uncertaintyVersionAtRetrieve,
+                "B1 retrieval must consume the initial B6 assessment");
+        assertEquals(2L, operations.uncertaintyVersionAtOpen,
+                "the child must begin under the fresh parent assessment for the detected impasse");
+        assertEquals(2L, operations.uncertaintyVersionAtInvestigation,
                 "investigation must use the assessment under which the child was opened");
-        assertEquals(2L, operations.uncertaintyVersionAtValidation,
+        assertEquals(3L, operations.uncertaintyVersionAtValidation,
                 "parent return validation must use a fresh assessment after child investigation");
-        assertEquals(2L, operations.uncertaintyVersionAtParentReload,
+        assertEquals(3L, operations.uncertaintyVersionAtParentReload,
                 "the refreshed child assessment reference must be propagated back to the parent graph");
         assertTrue(result.state().events().stream().anyMatch(event -> event.equals("b2-resolution:RESOLVED")));
         assertEquals(1, operations.executeCalls);
@@ -199,8 +203,8 @@ class CognitiveCycleGraphTest {
         assertEquals(1, operations.humanControlCalls);
         assertEquals(2, operations.metaControlCalls,
                 "B6 must reassess the cycle after the host decision using the refreshed uncertainty assessment");
-        assertEquals(3L, operations.uncertaintyVersionAtSecondMetaControl,
-                "the resumed B6 decision must consume the post-human-control assessment revision");
+        assertEquals(4L, operations.uncertaintyVersionAtSecondMetaControl,
+                "the resumed B6 decision must consume the post-human-control assessment revision after the initial pre-retrieval assessment");
         assertEquals(1, operations.executeCalls);
     }
 
@@ -382,6 +386,7 @@ class CognitiveCycleGraphTest {
         private long uncertaintyVersionAtInvestigation;
         private long uncertaintyVersionAtValidation;
         private long uncertaintyVersionAtParentReload;
+        private long uncertaintyVersionAtRetrieve;
         private int approvalCalls;
         private int humanControlCalls;
         private int executeCalls;
@@ -410,6 +415,9 @@ class CognitiveCycleGraphTest {
         }
         @Override public EvidenceRetrieved retrieveEvidence(CycleContext context) {
             retrieveCalls++;
+            if (retrieveCalls == 1) {
+                uncertaintyVersionAtRetrieve = context.requireUncertaintyAssessmentReference().version();
+            }
             if (impasseOnFirstRetrieval && !impasseIssued) {
                 impasseIssued = true;
                 return new EvidenceRetrieved(EvidenceDisposition.IMPASSE, "evidence-1", 0.5,
