@@ -1,0 +1,13 @@
+module,test_class,evidence_scope,execution_status_in_this_audit,notes
+infrastructure-postgres,PostgresMigrationRunnerParsingTest,SQL migration splitter and migration-language parser,Source inspected only,No PostgreSQL execution performed in this audit
+infrastructure-postgres,PostgresMemoryPersistenceIntegrationTest,Migration idempotency; working-memory typed roundtrip/CAS; episode idempotency/review/history/retention,Source inspected only,Test source contains direct assertions; archive is user-reported CI green
+infrastructure-postgres,PostgresM7B1PersistenceIntegrationTest,Semantic and procedural persistence lifecycle,Source inspected only,Test source inspected
+infrastructure-postgres,PostgresCheckpointCompatibilityTest,Planner checkpoint compatibility,Source inspected only,Test source inspected
+infrastructure-postgres,PostgresLangGraph4jSaverFactoryIntegrationTest,PostgreSQL saver interrupt/pool replacement/resume,Source inspected only,Enabled for phase0.postgres=true
+infrastructure-postgres,M8B4CRestartReconciliationIntegrationTest,Replacement pool/host/graph restores approval/intention/B6/M3 state and reconciles unknown external outcome,Source inspected only,No redispatch after restart is asserted in test source
+infrastructure-postgres,M8B4ForkedJvmProcessRestartIntegrationTest,Independent child JVM restart of graph authority/budget/action state,Source inspected only,Separate process boundary; no test execution performed in this audit
+infrastructure-postgres,M8B4ReliabilityIntegrationTest,PostgreSQL action ledger fencing/idempotency/concurrent dispatch and unknown outcome recovery,Source inspected only,Test source inspected
+infrastructure-postgres,M8B4DPostgresBudgetExecutionIntegrationTest,Durable B6 budget enforcement and guard integration,Source inspected only,Test source inspected
+infrastructure-postgres,R1DefBudgetLeaseRecoveryIntegrationTest,B6 lease expiry before/after start, fencing, crash probes and conservative charge,Source inspected only,Test source inspected
+infrastructure-postgres,R2OutcomeEvidencePostgresIntegrationTest,Scope-bound B3 receipts and verified outcome persistence,Source inspected only,Test source inspected
+infrastructure-postgres,PostgresM7B2CoreIntegrationTest,Core runtime persistence and state transitions,Source inspected only,Test source inspected

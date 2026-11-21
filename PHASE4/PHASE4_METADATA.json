@@ -1,0 +1,39 @@
+{
+  "phase": 4,
+  "title": "Action, Execution and Authority Conformance Audit",
+  "baseline_archive": "supply-chain-agent-main (6).zip",
+  "baseline_sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6",
+  "audit_date": "2026-11-21",
+  "project_changes_made": false,
+  "maven_reexecuted": false,
+  "ci_status": "User-reported green for exact uploaded archive; not independently rerun in this audit",
+  "targeted_class_rows": 55,
+  "unique_source_files_hashed": 55,
+  "test_evidence_rows": 11,
+  "review_scope": [
+    "M3 action contracts and dispatcher",
+    "CoALA internal actions",
+    "external perception and grounding",
+    "B4 approval boundary",
+    "action plan and batch lifecycle",
+    "unknown-outcome recovery",
+    "observation reconciliation",
+    "PostgreSQL adapters",
+    "graph and application composition"
+  ],
+  "limitations": [
+    "No live ERP/WMS/carrier provider",
+    "No concrete production authority adapter",
+    "No Maven rerun",
+    "Test source inspected but tests not re-executed"
+  ],
+  "findings": [
+    "F4-01 missing concrete production authority adapter",
+    "F4-02 simulator-only grounding/perception",
+    "F4-03 host-defined reconciliation proof is not strongly typed/bound in core data contract",
+    "F4-04 fencing applies to ledger writes not remote side effects",
+    "F4-05 generic ActionHandler fingerprint fallback",
+    "F4-06 host-supplied observation provenance resolver",
+    "F4-07 full evaluation host uses in-memory stores"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "project": "Supply-Chain Disruption Management Agent",
+  "baseline_archive": "supply-chain-agent-main (6).zip",
+  "baseline_sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6",
+  "audit_phase": 5,
+  "scope": "PostgreSQL migrations, memory/runtime repositories, planner and graph checkpoints, and restart boundaries",
+  "change_class": "audit-only",
+  "source_modified": false,
+  "maven_rerun": false,
+  "postgres_rerun": false,
+  "user_reported_ci_status": "green",
+  "key_findings": [
+    "P5-01 planner-session repository/schema has no explicit scope binding",
+    "P5-02 memory service operations load/mutate by ID without expected caller scope",
+    "P5-03 no PostgreSQL workspace repository in main source",
+    "P5-04 no single fully assembled durable and trusted application host",
+    "P5-05 LangGraph4j checkpoint tenant separation relies on scope/execution-derived thread ID"
+  ]
+}
