@@ -312,14 +312,22 @@ public interface CognitiveCycleOperations {
         }
     }
     enum ImpasseDisposition { RESOLVED, UNRESOLVED, ESCALATE }
-    record ImpasseResolved(ImpasseDisposition disposition, String findingsReference, String reason) {
+    record ImpasseResolved(ImpasseDisposition disposition, String findingsReference, String reason,
+                           String recoveryProcedureDraftId) {
         public ImpasseResolved {
             disposition = Objects.requireNonNull(disposition, "disposition");
             findingsReference = optional(findingsReference);
             reason = required(reason, "reason");
+            recoveryProcedureDraftId = optional(recoveryProcedureDraftId);
             if (disposition == ImpasseDisposition.RESOLVED && findingsReference.isEmpty()) {
                 throw new IllegalArgumentException("resolved impasse requires a validated findings reference");
             }
+            if (disposition != ImpasseDisposition.RESOLVED && !recoveryProcedureDraftId.isEmpty()) {
+                throw new IllegalArgumentException("an unresolved impasse cannot emit a recovery procedure draft");
+            }
+        }
+        public ImpasseResolved(ImpasseDisposition disposition, String findingsReference, String reason) {
+            this(disposition, findingsReference, reason, "");
         }
     }
 

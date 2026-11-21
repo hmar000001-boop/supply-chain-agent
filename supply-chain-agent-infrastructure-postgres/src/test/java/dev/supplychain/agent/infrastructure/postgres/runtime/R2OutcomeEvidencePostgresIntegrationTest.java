@@ -86,7 +86,7 @@ class R2OutcomeEvidencePostgresIntegrationTest {
         String candidateFingerprint = "d".repeat(64);
         var receipt = new WorkspaceReceiptEvidence(receiptId, scope, cycle, workspace, "planner",
                 ConsumerReceiptStatus.ACCEPTED, Map.of("candidate-a", candidateFingerprint), "e".repeat(64),
-                "b3-admission-v1", NOW);
+                "f".repeat(64), "b3-admission-v1", NOW);
 
         var writer = new PostgresB3OutcomeEvidenceRepository(dataSource, scopeValue, receiptCodec(), outcomeCodec());
         writer.appendReceipt(receipt);
@@ -96,7 +96,7 @@ class R2OutcomeEvidencePostgresIntegrationTest {
         var outcome = new DownstreamOutcomeEvidence("outcome-" + UUID.randomUUID(), receiptId, scope, cycle,
                 workspace, "candidate-a", candidateFingerprint, "planner", DownstreamOutcomeSignal.USEFUL,
                 "erp-reconciliation-verifier-v1", List.of(new EvidenceReference("erp", "shipment-receipt-9")),
-                "b3-admission-v1", NOW.plusSeconds(30));
+                "f".repeat(64), "b3-admission-v1", NOW.plusSeconds(30));
         replacement.appendOutcome(outcome);
         var afterReplacement = new PostgresB3OutcomeEvidenceRepository(dataSource, scopeValue, receiptCodec(), outcomeCodec());
         assertEquals(List.of(outcome), afterReplacement.findOutcomes(scope, 100));
@@ -106,7 +106,7 @@ class R2OutcomeEvidencePostgresIntegrationTest {
         var conflicting = new DownstreamOutcomeEvidence(outcome.idempotencyKey(), receiptId, scope, cycle,
                 workspace, "candidate-a", candidateFingerprint, "planner", DownstreamOutcomeSignal.HARMFUL,
                 "erp-reconciliation-verifier-v1", List.of(new EvidenceReference("erp", "different-proof")),
-                "b3-admission-v1", NOW.plusSeconds(30));
+                "f".repeat(64), "b3-admission-v1", NOW.plusSeconds(30));
         assertThrows(SecurityException.class, () -> afterReplacement.appendOutcome(conflicting),
                 "idempotency-key reuse with different outcome evidence must fail closed");
         assertTrue(new PostgresB3OutcomeEvidenceRepository(dataSource, "other-" + scopeValue, receiptCodec(), outcomeCodec())
@@ -176,13 +176,13 @@ class R2OutcomeEvidencePostgresIntegrationTest {
             write(o,v.receiptId());write(o,v.scopeId().value());write(o,v.cycleId());write(o,v.workspaceId());write(o,v.consumerId());
             write(o,v.status().name());o.writeInt(v.consumedCandidateFingerprints().size());
             for(var e:new TreeMap<>(v.consumedCandidateFingerprints()).entrySet()){write(o,e.getKey());write(o,e.getValue());}
-            write(o,v.workspaceFingerprint());write(o,v.admissionPolicyVersion());write(o,v.receivedAt().toString());
+            write(o,v.workspaceFingerprint());write(o,v.experimentUnitFingerprint());write(o,v.admissionPolicyVersion());write(o,v.receivedAt().toString());
         },in->{
             String receipt=read(in),scope=read(in),cycle=read(in),workspace=read(in),consumer=read(in);
             var status=ConsumerReceiptStatus.valueOf(read(in));int size=in.readInt();var map=new TreeMap<String,String>();
             for(int i=0;i<size;i++)map.put(read(in),read(in));
             return new WorkspaceReceiptEvidence(receipt,new MemoryScopeId(scope),cycle,workspace,consumer,status,map,
-                    read(in),read(in),Instant.parse(read(in)));
+                    read(in),read(in),read(in),Instant.parse(read(in)));
         });
     }
 
@@ -190,10 +190,10 @@ class R2OutcomeEvidencePostgresIntegrationTest {
         return codec((v,o)->{
             write(o,v.idempotencyKey());write(o,v.receiptId());write(o,v.scopeId().value());write(o,v.cycleId());
             write(o,v.workspaceId());write(o,v.candidateId());write(o,v.candidateFingerprint());write(o,v.consumerId());
-            write(o,v.signal().name());write(o,v.verifierId());writeEvidence(o,v.evidence());write(o,v.admissionPolicyVersion());
+            write(o,v.signal().name());write(o,v.verifierId());writeEvidence(o,v.evidence());write(o,v.experimentUnitFingerprint());write(o,v.admissionPolicyVersion());
             write(o,v.verifiedAt().toString());
         },in->new DownstreamOutcomeEvidence(read(in),read(in),new MemoryScopeId(read(in)),read(in),read(in),read(in),read(in),
-                read(in),DownstreamOutcomeSignal.valueOf(read(in)),read(in),readEvidence(in),read(in),Instant.parse(read(in))));
+                read(in),DownstreamOutcomeSignal.valueOf(read(in)),read(in),readEvidence(in),read(in),read(in),Instant.parse(read(in))));
     }
 
     private static void write(DataOutputStream out,String value) throws IOException { out.writeUTF(value); }

@@ -39,6 +39,10 @@ import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
 import dev.supplychain.agent.memory.common.Provenance;
 import dev.supplychain.agent.memory.common.ProvenanceSource;
+import dev.supplychain.agent.mechanisms.b1.MaintenanceProfile;
+import dev.supplychain.agent.mechanisms.b1.B1CandidateFeatures;
+import dev.supplychain.agent.memory.episodic.EpisodeId;
+import dev.supplychain.agent.memory.episodic.Episode;
 import dev.supplychain.agent.memory.episodic.EpisodeOutcome;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalQuery;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalResult;
@@ -50,6 +54,30 @@ import dev.supplychain.agent.mechanisms.b1.B1ScoringPolicy;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionRequest;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionResult;
 import dev.supplychain.agent.mechanisms.b3.ConsumerReceiptStatus;
+import dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceService;
+import dev.supplychain.agent.mechanisms.b3.DownstreamOutcomeReport;
+import dev.supplychain.agent.mechanisms.b3.DownstreamOutcomeSignal;
+import dev.supplychain.agent.mechanisms.b3.InMemoryB3OutcomeEvidenceRepository;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceSnapshot;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceStatus;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceEntry;
+import dev.supplychain.agent.mechanisms.b2.InMemoryRecoveryProcedureDraftRepository;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftRequest;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftRepository;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureStatus;
+import dev.supplychain.agent.mechanisms.feedback.ActiveOutcomeFeedbackPolicy;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackEvaluationEvidenceVerifier;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackEvaluationObservation;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackEvaluationThreshold;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackPolicyActivationApproval;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackPolicyActivationService;
+import dev.supplychain.agent.mechanisms.feedback.FeedbackPolicyHoldoutEvaluator;
+import dev.supplychain.agent.mechanisms.feedback.OutcomeFeedbackPolicyTrainer;
+import dev.supplychain.agent.mechanisms.feedback.PolicyDisposition;
+import dev.supplychain.agent.evaluation.host.FullGraphRuntime;
+import dev.supplychain.agent.evaluation.host.R2WorkflowConfiguration;
+import dev.supplychain.agent.actions.api.ActionCategory;
+import dev.supplychain.agent.actions.api.ActionEffect;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionRequest;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastReport;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceCandidate;
@@ -404,6 +432,159 @@ class M8B4FullGraphWorkflowTest {
         assertEquals(0, infeasible.authority.approvalRequests.get());
     }
 
+    @Test
+    void fullGraphB3BroadcastPersistsReceiptAndSupportsVerifiedOutcomeLearningEvidence() throws Exception {
+        var scenario = ScenarioRuntime.createR2("REQ-09", false);
+        assertTrue(scenario.runUntilApproval());
+        var state = scenario.graph.getState(scenario.config).state();
+        String workspaceId = state.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
+        assertFalse(workspaceId.isBlank(), "the real full graph must persist its B3 workspace reference");
+        var scope = new MemoryScopeId(state.text(CognitiveCycleState.MEMORY_SCOPE_ID));
+        String receiptId = B3OutcomeEvidenceService.receiptId(workspaceId, "planner");
+        var receipt = scenario.r2OutcomeRepository.findReceipt(scope, receiptId)
+                .orElseThrow(() -> new AssertionError("full-graph broadcast did not persist a B3 consumer receipt"));
+        assertEquals(ConsumerReceiptStatus.ACCEPTED, receipt.status());
+        assertEquals(scenario.fixture.fixtureFingerprint(), receipt.experimentUnitFingerprint(),
+                "the receipt must carry the immutable scenario-input fingerprint supplied by the graph domain port");
+        assertFalse(receipt.consumedCandidateFingerprints().isEmpty());
+
+        String candidateId = receipt.consumedCandidateFingerprints().keySet().stream().sorted().findFirst().orElseThrow();
+        var proof = List.of(new EvidenceReference("erp-outcome", "downstream-confirmation:" + workspaceId),
+                new EvidenceReference(B3OutcomeEvidenceService.EXPERIMENT_UNIT_EVIDENCE_TYPE,
+                        receipt.experimentUnitFingerprint()));
+        var outcome = scenario.fullGraphRuntime.outcomeEvidence().recordVerifiedOutcome(new DownstreamOutcomeReport(
+                "outcome:" + workspaceId + ":" + candidateId, receiptId, scope, candidateId,
+                DownstreamOutcomeSignal.USEFUL, proof, receipt.receivedAt().plusSeconds(1)));
+        assertEquals(candidateId, outcome.candidateId());
+        var verified = scenario.fullGraphRuntime.outcomeEvidence().verifiedOutcomes(scope, 100);
+        assertEquals(1, verified.size());
+        assertEquals(scenario.fixture.fixtureFingerprint(), verified.getFirst().experimentUnitFingerprint());
+    }
+
+    @Test
+    void fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference() throws Exception {
+        var scenario = ScenarioRuntime.createR2("FAIL-11", true);
+        var terminal = scenario.runToTerminal();
+        String draftId = terminal.state().text(CognitiveCycleState.RECOVERY_PROCEDURE_DRAFT_ID);
+        assertFalse(draftId.isBlank(), "the resolved B2 return must carry the created recovery draft reference into parent graph state");
+        assertEquals(1, scenario.lifecycle.childStepsExecuted.get(), "the full graph must execute the registered read-only B2 child step");
+        var draft = scenario.r2DraftRepository.findById(draftId)
+                .orElseThrow(() -> new AssertionError("resolved B2 did not persist its typed recovery procedure draft"));
+        assertEquals(RecoveryProcedureStatus.DRAFT, draft.status(), "draft creation must not imply approval");
+        assertEquals(scenario.fixture.planningRequest().workingMemory().scopeId(), draft.scopeId());
+        assertEquals(scenario.fixture.definition().scenarioId(), draft.evidence().getFirst().evidenceId());
+        assertEquals(1, draft.actions().size());
+        assertEquals("m8-test:inventory-read", draft.actions().getFirst().actionId());
+    }
+
+    @Test
+    void authorizedFeedbackOverlayIsConsumedByB1AndB3DuringTheCompiledFullGraphRun() throws Exception {
+        var scenario = ScenarioRuntime.createR2("REQ-09", false);
+        String candidateA = "episodic:candidate-a:1";
+        String candidateB = "episodic:candidate-b:1";
+        scenario.decision.includeFeedbackCandidates = true;
+
+        // Baseline graph execution: both B1 and B3 prefer B over A without an activated policy.
+        assertTrue(scenario.runUntilApproval());
+        assertEquals(candidateB, scenario.decision.lastB1Selection.selectedCandidates().getFirst().candidateId());
+        var scope = new MemoryScopeId(scenario.fixture.planningRequest().workingMemory().scopeId().value());
+        Instant at = ScenarioFixtureFactory.FIXTURE_AS_OF.plusSeconds(20);
+        var firstState = scenario.graph.getState(scenario.config).state();
+        String firstWorkspaceId = firstState.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
+        var firstWorkspace = scenario.fullGraphRuntime.b3WorkspaceAdmission().findById(firstWorkspaceId).orElseThrow();
+        assertEquals(candidateB, firstWorkspace.entries().stream().filter(e -> e.candidate().id().equals(candidateA)
+                || e.candidate().id().equals(candidateB)).findFirst().orElseThrow().candidate().id(),
+                "baseline B3 admission must prefer candidate B");
+        String firstReceiptId = B3OutcomeEvidenceService.receiptId(firstWorkspaceId, "planner");
+        var firstReceipt = scenario.r2OutcomeRepository.findReceipt(scope, firstReceiptId).orElseThrow();
+        scenario.fullGraphRuntime.outcomeEvidence().recordVerifiedOutcome(new DownstreamOutcomeReport(
+                "training-outcome-graph", firstReceiptId, scope, candidateA, DownstreamOutcomeSignal.USEFUL,
+                List.of(new EvidenceReference("erp-outcome", "verified-training-graph"),
+                        new EvidenceReference(B3OutcomeEvidenceService.EXPERIMENT_UNIT_EVIDENCE_TYPE,
+                                firstReceipt.experimentUnitFingerprint())), firstReceipt.receivedAt().plusSeconds(1)));
+
+        // A second B3 cycle supplies an independently fingerprinted training unit through the same
+        // admission, broadcast and evidence-service instances that the graph composition uses.
+        String secondUnit = sha256("training-input-second-independent-unit");
+        var secondCandidate = new WorkspaceCandidate(candidateA, scope, WorkspaceCandidateKind.OBSERVATION,
+                5.0, 1.0, 0.0, 1, Set.of(), Set.of(), false, List.of(new EvidenceReference("fixture", candidateA)));
+        var secondAdmission = scenario.fullGraphRuntime.b3WorkspaceAdmission().admit(new WorkspaceAdmissionRequest(
+                "training-cycle-second", scope, 10, 1, Set.of(), Map.of(), new WorkspaceScoringPolicy(0.0, 0.0),
+                List.of(secondCandidate), at).withExperimentUnitFingerprint(secondUnit));
+        var secondSnapshot = secondAdmission.snapshotOptional().orElseThrow();
+        scenario.fullGraphRuntime.b3WorkspaceBroadcast().broadcast(secondSnapshot, scope, Set.of("planner"), at);
+        String secondReceiptId = B3OutcomeEvidenceService.receiptId(secondSnapshot.id(), "planner");
+        scenario.fullGraphRuntime.outcomeEvidence().recordVerifiedOutcome(new DownstreamOutcomeReport(
+                "training-outcome-second", secondReceiptId, scope, candidateA, DownstreamOutcomeSignal.USEFUL,
+                List.of(new EvidenceReference("erp-outcome", "verified-training-second"),
+                        new EvidenceReference(B3OutcomeEvidenceService.EXPERIMENT_UNIT_EVIDENCE_TYPE, secondUnit)),
+                at.plusSeconds(1)));
+
+        var verifiedTraining = scenario.fullGraphRuntime.outcomeEvidence().verifiedOutcomes(scope, 100);
+        assertEquals(2, verifiedTraining.size());
+        var candidatePolicy = new OutcomeFeedbackPolicyTrainer().train("m8-r2-fullgraph-feedback", 1, scope,
+                "b1-topk/b3-base-v1", verifiedTraining, 2, 1.0, at.plusSeconds(10));
+        assertEquals(1.0, candidatePolicy.candidateAdjustments().get(candidateA), 1e-9);
+
+        // Deliberately synthetic, in-memory paired-run evidence: this verifies the trusted
+        // holdout/activation boundary and graph injection contract only. It is not an empirical
+        // benchmark, does not populate the R2 outcome corpus, and must never be reported as an
+        // observed adaptive-policy improvement.
+        var holdout = new ArrayList<FeedbackEvaluationObservation>();
+        var runLedger = new java.util.HashMap<String, TestEvaluationRunEvidence>();
+        for (int i = 1; i <= 12; i++) {
+            String unit = sha256("independent-holdout-input:" + i);
+            String baselineRun = sha256("baseline-run:" + i);
+            String candidateRun = sha256("candidate-run:" + i);
+            holdout.add(new FeedbackEvaluationObservation("holdout-" + i, unit, baselineRun, candidateRun,
+                    10.0, 10.5, 0, 0, 8.0, 8.0));
+            runLedger.put(baselineRun, new TestEvaluationRunEvidence(unit, "b1-topk/b3-base-v1", "", 0));
+            runLedger.put(candidateRun, new TestEvaluationRunEvidence(unit, candidatePolicy.baselinePolicyVersion(),
+                    candidatePolicy.policyId(), candidatePolicy.version()));
+        }
+        FeedbackEvaluationEvidenceVerifier runVerifier = (candidateArg, observation, evaluatedAt) -> {
+            var baseline = runLedger.get(observation.baselineRunFingerprint());
+            var adapted = runLedger.get(observation.candidateRunFingerprint());
+            return baseline != null && adapted != null
+                    && observation.experimentUnitFingerprint().equals(baseline.experimentUnitFingerprint())
+                    && observation.experimentUnitFingerprint().equals(adapted.experimentUnitFingerprint())
+                    && candidateArg.baselinePolicyVersion().equals(baseline.baselinePolicyVersion())
+                    && candidateArg.policyId().equals(adapted.policyId())
+                    && candidateArg.version() == adapted.candidatePolicyVersion();
+        };
+        var report = new FeedbackPolicyHoldoutEvaluator(runVerifier).evaluate(candidatePolicy, holdout,
+                new FeedbackEvaluationThreshold("m8-r2-fullgraph-holdout-v1", 12, 0.1, 0.0, 0), at.plusSeconds(30));
+        assertEquals(PolicyDisposition.ELIGIBLE_FOR_AUTHORIZED_ACTIVATION, report.decision());
+        var activated = new FeedbackPolicyActivationService((candidateArg, reportArg, approver, reference, now) ->
+                candidateArg.scopeId().equals(scope) && reportArg.evaluationFingerprint().equals(report.evaluationFingerprint())
+                        && "test-policy-approver".equals(approver) && "approval:fullgraph-r2".equals(reference))
+                .activate(candidatePolicy, report, new FeedbackPolicyActivationApproval(scope,
+                        candidatePolicy.policyId(), candidatePolicy.version(), report.evaluationFingerprint(),
+                        "test-policy-approver", "approval:fullgraph-r2", at.plusSeconds(31)), at.plusSeconds(32));
+
+        // Recompile the same full graph using the exact approved policy instance. The actual graph
+        // now performs both B1 retrieval and B3 workspace admission through the adjusted services.
+        FullGraphRuntime activeGraphRuntime = scenario.compileFullRuntimeWithFeedbackPolicy(activated);
+        var activeGraphStream = activeGraphRuntime.graph().stream(GraphInput.args(scenario.input()), scenario.config);
+        for (var ignored : activeGraphStream) { /* consume the real graph to its approval checkpoint */ }
+        assertTrue(org.bsc.langgraph4j.GraphResult.from(activeGraphStream).isInterruptionMetadata());
+        assertEquals(candidateA, scenario.decision.lastB1Selection.selectedCandidates().getFirst().candidateId(),
+                "the real graph's M2 -> B1 path must consume the authorized overlay");
+        var activeState = activeGraphRuntime.graph().getState(scenario.config).state();
+        String activeWorkspaceId = activeState.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
+        var activeWorkspace = activeGraphRuntime.b3WorkspaceAdmission().findById(activeWorkspaceId).orElseThrow();
+        var rankedFeedbackCandidates = activeWorkspace.entries().stream()
+                .map(entry -> entry.candidate().id())
+                .filter(id -> id.equals(candidateA) || id.equals(candidateB)).toList();
+        assertEquals(List.of(candidateA, candidateB), rankedFeedbackCandidates,
+                "the real graph's B3 admission path must consume the same authorized overlay");
+        assertEquals(1.0, activated.adjustmentFor(scope, candidateA), 1e-9);
+        assertEquals(0.0, activated.adjustmentFor(new MemoryScopeId("tenant:other-scope"), candidateA), 1e-9);
+    }
+
+    private record TestEvaluationRunEvidence(String experimentUnitFingerprint, String baselinePolicyVersion,
+                                             String policyId, long candidatePolicyVersion) { }
+
     private enum ApprovalMode {
         APPROVED, DENIED, REVOKED, STALE_PLAN_THEN_DENY,
         DEMAND_CHANGED_THEN_DENY, OBSERVATION_INVALIDATES_PLAN
@@ -423,16 +604,30 @@ class M8B4FullGraphWorkflowTest {
         private final CompiledGraph<CognitiveCycleState> graph;
         private final RunnableConfig config;
         private final javax.sql.DataSource checkpointDataSource;
+        private final boolean r2Enabled;
+        private final InMemoryB3OutcomeEvidenceRepository r2OutcomeRepository;
+        private final InMemoryRecoveryProcedureDraftRepository r2DraftRepository;
+        private final FullGraphRuntime fullGraphRuntime;
+        private final FullGraphEvaluationHost.Ports ports;
 
         private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode) throws Exception {
-            this(fixture, approvalMode, false, null, null, null, null);
+            this(fixture, approvalMode, false, null, null, null, null, false, false, null);
         }
 
         private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode, boolean clarifyOnFirstInterpretation,
                                 String stableThreadId, javax.sql.DataSource checkpointDataSource,
                                 ResourceBudgetExecutionGuard durableBudgetGuard,
                                 ResourceBudget durableBudget) throws Exception {
+            this(fixture, approvalMode, clarifyOnFirstInterpretation, stableThreadId, checkpointDataSource,
+                    durableBudgetGuard, durableBudget, false, false, null);
+        }
+
+        private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode, boolean clarifyOnFirstInterpretation,
+                                String stableThreadId, javax.sql.DataSource checkpointDataSource,
+                                ResourceBudgetExecutionGuard durableBudgetGuard, ResourceBudget durableBudget,
+                                boolean r2Enabled, boolean resolveB2, ActiveOutcomeFeedbackPolicy activeFeedbackPolicy) throws Exception {
             this.fixture = fixture;
+            this.r2Enabled = r2Enabled;
             this.checkpointDataSource = checkpointDataSource;
             this.worldStore = new ScenarioWorldStore(fixture.planningRequest().initialWorld(), fixture.planningRequest().evidence());
             this.worldStore.initializeActionDescriptors(fixture.planningRequest().availableActionDefinitions());
@@ -459,12 +654,13 @@ class M8B4FullGraphWorkflowTest {
                         deterministicReasoner, durableBudgetGuard)));
             }
             lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore, actionHandlers,
-                    durableBudget);
+                    durableBudget, resolveB2);
             authority = new AuthorityAdapter(approvalMode, fixture);
             var consumers = Map.<String, WorkspaceConsumer>of("planner", broadcast -> new WorkspaceConsumerReceipt(
                     "planner", broadcast.snapshot().id(), ConsumerReceiptStatus.ACCEPTED,
                     broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
                     broadcast.broadcastAt(), "deterministic planner consumer accepted the admitted workspace"));
+            if (r2Enabled) registry.register(new R2InventoryReadTestHandler());
             var strategies = new EvaluationPlannerFactory(world).strategiesForFullGraph(fixture);
             AtomicInteger interpretationCalls = new AtomicInteger();
             var interpreter = (dev.supplychain.agent.core.interpretation.RequestInterpreter) request -> {
@@ -475,11 +671,25 @@ class M8B4FullGraphWorkflowTest {
                 return new RequestInterpretation(InterpretationOutcome.READY, request.originalText(),
                         "Deterministic M8-B4 scenario interpretation");
             };
-            var ports = new FullGraphEvaluationHost.Ports(decision, lifecycle, authority, interpreter,
-                    worldModel, evaluator, strategies, clock, registry, consumers, durableBudgetGuard);
+            r2OutcomeRepository = r2Enabled ? new InMemoryB3OutcomeEvidenceRepository() : null;
+            r2DraftRepository = r2Enabled ? new InMemoryRecoveryProcedureDraftRepository() : null;
+            R2WorkflowConfiguration r2Configuration = r2Enabled
+                    ? r2Configuration(registry, r2DraftRepository, r2OutcomeRepository, activeFeedbackPolicy) : null;
+            List<Episode> initialVerifiedEpisodes = r2Enabled ? List.of(
+                    verifiedScenarioEpisode(fixture, "candidate-a"), verifiedScenarioEpisode(fixture, "candidate-b")) : List.of();
+            ports = new FullGraphEvaluationHost.Ports(decision, lifecycle, authority, interpreter,
+                    worldModel, evaluator, strategies, clock, registry, consumers, durableBudgetGuard, r2Configuration,
+                    initialVerifiedEpisodes);
             if (checkpointDataSource == null) {
-                graph = host.compileFull(ports);
+                if (r2Enabled) {
+                    fullGraphRuntime = host.compileFullRuntime(ports, ignored -> new org.bsc.langgraph4j.checkpoint.MemorySaver());
+                    graph = fullGraphRuntime.graph();
+                } else {
+                    fullGraphRuntime = null;
+                    graph = host.compileFull(ports);
+                }
             } else {
+                fullGraphRuntime = null;
                 graph = host.compileFull(ports, builder ->
                         PostgresLangGraph4jCheckpointSaverFactory.create(checkpointDataSource, builder));
             }
@@ -493,6 +703,48 @@ class M8B4FullGraphWorkflowTest {
             var catalog = ScenarioCatalog.loadDefault();
             var factory = new ScenarioFixtureFactory(catalog);
             return new ScenarioRuntime(factory.create(scenarioId), mode);
+        }
+
+        static ScenarioRuntime createR2(String scenarioId, boolean resolveB2) throws Exception {
+            var fixture = new ScenarioFixtureFactory(ScenarioCatalog.loadDefault()).create(scenarioId);
+            return new ScenarioRuntime(fixture, ApprovalMode.APPROVED, false, null, null, null, null,
+                    true, resolveB2, null);
+        }
+
+        FullGraphRuntime compileFullRuntimeWithFeedbackPolicy(ActiveOutcomeFeedbackPolicy activePolicy) throws Exception {
+            if (!r2Enabled || ports == null || r2DraftRepository == null || r2OutcomeRepository == null) {
+                throw new IllegalStateException("R2 composition is not configured for this scenario");
+            }
+            var updatedPorts = new FullGraphEvaluationHost.Ports(ports.decisionDomain(), ports.lifecycleDomain(),
+                    ports.authority(), ports.interpreter(), ports.worldModel(), ports.candidateEvaluator(),
+                    ports.plannerStrategies(), ports.clock(), ports.actionRegistry(), ports.workspaceConsumers(),
+                    ports.resourceBudgetGuard(), r2Configuration(ports.actionRegistry(), r2DraftRepository,
+                    r2OutcomeRepository, activePolicy), ports.initialVerifiedEpisodes());
+            return host.compileFullRuntime(updatedPorts, ignored -> new org.bsc.langgraph4j.checkpoint.MemorySaver());
+        }
+
+        private R2WorkflowConfiguration r2Configuration(ActionRegistry registry,
+                InMemoryRecoveryProcedureDraftRepository drafts, InMemoryB3OutcomeEvidenceRepository outcomes,
+                ActiveOutcomeFeedbackPolicy activePolicy) {
+            MemoryScopeId expectedScope = fixture.planningRequest().workingMemory().scopeId();
+            String scenarioId = fixture.definition().scenarioId();
+            return new R2WorkflowConfiguration(drafts,
+                    (scope, evidence, at) -> expectedScope.equals(scope)
+                            && evidence.contains(new EvidenceReference("scenario-fixture", scenarioId)),
+                    (draft, approver, approval, at) -> false,
+                    (context, resolvedCase, result, parent, at) -> {
+                        Instant expiry = at.plusSeconds(30);
+                        if (expiry.isAfter(resolvedCase.deadline())) expiry = resolvedCase.deadline().minusMillis(1);
+                        return Optional.of(new RecoveryProcedureDraftRequest(
+                                "recovery-draft:" + resolvedCase.id(), resolvedCase.id(), resolvedCase.version(),
+                                parent.scopeId(), parent, "recovery-condition:" + scenarioId,
+                                List.of(R2InventoryReadTestHandler.ID), List.of("parent-scope-current"),
+                                List.of("child-evidence-verified"), List.of("parent-version-or-scope-changed"), expiry));
+                    }, outcomes,
+                    (scope, receipt, candidate, signal, evidence, at) -> expectedScope.equals(scope)
+                            && evidence.stream().anyMatch(ref -> ref.evidenceType().equals("erp-outcome"))
+                            && evidence.stream().anyMatch(ref -> ref.evidenceType().equals(B3OutcomeEvidenceService.EXPERIMENT_UNIT_EVIDENCE_TYPE)),
+                    "b3-workspace-admission-r2-v1", "m8-test-downstream-verifier", activePolicy);
         }
 
         static ScenarioRuntime createForPostgres(String scenarioId, boolean clarifyOnFirstInterpretation,
@@ -619,6 +871,38 @@ class M8B4FullGraphWorkflowTest {
         }
     }
 
+    private static final class R2InventoryReadTestHandler implements ActionHandler<String, String> {
+        private static final ActionId ID = new ActionId("m8-test:inventory-read");
+        private static final ActionDescriptor DESCRIPTOR = new ActionDescriptor(ID, "Verify inventory snapshot",
+                "Read-only fixture action reference for a typed B2 recovery draft", ActionCategory.PERCEPTION,
+                ActionEffect.READ_ONLY, Capability.INVENTORY_READ, false);
+        @Override public ActionDescriptor descriptor() { return DESCRIPTOR; }
+        @Override public Class<String> inputType() { return String.class; }
+        @Override public Class<String> outputType() { return String.class; }
+        @Override public String execute(ActionContext context, String input) { return "verified-snapshot:" + input; }
+    }
+
+    private static Episode verifiedScenarioEpisode(ScenarioFixture fixture, String itemId) {
+        MemoryScopeId scope = fixture.planningRequest().workingMemory().scopeId();
+        Instant recordedAt = ScenarioFixtureFactory.FIXTURE_AS_OF.minusSeconds(10);
+        Instant completedAt = recordedAt.minusSeconds(10);
+        Instant startedAt = completedAt.minusSeconds(10);
+        var episode = Episode.recorded(new EpisodeId(itemId), scope, "Verified recovery memory " + itemId,
+                "A verified prior recovery episode used as a B1 retrieval fixture", EpisodeOutcome.SUCCESS,
+                startedAt, completedAt, recordedAt, recordedAt.plus(Duration.ofDays(30)), List.of(), List.of(),
+                List.of(new EvidenceReference("scenario-fixture", fixture.definition().scenarioId())),
+                new Provenance(ProvenanceSource.VERIFIED_EPISODE, "r2-seed:" + itemId, completedAt,
+                        recordedAt, "m8-r2-integration-fixture-v1"));
+        return episode.verify("m8-r2-test-reviewer", new EvidenceReference("episode-review", "reviewed:" + itemId),
+                ScenarioFixtureFactory.FIXTURE_AS_OF.minusSeconds(1));
+    }
+
+    private static String sha256(String value) {
+        try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+        catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+
     private static UncertaintyAssessment uncertainty(CognitiveCycleOperations.CycleContext context, Instant at) {
         var reference = context.requireUncertaintyAssessmentReference();
         return new UncertaintyAssessment(reference, at.minusSeconds(1), at.plusSeconds(300),
@@ -634,6 +918,8 @@ class M8B4FullGraphWorkflowTest {
         private final ScenarioWorldStore worldStore;
         private WorkspaceBroadcastReport lastBroadcast;
         private PlanningRequest lastPlanningRequest;
+        private B1SelectionResult lastB1Selection;
+        private boolean includeFeedbackCandidates;
 
         private DecisionAdapter(ScenarioFixture fixture, ScenarioWorldStore worldStore) {
             this.fixture = fixture;
@@ -654,12 +940,22 @@ class M8B4FullGraphWorkflowTest {
         }
 
         @Override public B1CandidateFeatureProvider b1FeatureProvider(CognitiveCycleOperations.CycleContext context) {
-            return reference -> { throw new AssertionError("the scenario starts with no persisted long-term memories"); };
+            return reference -> {
+                double utility = switch (reference.itemId()) {
+                    case "candidate-a" -> 2.0;
+                    case "candidate-b" -> 2.3;
+                    default -> throw new AssertionError("unexpected seeded B1 episodic candidate: " + reference.itemId());
+                };
+                return new B1CandidateFeatures(List.of(), Map.of(), utility, 1, Duration.ZERO,
+                        new MaintenanceProfile(0.0, 0.0, 0.0, Duration.ofDays(1),
+                                ScenarioFixtureFactory.FIXTURE_AS_OF.minusSeconds(1)));
+            };
         }
 
         @Override public CognitiveCycleOperations.EvidenceRetrieved persistEvidenceSelection(
                 CognitiveCycleOperations.CycleContext context, MemoryRetrievalResult retrieved,
                 B1SelectionResult selected, Instant at) {
+            lastB1Selection = selected;
             return new CognitiveCycleOperations.EvidenceRetrieved(CognitiveCycleOperations.EvidenceDisposition.READY,
                     "evidence-set:" + context.requestId(), fixture.planningRequest().complexity().uncertainty(),
                     "versioned scenario evidence set persisted by the deterministic test adapter");
@@ -672,14 +968,27 @@ class M8B4FullGraphWorkflowTest {
         @Override public WorkspaceAdmissionRequest workspaceAdmissionRequest(
                 CognitiveCycleOperations.CycleContext context, Instant at) {
             MemoryScopeId scope = memoryScope(context);
+            var candidates = new ArrayList<WorkspaceCandidate>();
+            candidates.add(new WorkspaceCandidate("request-context:" + context.requestId(), scope,
+                    WorkspaceCandidateKind.OBSERVATION, 2.0, 1.0, 0.0, 2,
+                    Set.of("current-request"), Set.of(), true,
+                    List.of(new EvidenceReference("request", context.requestId()))));
+            if (includeFeedbackCandidates) {
+                candidates.add(new WorkspaceCandidate("episodic:candidate-a:1", scope, WorkspaceCandidateKind.OBSERVATION,
+                        5.0, 1.0, 0.0, 1, Set.of(), Set.of(), false,
+                        List.of(new EvidenceReference("episodic-memory", "candidate-a"))));
+                candidates.add(new WorkspaceCandidate("episodic:candidate-b:1", scope, WorkspaceCandidateKind.OBSERVATION,
+                        5.4, 1.0, 0.0, 1, Set.of(), Set.of(), false,
+                        List.of(new EvidenceReference("episodic-memory", "candidate-b"))));
+            }
             return new WorkspaceAdmissionRequest("cycle:" + context.executionId(), scope, 10, 5,
                     Set.of("current-request"), Map.of("current-request", 1.0),
-                    new WorkspaceScoringPolicy(0.0, 1.0),
-                    List.of(new WorkspaceCandidate("request-context:" + context.requestId(), scope,
-                            WorkspaceCandidateKind.OBSERVATION, 2.0, 1.0, 0.0, 2,
-                            Set.of("current-request"), Set.of(), true,
-                            List.of(new EvidenceReference("request", context.requestId())))), at,
+                    new WorkspaceScoringPolicy(0.0, 1.0), candidates, at,
                     context.requireUncertaintyAssessmentReference());
+        }
+
+        @Override public String experimentUnitFingerprint(CognitiveCycleOperations.CycleContext context, Instant at) {
+            return fixture.fixtureFingerprint();
         }
 
         @Override public Set<String> workspaceConsumers(CognitiveCycleOperations.CycleContext context) {
@@ -728,14 +1037,17 @@ class M8B4FullGraphWorkflowTest {
         private final AtomicInteger escalations = new AtomicInteger();
         private final AtomicInteger outcomeEpisodes = new AtomicInteger();
         private final AtomicInteger revalidationRequests = new AtomicInteger();
+        private final AtomicInteger childStepsExecuted = new AtomicInteger();
         private final RecoveryObjective objective;
         private final ResourceBudget durableBudget;
+        private final boolean resolveB2;
         private final Map<String, UncertaintyAssessment.Reference> uncertaintyByTrigger = new java.util.HashMap<>();
         private final Map<UncertaintyAssessment.Reference, UncertaintyAssessment> uncertaintyByReference = new java.util.HashMap<>();
 
         private LifecycleAdapter(ScenarioFixture fixture, Clock clock, ApprovalMode approvalMode,
                                  ScenarioEffectStore effects, ScenarioWorldStore worldStore,
-                                 Map<ActionId, ReservationActionHandler> actionHandlers, ResourceBudget durableBudget) {
+                                 Map<ActionId, ReservationActionHandler> actionHandlers, ResourceBudget durableBudget,
+                                 boolean resolveB2) {
             this.fixture = fixture;
             this.clock = clock;
             this.effects = effects;
@@ -744,6 +1056,7 @@ class M8B4FullGraphWorkflowTest {
             this.approvalMode = approvalMode;
             this.objective = fixture.planningRequest().objective();
             this.durableBudget = durableBudget;
+            this.resolveB2 = resolveB2;
         }
 
         private final ApprovalMode approvalMode;
@@ -797,8 +1110,14 @@ class M8B4FullGraphWorkflowTest {
 
         @Override public ChildInvestigationPlan planChildInvestigation(CognitiveCycleOperations.CycleContext context,
                 dev.supplychain.agent.mechanisms.b2.ImpasseResolutionCase resolutionCase, Instant at) {
-            // These fixtures intentionally do not invent missing supply or evidence. The typed unresolved
-            // result returns control to the parent intention, which the graph then escalates safely.
+            if (resolveB2) {
+                return new ChildInvestigationPlan(List.of(new ChildInvestigationStep("inventory-read-proof",
+                        Capability.INVENTORY_READ, "inspect the immutable scenario inventory snapshot")),
+                        ResolutionDisposition.EVIDENCE_CONFIRMED, List.of("fixture inventory evidence resolves the modeled impasse"),
+                        DelegationReturn.NO_METHOD_CHANGE);
+            }
+            // Default fixtures do not invent missing supply or evidence. The unresolved result returns
+            // control to the parent intention, which the graph then escalates safely.
             return new ChildInvestigationPlan(List.of(), ResolutionDisposition.UNRESOLVED,
                     List.of(), DelegationReturn.NO_METHOD_CHANGE);
         }
@@ -807,7 +1126,13 @@ class M8B4FullGraphWorkflowTest {
                 CognitiveCycleOperations.CycleContext context,
                 dev.supplychain.agent.mechanisms.b2.ImpasseResolutionCase resolutionCase,
                 ChildInvestigationStep step, Instant at) {
-            throw new UnsupportedOperationException("unexpected B2 child action in B4-B workflow fixture");
+            if (!resolveB2 || step.capability() != Capability.INVENTORY_READ) {
+                throw new UnsupportedOperationException("unexpected B2 child action in B4-B workflow fixture");
+            }
+            childStepsExecuted.incrementAndGet();
+            return List.of(new dev.supplychain.agent.mechanisms.b2.ResolutionFinding(
+                    "scenario inventory snapshot confirms the investigation precondition",
+                    List.of(new EvidenceReference("scenario-fixture", fixture.definition().scenarioId()))));
         }
 
         @Override public dev.supplychain.agent.mechanisms.b2.ParentContextSnapshot currentParentContext(

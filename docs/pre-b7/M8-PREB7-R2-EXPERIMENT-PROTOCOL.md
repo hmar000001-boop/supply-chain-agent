@@ -21,15 +21,18 @@ The test is not whether the policy can change a score. The test is whether an ev
 - Training records must be `VerifiedDownstreamOutcomeEvidence` minted by `B3OutcomeEvidenceService` after receipt linkage and evidence re-verification.
 - Each outcome must bind scope, accepted consumer receipt, actual consumed-candidate fingerprint, cycle, workspace, consumer, admission-policy version, verifier identity, evidence reference and verified timestamp.
 - Cross-scope mixing, duplicate idempotency IDs, unverifiable evidence, rejected receipts and outcomes for candidates not consumed are excluded by failure (not silently counted as neutral).
-- The experimental unit is an independent scenario, not an outcome row, receipt, candidate, or replay.
-- Holdout scenario IDs must be unique and disjoint from all training cycle IDs. Repeated/replayed rows do not increase the primary sample size.
+- The experimental unit is the SHA-256 fingerprint of the immutable scenario inputs, not an outcome row, receipt, candidate, cycle identifier, display scenario ID, or replay.
+- The same immutable scenario inputs must produce the same fingerprint across training and holdout, independently of planner or policy outputs. The fingerprint is supplied by the domain/evaluation host; an empty value makes an outcome ineligible for training.
+- Training and holdout must be disjoint by these common experimental-unit fingerprints. Comparing training cycle IDs with holdout scenario IDs is invalid because they are different identifier domains.
+- Each holdout observation must include distinct baseline and candidate run fingerprints. A trusted host-side `FeedbackEvaluationEvidenceVerifier` must resolve both fingerprints from an authoritative evaluation-run store and prove that both runs used the exact same immutable input fingerprint, with the frozen baseline policy and the exact candidate policy version respectively, before the evaluation timestamp. Hash-shaped strings alone are not evidence.
+- Holdout display scenario IDs must also be unique, and paired source-run fingerprints must not be reused. Repeated/replayed rows do not increase the primary sample size.
 
 ## 4. Candidate construction
 
 - Training protocol uses at least 5 verified outcomes per candidate before emitting a non-zero adjustment.
 - Adjustment magnitude is bounded to `[-1.0, +1.0]` in the R2 reference evidence path; the trainer's hard defensive ceiling is 5.0.
 - The candidate is always `SHADOW` when trained. Training never activates it.
-- The training source fingerprint includes exact ordered evidence payloads, IDs/cycles, scope, baseline version, candidate adjustment map, policy/version, observation minimum, maximum adjustment and training timestamp.
+- The training source fingerprint includes exact ordered evidence payloads, IDs/cycles, scope, baseline version, candidate adjustment map, verified experimental-unit fingerprints, policy/version, observation minimum, maximum adjustment and training timestamp.
 
 ## 5. Preregistered holdout criteria
 
@@ -52,7 +55,8 @@ A report below the minimum sample size remains `SHADOW`. A report exceeding safe
 Activation requires a separate host approval bound to the exact scope, candidate policy ID/version and evaluation fingerprint. The host authority receives the complete candidate and report and must validate:
 
 - the protocol ID and frozen threshold definition;
-- the provenance and disjointness of the training/holdout dataset;
+- the provenance and disjointness of the training/holdout dataset using immutable input fingerprints;
+- the authoritative baseline and candidate run records and their exact input/policy bindings;
 - the source fingerprint and candidate payload;
 - the approver's scope and authority;
 - that the report is no older than the approval and that the candidate/baseline version remains current.

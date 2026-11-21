@@ -19,6 +19,7 @@ public final class B2ResolutionGraphState extends AgentState {
     public static final String INVESTIGATION_REFERENCE = "investigationReference";
     public static final String DISPOSITION = "disposition";
     public static final String REASON = "reason";
+    public static final String RECOVERY_PROCEDURE_DRAFT_ID = "recoveryProcedureDraftId";
 
     public static final Map<String, Channel<?>> SCHEMA = Map.ofEntries(
             Map.entry(REQUEST_ID, Channels.base(() -> "")),
@@ -31,7 +32,8 @@ public final class B2ResolutionGraphState extends AgentState {
             Map.entry(UNCERTAINTY_ASSESSMENT_VERSION, Channels.base(() -> 0L)),
             Map.entry(INVESTIGATION_REFERENCE, Channels.base(() -> "")),
             Map.entry(DISPOSITION, Channels.base(() -> "UNRESOLVED")),
-            Map.entry(REASON, Channels.base(() -> ""))
+            Map.entry(REASON, Channels.base(() -> "")),
+            Map.entry(RECOVERY_PROCEDURE_DRAFT_ID, Channels.base(() -> ""))
     );
 
     public B2ResolutionGraphState(Map<String, Object> initialData) { super(initialData); }

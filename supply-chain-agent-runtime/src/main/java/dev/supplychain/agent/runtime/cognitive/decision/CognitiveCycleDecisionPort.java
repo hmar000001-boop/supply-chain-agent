@@ -60,6 +60,16 @@ public interface CognitiveCycleDecisionPort {
     WorkspaceAdmissionRequest workspaceAdmissionRequest(
             CognitiveCycleOperations.CycleContext context, Instant at);
 
+    /**
+     * Return SHA-256 of the immutable experimental scenario inputs for this run. This fingerprint
+     * must be identical when the same scenario is replayed in training and holdout, regardless of
+     * planner/policy outputs. Empty is permitted for non-experimental runs but makes their B3
+     * outcomes ineligible for adaptive-policy training.
+     */
+    default String experimentUnitFingerprint(CognitiveCycleOperations.CycleContext context, Instant at) {
+        return "";
+    }
+
     /** Return the explicitly configured downstream workspace consumers. */
     Set<String> workspaceConsumers(CognitiveCycleOperations.CycleContext context);
 

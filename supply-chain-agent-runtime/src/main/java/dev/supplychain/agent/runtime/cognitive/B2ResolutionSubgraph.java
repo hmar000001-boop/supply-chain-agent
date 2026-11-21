@@ -62,7 +62,8 @@ public final class B2ResolutionSubgraph {
             var result = operations.validateImpasseReturn(childContext(state));
             return Map.of(
                     B2ResolutionGraphState.DISPOSITION, result.disposition().name(),
-                    B2ResolutionGraphState.REASON, result.reason());
+                    B2ResolutionGraphState.REASON, result.reason(),
+                    B2ResolutionGraphState.RECOVERY_PROCEDURE_DRAFT_ID, result.recoveryProcedureDraftId());
         };
 
         var graph = new StateGraph<>(B2ResolutionGraphState.SCHEMA, B2ResolutionGraphState::new)

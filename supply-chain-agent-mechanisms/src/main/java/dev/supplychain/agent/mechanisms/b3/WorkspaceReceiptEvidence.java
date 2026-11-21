@@ -10,7 +10,7 @@ import java.util.TreeMap;
 public record WorkspaceReceiptEvidence(String receiptId, MemoryScopeId scopeId, String cycleId,
         String workspaceId, String consumerId, ConsumerReceiptStatus status,
         Map<String,String> consumedCandidateFingerprints, String workspaceFingerprint,
-        String admissionPolicyVersion, Instant receivedAt) {
+        String experimentUnitFingerprint, String admissionPolicyVersion, Instant receivedAt) {
     public WorkspaceReceiptEvidence {
         receiptId=required(receiptId,"receiptId"); scopeId=Objects.requireNonNull(scopeId,"scopeId");
         cycleId=required(cycleId,"cycleId"); workspaceId=required(workspaceId,"workspaceId");
@@ -28,6 +28,14 @@ public record WorkspaceReceiptEvidence(String receiptId, MemoryScopeId scopeId, 
         if(!workspaceFingerprint.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("workspace fingerprint must be SHA-256");
         admissionPolicyVersion=required(admissionPolicyVersion,"admissionPolicyVersion");
         receivedAt=Objects.requireNonNull(receivedAt,"receivedAt");
+    }
+
+    /** Compatibility constructor for audit receipts that are not eligible for adaptive training. */
+    public WorkspaceReceiptEvidence(String receiptId, MemoryScopeId scopeId, String cycleId, String workspaceId,
+            String consumerId, ConsumerReceiptStatus status, Map<String,String> consumedCandidateFingerprints,
+            String workspaceFingerprint, String admissionPolicyVersion, Instant receivedAt) {
+        this(receiptId, scopeId, cycleId, workspaceId, consumerId, status, consumedCandidateFingerprints,
+                workspaceFingerprint, "", admissionPolicyVersion, receivedAt);
     }
     private static String required(String value,String name){String s=Objects.requireNonNull(value,name).trim();if(s.isEmpty())throw new IllegalArgumentException(name+" cannot be blank");return s;}
 }

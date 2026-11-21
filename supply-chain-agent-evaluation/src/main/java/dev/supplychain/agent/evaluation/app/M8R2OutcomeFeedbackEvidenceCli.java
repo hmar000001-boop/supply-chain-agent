@@ -52,7 +52,8 @@ public final class M8R2OutcomeFeedbackEvidenceCli {
                 List.of(), 5, 1.0, REFERENCE_TIME);
         var threshold = new FeedbackEvaluationThreshold("m8-r2-preregistered-holdout-v1",
                 12, 0.10, 0.0, 0);
-        var report = new FeedbackPolicyHoldoutEvaluator().evaluate(candidate, List.of(), threshold, REFERENCE_TIME);
+        var report = new FeedbackPolicyHoldoutEvaluator((candidateArg, observation, at) -> false)
+                .evaluate(candidate, List.of(), threshold, REFERENCE_TIME);
         if (report.decision() != PolicyDisposition.SHADOW || !Double.isFinite(report.lowerConfidenceBound95())) {
             throw new IllegalStateException("empty evidence must remain a finite, non-activatable SHADOW evaluation");
         }

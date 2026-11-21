@@ -43,10 +43,10 @@ require("repository.appendReceipt(evidence)" in b3 and "repository.appendOutcome
         "B3 must durably append consumer receipts and verified downstream outcomes")
 require("repository.findReceipt(scopeId,outcome.receiptId())" in b3 and "verifier.verify(scopeId,outcome.receiptId()" in b3,
         "B3 must re-link and reverify persisted outcomes before training input is minted")
-require("new VerifiedDownstreamOutcomeEvidence(outcome)" in b3,
+require("new VerifiedDownstreamOutcomeEvidence(outcome, outcome.experimentUnitFingerprint())" in b3,
         "B3 must mint the verified-evidence capability only after revalidation")
 wrapper = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/VerifiedDownstreamOutcomeEvidence.java")
-require("VerifiedDownstreamOutcomeEvidence(DownstreamOutcomeEvidence evidence)" in wrapper
+require("VerifiedDownstreamOutcomeEvidence(DownstreamOutcomeEvidence evidence, String experimentUnitFingerprint)" in wrapper
         and "public VerifiedDownstreamOutcomeEvidence(" not in wrapper,
         "Verified B3 evidence constructor must remain package-private")
 receipt = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceReceiptEvidence.java")
@@ -69,8 +69,19 @@ require("CandidateOutcomeAdjustment.neutral()" in selector and "CandidateOutcome
 require("adjustmentFor(candidate.scopeId()" in selector and "adjustmentFor(candidate.scopeId()" in admission,
         "B1/B3 must request feedback using the candidate scope")
 evaluator = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackPolicyHoldoutEvaluator.java")
-require("Collections.disjoint(candidate.trainingCycleIds(),ids)" in evaluator,
-        "holdout evaluator must reject overlap with training cycles")
+require("Collections.disjoint(candidate.trainingExperimentUnitFingerprints(), experimentUnits)" in evaluator,
+        "holdout evaluator must reject overlap using common immutable experimental-unit fingerprints")
+require("evidenceVerifier.verify(candidate, observation, evaluatedAt)" in evaluator,
+        "holdout evaluator must authenticate paired source runs against the exact scenario and policy versions")
+require("sourceRunFingerprints.size() != ordered.size() * 2" in evaluator,
+        "holdout must reject duplicate/mixed paired source-run fingerprints")
+unit_verifier = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackEvaluationEvidenceVerifier.java")
+observation_contract = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackEvaluationObservation.java")
+require("baselineRunFingerprint" in observation_contract and "candidateRunFingerprint" in observation_contract
+        and "experimentUnitFingerprint" in observation_contract
+        and "candidate.policyId()" in unit_verifier and "candidate.version()" in unit_verifier
+        and "baselinePolicyVersion()" in unit_verifier and "predate" in unit_verifier,
+        "trusted host verifier contract must bind both paired source runs to the same immutable unit and policy versions")
 require("minimumHoldoutScenarios()" in evaluator and "minimumMeanUtilityGain()" in evaluator
         and "maximumSafetyRegressions()" in evaluator and "maximumMeanResourceIncrease()" in evaluator,
         "holdout evaluator must enforce all preregistered threshold dimensions")
@@ -82,6 +93,31 @@ require("approval.evaluationFingerprint()" in activation and "authority.isAuthor
         "activation must bind the exact report and delegate to host authority")
 require("report.decision()!=PolicyDisposition.ELIGIBLE_FOR_AUTHORIZED_ACTIVATION" in activation,
         "activation must reject any candidate that fails held-out evaluation")
+
+# Full cognitive-cycle composition: all R2 services must be the instances used by the graph.
+full_host = read("supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java")
+require("R2WorkflowConfiguration r2 = ports.r2Workflow()" in full_host,
+        "full graph host must accept explicit R2 workflow dependencies")
+require("new B3OutcomeEvidenceService" in full_host and "WorkspaceReceiptRecorder receiptRecorder = b3Evidence == null ? WorkspaceReceiptRecorder.noOp() : b3Evidence" in full_host,
+        "configured full graph broadcasts must persist B3 consumer receipts through the evidence service")
+require("new B1RetrievalSelector" in full_host and "new WorkspaceAdmissionService" in full_host
+        and "feedbackAdjustment" in full_host,
+        "the same authorized active outcome adjustment must be injected into the graph's B1 and B3 services")
+require("new RecoveryProcedureDraftService" in full_host and "recoveryDraftService" in full_host
+        and "r2.recoveryDraftRequestFactory()" in full_host,
+        "resolved B2 child returns must be connected to typed recovery-procedure draft creation")
+runtime_model = read("supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphRuntime.java")
+require("RecoveryProcedureDraftService recoveryProcedureDrafts" in runtime_model
+        and "B3OutcomeEvidenceService outcomeEvidence" in runtime_model
+        and "B1RetrievalSelector b1RetrievalSelector" in runtime_model
+        and "WorkspaceAdmissionService b3WorkspaceAdmission" in runtime_model,
+        "full graph runtime must expose the exact R2 services wired into the compiled graph")
+full_test = read("supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java")
+for token in ("fullGraphB3BroadcastPersistsReceiptAndSupportsVerifiedOutcomeLearningEvidence",
+              "fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference",
+              "authorizedFeedbackOverlayIsConsumedByB1AndB3DuringTheCompiledFullGraphRun",
+              "initialVerifiedEpisodes", "lastB1Selection", "activeGraphRuntime.graph().stream"):
+    require(token in full_test, f"full-graph R2 integration test is missing: {token}")
 
 # PostgreSQL migration and typed repositories.
 migration = ROOT / "supply-chain-agent-infrastructure-postgres/src/main/resources/db/migration/V011__b2_procedure_drafts_and_b3_outcome_evidence.sql"
@@ -140,7 +176,8 @@ if register_path.is_file():
     with register_path.open(newline="", encoding="utf-8") as f:
         rows = {row["ID"]: row for row in csv.DictReader(f)}
     require(rows.get("R1-04", {}).get("Status") == "ACCEPTED", "R1-DEF must be registered accepted after user-confirmed green CI")
-    require(rows.get("R2-01", {}).get("Status") == "IMPLEMENTED_PENDING_CI", "R2 must remain pending until its single hosted acceptance run")
+    require(rows.get("R2-01", {}).get("Status") == "ACCEPTED_INITIAL_IMPLEMENTATION", "initial R2 service/repository implementation must remain separately recorded")
+    require(rows.get("R2-02", {}).get("Status") == "IMPLEMENTED_PENDING_CI", "integrated R2 graph wiring must remain pending until its single hosted acceptance run")
 
 if FAILURES:
     print("M8-PreB7 R2 evidence verification: FAILED", file=sys.stderr)
@@ -151,6 +188,7 @@ if FAILURES:
 print("M8-PreB7 R2 evidence verification: PASS")
 print("B2 typed draft/non-execution boundary: PASS")
 print("B3 receipt-linked verified outcomes/ephemeral workspace boundary: PASS")
-print("B1/B3 shadow, scope and holdout activation guardrails: PASS")
+print("B1/B3 shadow, scope, immutable-unit holdout and paired-run verification guardrails: PASS")
+print("Full-graph B2 draft, B3 receipts/outcomes and authorized B1/B3 policy integration: PASS")
 print("V011 repositories and PostgreSQL integration test presence: PASS")
 print("No-corpus R2 artifact and hosted evidence/security workflow: PASS")

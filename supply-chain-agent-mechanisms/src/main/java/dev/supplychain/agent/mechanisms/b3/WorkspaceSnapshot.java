@@ -10,7 +10,7 @@ import java.util.Set;
 public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
                                 List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions,
                                 Set<String> coveredTags, WorkspaceStatus status, long version,
-                                Instant createdAt, Instant updatedAt) {
+                                Instant createdAt, Instant updatedAt, String experimentUnitFingerprint) {
     public WorkspaceSnapshot {
         id = require(id, "id");
         cycleId = require(cycleId, "cycleId");
@@ -24,6 +24,9 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
         status = Objects.requireNonNull(status, "status");
         createdAt = Objects.requireNonNull(createdAt, "createdAt");
         updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
+        experimentUnitFingerprint = experimentUnitFingerprint == null ? "" : experimentUnitFingerprint.trim();
+        if (!experimentUnitFingerprint.isEmpty() && !experimentUnitFingerprint.matches("[0-9a-f]{64}"))
+            throw new IllegalArgumentException("experimentUnitFingerprint must be an empty value or SHA-256");
         if (updatedAt.isBefore(createdAt)) throw new IllegalArgumentException("updatedAt precedes createdAt");
 
         long sum = 0L;
@@ -71,7 +74,15 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
         Objects.requireNonNull(at, "at");
         if (at.isBefore(updatedAt)) throw new IllegalArgumentException("workspace time cannot move backwards");
         return new WorkspaceSnapshot(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions,
-                coveredTags, WorkspaceStatus.CLOSED, version + 1, createdAt, at);
+                coveredTags, WorkspaceStatus.CLOSED, version + 1, createdAt, at, experimentUnitFingerprint);
+    }
+
+    /** Compatibility constructor for historical workspace fixtures without experimental provenance. */
+    public WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
+                              List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions, Set<String> coveredTags,
+                              WorkspaceStatus status, long version, Instant createdAt, Instant updatedAt) {
+        this(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions, coveredTags, status, version,
+                createdAt, updatedAt, "");
     }
 
     private static String require(String value, String name) {

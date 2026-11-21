@@ -11,7 +11,7 @@ import java.util.TreeMap;
 /** Versioned candidate policy trained only from verified B3 downstream outcomes; always starts in SHADOW. */
 public record OutcomeFeedbackPolicyCandidate(String policyId,long version,MemoryScopeId scopeId,String baselinePolicyVersion,
         Map<String,Double> candidateAdjustments,List<String> sourceOutcomeIds,Set<String> trainingCycleIds,
-        int minimumObservationsPerCandidate,double maximumAbsoluteAdjustment,String sourceFingerprint,
+        Set<String> trainingExperimentUnitFingerprints,int minimumObservationsPerCandidate,double maximumAbsoluteAdjustment,String sourceFingerprint,
         Instant trainedAt,PolicyDisposition disposition) {
     public OutcomeFeedbackPolicyCandidate {
         policyId=required(policyId,"policyId");if(version<1)throw new IllegalArgumentException("policy version must be positive");
@@ -30,6 +30,9 @@ public record OutcomeFeedbackPolicyCandidate(String policyId,long version,Memory
             throw new IllegalArgumentException("source outcome IDs must be nonblank and unique");
         trainingCycleIds=Set.copyOf(Objects.requireNonNull(trainingCycleIds,"trainingCycleIds"));
         if(trainingCycleIds.stream().anyMatch(id->id==null||id.isBlank()))throw new IllegalArgumentException("training cycle IDs must be nonblank");
+        trainingExperimentUnitFingerprints=Set.copyOf(Objects.requireNonNull(trainingExperimentUnitFingerprints,"trainingExperimentUnitFingerprints"));
+        if(trainingExperimentUnitFingerprints.stream().anyMatch(id->id==null||!id.matches("[0-9a-f]{64}")))
+            throw new IllegalArgumentException("training experimental-unit fingerprints must be SHA-256");
         sourceFingerprint=required(sourceFingerprint,"sourceFingerprint");
         if(!sourceFingerprint.matches("[0-9a-f]{64}"))throw new IllegalArgumentException("sourceFingerprint must be SHA-256");
         trainedAt=Objects.requireNonNull(trainedAt,"trainedAt");

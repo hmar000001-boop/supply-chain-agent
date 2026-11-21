@@ -52,18 +52,31 @@ The active `WorkspaceSnapshot` remains cycle-bounded. R2 persists receipts and o
 
 PostgreSQL V011 adds `b3_workspace_consumer_receipt` and `b3_downstream_outcome` with scope-qualified primary keys, receipt foreign keys, uniqueness/idempotency constraints and candidate/time indexes. The integration test exercises repository replacement, data reload, exact replay, conflicting idempotency-key reuse and scope isolation.
 
+## 4. Full cognitive-cycle integration
+
+R2's services are now connected through the actual compiled cognitive-cycle graph composition in `FullGraphEvaluationHost`, rather than existing only as separately instantiated services:
+
+- The host accepts an explicit `R2WorkflowConfiguration`; when present, it creates one `B3OutcomeEvidenceService` and injects that exact instance as the `WorkspaceReceiptRecorder` used by `WorkspaceBroadcastService`. Every accepted graph broadcast therefore persists its receipt through the configured in-memory or PostgreSQL repository. A downstream outcome is still submitted separately through the returned evidence service because the graph cannot infer whether a consumer's use was useful or harmful.
+- The same `CandidateOutcomeAdjustment` instance derived from the explicitly authorized active policy is injected into the exact `B1RetrievalSelector` used by `CognitiveCycleDecisionServices.retrieveEvidence` and the exact `WorkspaceAdmissionService` used by `prepareWorkspace`. The unconfigured path remains neutral.
+- The host creates one `RecoveryProcedureDraftService` over the same `ImpasseResolutionService` and action registry used by the graph lifecycle. `CognitiveCycleLifecycleServices.validateImpasseReturn` creates a typed draft only after the B2 child return is resolved and the current parent snapshot is revalidated; the resulting draft ID is carried into parent graph state. Draft creation remains separate from approval and execution.
+- `FullGraphRuntime` returns the exact service instances connected to the graph for downstream evidence submission, inspection and evaluation. The full-graph integration tests seed verified episodic memories, execute the graph, verify B1 baseline ranking and B3 baseline admission, submit receipt-bound outcomes, train a candidate, and then compile a second full graph with the explicitly approved scoped overlay. The second run asserts that the real B1 retrieval and B3 admission paths both consume that same overlay.
+- The integration test's 12 paired holdout records and utility values are deliberately synthetic, held in a test-only in-memory run ledger. They exercise the independent-unit check, paired-source verifier contract, exact version binding and authorized graph injection. They are **not** external evaluation runs, are not part of the R2 outcome corpus, and are not evidence that adaptation improves performance.
+
+The test host uses deterministic in-memory repositories and a test-only registered read action. An application host must inject durable R2 repositories and trusted verifiers for its environment; the graph composition does not manufacture verifier identity or approval authority.
+
 ## 4. Guarded feedback and activation
 
 `OutcomeFeedbackPolicyTrainer` accepts only B3-minted `VerifiedDownstreamOutcomeEvidence`, rejects mixed scopes, future-dated records and duplicate idempotency keys, and produces bounded per-candidate adjustments. It cannot activate a policy.
 
 `FeedbackPolicyHoldoutEvaluator`:
 
-- treats the scenario as the holdout experimental unit;
-- rejects duplicate holdout IDs and any overlap with training cycle IDs;
+- treats a SHA-256 fingerprint of immutable scenario inputs as the common experimental unit;
+- rejects duplicate display scenario IDs, duplicate experimental-unit fingerprints and any overlap with the candidate's training experimental-unit fingerprints;
+- rejects reused paired source-run fingerprints and requires a trusted `FeedbackEvaluationEvidenceVerifier` to resolve and authenticate both baseline/candidate runs against the same immutable input unit and the exact baseline/candidate policy versions;
 - computes paired mean utility difference, a 95% lower confidence bound, safety-regression count and mean resource delta;
 - returns `SHADOW` below the preregistered minimum sample size;
 - rejects candidates exceeding safety/resource limits or failing the utility lower-bound criterion;
-- binds the evaluation fingerprint to candidate ID/version, scope, baseline version, source fingerprint, adjustment payload, training cycles, protocol threshold and ordered holdout observations.
+- binds the evaluation fingerprint to candidate ID/version, scope, baseline version, source fingerprint, adjustment payload, training cycles and experimental-unit fingerprints, protocol threshold and ordered holdout observations.
 
 The R2 reference protocol is `m8-r2-preregistered-holdout-v1`: at least 12 independent holdout scenarios, lower 95% confidence bound for mean utility gain at least 0.10, zero safety regressions and no mean resource-cost increase. A protocol change must receive a new ID and be reviewed before results can be treated as comparable. Hosts must authorize only a protocol and evidence source they trust.
 
@@ -71,7 +84,7 @@ Even an eligible report does not activate a candidate. `FeedbackPolicyActivation
 
 `B1RetrievalSelector` and `WorkspaceAdmissionService` retain neutral adjustments in their existing constructors. Feedback is opt-in via explicit injection of the active policy. The mechanism integration test verifies that an authorized overlay can affect both B1 and B3 rankings for its own scope, while a different scope retains baseline ordering.
 
-## 5. Empirical and ablation evidence boundary
+## 6. Empirical and ablation evidence boundary
 
 CI regenerates the registered M8-B3 raw and paired mechanism-ablation JSONL artifacts from `M8AblationCli`. Those outputs preserve the previous M8-B3 observations and do not rewrite them. The R2 B1/B3 overlay path is additionally covered by a deterministic mechanism integration test.
 
@@ -83,7 +96,7 @@ There is no accepted production outcome corpus or independent holdout dataset in
 - the earlier B1/top-k result remains unchanged and is not tuned away;
 - any future attempt to use real outcomes must version and freeze its dataset, source provenance, scenario split, evaluator, thresholds and baseline before examining holdout results.
 
-## 6. Hosted validation and artifacts
+## 7. Hosted validation and artifacts
 
 The active and mirrored GitHub Actions workflows run the same steps. In addition to the complete Maven/PostgreSQL `clean install`, the R2 acceptance run:
 
@@ -96,7 +109,7 @@ The active and mirrored GitHub Actions workflows run the same steps. In addition
 
 Trivy findings are intentionally reported without making the scanner's exit code a blind build gate. The findings must be reviewed and dispositioned in the hosted artifact before R2 acceptance. This does not replace independent penetration testing or a threat-model signoff.
 
-## 7. Validation status at package authoring
+## 8. Validation status at package authoring
 
 Completed locally in the authoring environment:
 
@@ -117,6 +130,6 @@ Not executed locally:
 
 The authoring environment has no installed Maven distribution and cannot retrieve the wrapper distribution. The single hosted CI run is therefore the acceptance gate for Maven, live PostgreSQL and security evidence. The implementation is not described as CI-green until the project owner confirms that run and the scan artifacts have been reviewed.
 
-## 8. Remaining release gates
+## 9. Remaining release gates
 
 Production ERP/WMS/supplier/carrier integrations, production IAM/tenant provisioning, live verifier identity/key management, operational leases and recovery procedures, WAL/PITR and RPO/RTO validation, retention/legal hold, independent threat-model signoff, penetration testing and end-to-end post-effect production process-restart validation remain separate release gates. The R1-DEF green workflow proves only its stated deterministic adapter/test boundaries.

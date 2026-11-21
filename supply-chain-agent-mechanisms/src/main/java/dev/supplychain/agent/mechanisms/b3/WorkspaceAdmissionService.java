@@ -56,12 +56,18 @@ public final class WorkspaceAdmissionService{
             coalitions=List.of(new WorkspaceCoalition("coalition:"+id,memberIds,jointTags,coalitionUnits,coalitionScore));
         }
         var snapshot=new WorkspaceSnapshot(id,request.cycleId(),request.scopeId(),request.capacityUnits(),used,selected,coalitions,covered,
-                WorkspaceStatus.ADMITTED,0,request.createdAt(),request.createdAt());
+                WorkspaceStatus.ADMITTED,0,request.createdAt(),request.createdAt(),request.experimentUnitFingerprint());
         repository.saveNew(snapshot);
         var missing=request.requiredCoverage().stream().filter(t->!covered.contains(t)).sorted().toList();
         return new WorkspaceAdmissionOutcome(missing.isEmpty()?WorkspaceAdmissionStatus.ADMITTED:WorkspaceAdmissionStatus.INCOMPLETE_COVERAGE,
                 snapshot,missing,missing.isEmpty()?"mandatory and highest-value compatible content admitted":"workspace admitted; required coverage remains incomplete");
     }
+    /** Read-only inspection of the exact admitted snapshot for audit/evaluation consumers. */
+    public java.util.Optional<WorkspaceSnapshot> findById(String id) {
+        Objects.requireNonNull(id, "id");
+        return repository.findById(id);
+    }
+
     public WorkspaceSnapshot close(String id,dev.supplychain.agent.memory.common.MemoryScopeId scopeId,long expectedVersion,java.time.Instant at){
         Objects.requireNonNull(scopeId,"scopeId");
         var current=repository.findById(id).orElseThrow(()->new IllegalArgumentException("unknown workspace: "+id));

@@ -2,6 +2,10 @@ package dev.supplychain.agent.evaluation.host;
 
 import dev.supplychain.agent.actions.api.ActionDispatcher;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceConsumer;
+import dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceService;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceReceiptRecorder;
+import dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftService;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
 import dev.supplychain.agent.actions.api.InMemoryActionExecutionLedger;
@@ -11,6 +15,8 @@ import dev.supplychain.agent.core.interpretation.RequestInterpreter;
 import dev.supplychain.agent.core.interpretation.RequestInterpretation;
 import dev.supplychain.agent.memory.episodic.EpisodicMemoryService;
 import dev.supplychain.agent.memory.inmemory.InMemoryEpisodeRepository;
+import dev.supplychain.agent.memory.episodic.Episode;
+import dev.supplychain.agent.memory.episodic.EpisodeStatus;
 import dev.supplychain.agent.memory.inmemory.InMemoryProceduralMemoryRepository;
 import dev.supplychain.agent.memory.inmemory.InMemorySemanticFactRepository;
 import dev.supplychain.agent.memory.inmemory.InMemoryWorkingMemoryRepository;
@@ -103,7 +109,9 @@ public final class FullGraphEvaluationHost {
             Clock clock,
             ActionRegistry actionRegistry,
             Map<String, WorkspaceConsumer> workspaceConsumers,
-            ResourceBudgetExecutionGuard resourceBudgetGuard) {
+            ResourceBudgetExecutionGuard resourceBudgetGuard,
+            R2WorkflowConfiguration r2Workflow,
+            List<Episode> initialVerifiedEpisodes) {
         public Ports(CognitiveCycleDecisionPort decisionDomain,
                      CognitiveCycleLifecyclePort lifecycleDomain,
                      CognitiveCycleAuthorityPort authority,
@@ -115,7 +123,25 @@ public final class FullGraphEvaluationHost {
                      ActionRegistry actionRegistry,
                      Map<String, WorkspaceConsumer> workspaceConsumers) {
             this(decisionDomain, lifecycleDomain, authority, interpreter, worldModel, candidateEvaluator,
-                    plannerStrategies, clock, actionRegistry, workspaceConsumers, null);
+                    plannerStrategies, clock, actionRegistry, workspaceConsumers, null, null, List.of());
+        }
+
+        public Ports(CognitiveCycleDecisionPort decisionDomain, CognitiveCycleLifecyclePort lifecycleDomain,
+                     CognitiveCycleAuthorityPort authority, RequestInterpreter interpreter, PlanningWorldModel worldModel,
+                     CandidateEvaluator candidateEvaluator, List<PlanningStrategy> plannerStrategies, Clock clock,
+                     ActionRegistry actionRegistry, Map<String, WorkspaceConsumer> workspaceConsumers,
+                     ResourceBudgetExecutionGuard resourceBudgetGuard) {
+            this(decisionDomain, lifecycleDomain, authority, interpreter, worldModel, candidateEvaluator,
+                    plannerStrategies, clock, actionRegistry, workspaceConsumers, resourceBudgetGuard, null, List.of());
+        }
+
+        public Ports(CognitiveCycleDecisionPort decisionDomain, CognitiveCycleLifecyclePort lifecycleDomain,
+                     CognitiveCycleAuthorityPort authority, RequestInterpreter interpreter, PlanningWorldModel worldModel,
+                     CandidateEvaluator candidateEvaluator, List<PlanningStrategy> plannerStrategies, Clock clock,
+                     ActionRegistry actionRegistry, Map<String, WorkspaceConsumer> workspaceConsumers,
+                     ResourceBudgetExecutionGuard resourceBudgetGuard, R2WorkflowConfiguration r2Workflow) {
+            this(decisionDomain, lifecycleDomain, authority, interpreter, worldModel, candidateEvaluator,
+                    plannerStrategies, clock, actionRegistry, workspaceConsumers, resourceBudgetGuard, r2Workflow, List.of());
         }
 
         public Ports {
@@ -134,6 +160,10 @@ public final class FullGraphEvaluationHost {
                     throw new IllegalArgumentException("workspace consumer registry contains an invalid entry");
                 }
             });
+            initialVerifiedEpisodes = List.copyOf(Objects.requireNonNull(initialVerifiedEpisodes, "initialVerifiedEpisodes"));
+            if (initialVerifiedEpisodes.stream().anyMatch(episode -> episode == null || episode.status() != EpisodeStatus.VERIFIED)) {
+                throw new IllegalArgumentException("full-graph evaluation fixtures may seed only verified episodic memories");
+            }
             var actualIds = plannerStrategies.stream().map(PlanningStrategy::id).toList();
             if (actualIds.size() != PlannerId.values().length
                     || actualIds.stream().distinct().count() != PlannerId.values().length
@@ -155,49 +185,58 @@ public final class FullGraphEvaluationHost {
      * only registry used by the M3 dispatcher in this host.
      */
     public CompiledGraph<CognitiveCycleState> compileFull(Ports ports) throws GraphStateException {
-        try {
-            return compileFull(ports, ignored -> new MemorySaver());
-        } catch (GraphStateException failure) {
-            throw failure;
-        } catch (RuntimeException failure) {
-            throw failure;
-        } catch (Exception failure) {
-            throw new IllegalStateException("could not create the default in-memory checkpoint saver", failure);
-        }
+        try { return compileFullRuntime(ports, ignored -> new MemorySaver()).graph(); }
+        catch (GraphStateException failure) { throw failure; }
+        catch (RuntimeException failure) { throw failure; }
+        catch (Exception failure) { throw new IllegalStateException("could not create the default in-memory checkpoint saver", failure); }
+    }
+
+    public CompiledGraph<CognitiveCycleState> compileFull(Ports ports, CheckpointSaverFactory saverFactory)
+            throws Exception {
+        return compileFullRuntime(ports, saverFactory).graph();
     }
 
     /**
-     * Compiles the same complete application graph with a caller-selected checkpoint saver. The
-     * factory receives the graph schema before compilation, allowing PostgreSQL savers to derive
-     * their state serializer from the exact graph that will be run.
+     * Compiles the full graph and returns the exact R2 service instances injected into it.
+     * Hosts can submit independently verified downstream outcome reports through the returned
+     * B3 service; the graph itself persists consumer receipts during every configured broadcast.
      */
-    public CompiledGraph<CognitiveCycleState> compileFull(Ports ports, CheckpointSaverFactory saverFactory)
+    public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory)
             throws Exception {
         Objects.requireNonNull(ports, "ports");
         Objects.requireNonNull(saverFactory, "saverFactory");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
         var workingMemoryService = new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1));
         var episodicRepository = new InMemoryEpisodeRepository();
+        ports.initialVerifiedEpisodes().forEach(episodicRepository::append);
         var retrieval = new MemoryRetrievalService(workingMemoryRepository, episodicRepository,
                 new InMemorySemanticFactRepository(), new InMemoryProceduralMemoryRepository());
+        var actionRegistry = ports.actionRegistry();
+        var impasses = new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository());
+        R2WorkflowConfiguration r2 = ports.r2Workflow();
+        CandidateOutcomeAdjustment feedbackAdjustment = r2 == null || r2.activeFeedbackPolicy() == null
+                ? CandidateOutcomeAdjustment.neutral() : r2.activeFeedbackPolicy();
+        B3OutcomeEvidenceService b3Evidence = r2 == null ? null : new B3OutcomeEvidenceService(
+                r2.b3OutcomeEvidenceRepository(), r2.downstreamOutcomeEvidenceVerifier(),
+                r2.admissionPolicyVersion(), r2.outcomeVerifierId());
+        WorkspaceReceiptRecorder receiptRecorder = b3Evidence == null ? WorkspaceReceiptRecorder.noOp() : b3Evidence;
+        var b1Selector = new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
+                new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000), feedbackAdjustment);
+        var workspaceAdmission = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository(), feedbackAdjustment);
+        var workspaceBroadcast = new WorkspaceBroadcastService(ports.workspaceConsumers(), receiptRecorder);
         var decisionServices = new CognitiveCycleDecisionServices(
-                retrieval,
-                new B1MemoryCandidateFactory(),
-                new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
-                        new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000)),
-                new WorkspaceAdmissionService(new InMemoryWorkspaceRepository()),
-                new WorkspaceBroadcastService(ports.workspaceConsumers()),
+                retrieval, new B1MemoryCandidateFactory(), b1Selector, workspaceAdmission, workspaceBroadcast,
                 new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
                 ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
                 ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard(), workingMemoryService);
 
-        // The same repository instances back write/read memory services and decision-side retrieval.
-        // This prevents a test host from accidentally validating two disconnected in-memory stores.
-        var actionRegistry = ports.actionRegistry();
+        RecoveryProcedureDraftService recoveryDraftService = r2 == null ? null : new RecoveryProcedureDraftService(
+                impasses, actionRegistry, r2.recoveryDraftRepository(), r2.recoveryDraftEvidenceVerifier(),
+                r2.recoveryProcedureApprovalAuthority());
         var lifecycleServices = new CognitiveCycleLifecycleServices(
                 workingMemoryService,
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),
-                new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository()),
+                impasses,
                 new RecoveryIntentionService(new InMemoryRecoveryIntentionRepository()),
                 new MetaControlGovernor(new MetaControlPolicy(0.4, 0.8, 0.2)),
                 new ActionDispatcher(actionRegistry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger(),
@@ -206,17 +245,19 @@ public final class FullGraphEvaluationHost {
                 actionRegistry, ports.interpreter(), decisionServices, ports.lifecycleDomain(), ports.authority(),
                 new InMemoryAuthorizedActionPlanStore(), new InMemoryImpasseChildArtifactStore(),
                 new InMemoryActionExecutionBatchStore(), new InMemoryObservationStore(), null,
-                ports.resourceBudgetGuard(), ports.clock());
+                ports.resourceBudgetGuard(), ports.clock(), recoveryDraftService,
+                r2 == null ? null : r2.recoveryDraftRequestFactory());
         StateGraph<CognitiveCycleState> graphBuilder = ports.resourceBudgetGuard() == null
                 ? CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices)
                 : CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices,
                         ports.resourceBudgetGuard());
         BaseCheckpointSaver saver = Objects.requireNonNull(saverFactory.create(graphBuilder),
                 "checkpoint saver factory returned null");
-        return ports.resourceBudgetGuard() == null
+        CompiledGraph<CognitiveCycleState> graph = ports.resourceBudgetGuard() == null
                 ? CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver)
                 : CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver,
                         ports.resourceBudgetGuard());
+        return new FullGraphRuntime(graph, recoveryDraftService, b3Evidence, b1Selector, workspaceAdmission, workspaceBroadcast);
     }
 
     @FunctionalInterface

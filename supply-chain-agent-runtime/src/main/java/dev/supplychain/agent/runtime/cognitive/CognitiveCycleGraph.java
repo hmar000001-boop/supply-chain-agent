@@ -221,6 +221,7 @@ public final class CognitiveCycleGraph {
                         CognitiveCycleState.UNCERTAINTY_ASSESSMENT_VERSION,
                         child.uncertaintyAssessmentVersion(),
                         CognitiveCycleState.DECISION_STATUS, child.text(B2ResolutionGraphState.DISPOSITION),
+                        CognitiveCycleState.RECOVERY_PROCEDURE_DRAFT_ID, child.text(B2ResolutionGraphState.RECOVERY_PROCEDURE_DRAFT_ID),
                         CognitiveCycleState.LAST_REASON, child.text(B2ResolutionGraphState.REASON));
             } catch (RuntimeException ex) {
                 throw ex;

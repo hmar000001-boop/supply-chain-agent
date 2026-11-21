@@ -32,19 +32,24 @@ import static org.junit.jupiter.api.Assertions.*;
 class OutcomeFeedbackPolicyTest {
     private static final Instant NOW=Instant.parse("2026-11-20T13:00:00Z");
     private static final MemoryScopeId SCOPE=new MemoryScopeId("tenant-r2");
+    private static String sha(String value) {
+        try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+        catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
     private List<dev.supplychain.agent.mechanisms.b3.VerifiedDownstreamOutcomeEvidence> verifiedOutcomes() {
         var repository=new InMemoryB3OutcomeEvidenceRepository();
         var service=new B3OutcomeEvidenceService(repository,(scope,receipt,candidate,signal,evidence,at)->
                 SCOPE.equals(scope)&&!evidence.isEmpty(),"b3-v1","trusted-test-verifier");
         for(int i=1;i<=4;i++) {
-            String cycle="train-"+i,workspace="workspace-"+cycle;
+            String cycle="train-"+i,workspace="workspace-"+cycle,unitFingerprint=sha("training-scenario-input-"+i);
             String receiptId=B3OutcomeEvidenceService.receiptId(workspace,"planner");
             repository.appendReceipt(new WorkspaceReceiptEvidence(receiptId,SCOPE,cycle,workspace,"planner",
                     ConsumerReceiptStatus.ACCEPTED,java.util.Map.of("candidate-a","a".repeat(64)),"b".repeat(64),
-                    "b3-v1",NOW.minusSeconds(10)));
+                    unitFingerprint,"b3-v1",NOW.minusSeconds(10)));
             var signal=i<=3?DownstreamOutcomeSignal.USEFUL:DownstreamOutcomeSignal.HARMFUL;
             service.recordVerifiedOutcome(new DownstreamOutcomeReport("o"+i,receiptId,SCOPE,"candidate-a",signal,
-                    List.of(new EvidenceReference("erp","evidence-o"+i)),NOW));
+                    List.of(new EvidenceReference("erp","evidence-o"+i), new EvidenceReference(
+                            B3OutcomeEvidenceService.EXPERIMENT_UNIT_EVIDENCE_TYPE,unitFingerprint)),NOW));
         }
         return service.verifiedOutcomes(SCOPE,100);
     }
@@ -54,8 +59,23 @@ class OutcomeFeedbackPolicyTest {
     }
     private List<FeedbackEvaluationObservation> positiveHoldout() {
         var list=new ArrayList<FeedbackEvaluationObservation>();
-        for(int i=1;i<=12;i++)list.add(new FeedbackEvaluationObservation("holdout-"+i,10.0,10.5,0,0,8.0,8.0));
+        for(int i=1;i<=12;i++)list.add(new FeedbackEvaluationObservation("holdout-"+i,sha("holdout-scenario-input-"+i),
+                sha("baseline-run-"+i),sha("candidate-run-"+i),10.0,10.5,0,0,8.0,8.0));
         return List.copyOf(list);
+    }
+
+    /** Test-only immutable run ledger: each run fingerprint is registered against its source unit. */
+    private FeedbackPolicyHoldoutEvaluator evaluatorFor(List<FeedbackEvaluationObservation> observations) {
+        var runToUnit = new java.util.HashMap<String, String>();
+        observations.forEach(o -> {
+            runToUnit.put(o.baselineRunFingerprint(), o.experimentUnitFingerprint());
+            runToUnit.put(o.candidateRunFingerprint(), o.experimentUnitFingerprint());
+        });
+        return new FeedbackPolicyHoldoutEvaluator((candidate, observation, at) ->
+                !at.isBefore(candidate.trainedAt())
+                && candidate.baselinePolicyVersion().equals("b1-topk/b3-base-v1")
+                && observation.experimentUnitFingerprint().equals(runToUnit.get(observation.baselineRunFingerprint()))
+                && observation.experimentUnitFingerprint().equals(runToUnit.get(observation.candidateRunFingerprint())));
     }
 
     @Test void trainerCreatesBoundedShadowOnlyPolicyFromVerifiedOutcomeRecords() {
@@ -68,22 +88,37 @@ class OutcomeFeedbackPolicyTest {
     }
 
     @Test void outcomesBelowMinimumSampleThresholdDoNotChangeAnyCandidateScore() {
-        var candidate=new OutcomeFeedbackPolicyTrainer().train("small",1,SCOPE,"baseline",verifiedOutcomes().subList(0,1),
+        var candidate=new OutcomeFeedbackPolicyTrainer().train("small",1,SCOPE,"baseline",verifiedOutcomes().subList(0,2),
                 3,1.0,NOW);
         assertTrue(candidate.candidateAdjustments().isEmpty());
         assertEquals(PolicyDisposition.SHADOW,candidate.disposition());
     }
 
-    @Test void holdoutMustBeIndependentFromTrainingCycles() {
-        var overlap=List.of(new FeedbackEvaluationObservation("train-1",1,2,0,0,1,1));
-        var evaluator=new FeedbackPolicyHoldoutEvaluator();
+    @Test void holdoutMustBeIndependentByCommonScenarioInputFingerprintNotUnrelatedIds() {
+        var training=candidate();
+        String reusedUnit=training.trainingExperimentUnitFingerprints().iterator().next();
+        // Deliberately use a different holdout display ID and cycle namespace; the shared input hash must still reject it.
+        var overlap=List.of(new FeedbackEvaluationObservation("holdout-label-not-cycle-id",reusedUnit,
+                sha("overlap-baseline-run"),sha("overlap-candidate-run"),1,2,0,0,1,1));
+        var evaluator=evaluatorFor(overlap);
         assertThrows(SecurityException.class,()->evaluator.evaluate(candidate(),overlap,
                 new FeedbackEvaluationThreshold("r2-prereg-v1",2,0.1,0,0),NOW));
     }
 
+    @Test void holdoutRejectsRunFingerprintsAbsentFromTheAuthoritativeEvaluationLedger() {
+        var candidate = candidate();
+        var unregistered = List.of(new FeedbackEvaluationObservation("external-1", sha("external-unit-1"),
+                sha("unregistered-baseline-run"), sha("unregistered-candidate-run"), 10, 11, 0, 0, 8, 8),
+                new FeedbackEvaluationObservation("external-2", sha("external-unit-2"),
+                sha("unregistered-baseline-run-2"), sha("unregistered-candidate-run-2"), 10, 11, 0, 0, 8, 8));
+        var evaluator = evaluatorFor(List.of());
+        assertThrows(SecurityException.class, () -> evaluator.evaluate(candidate, unregistered,
+                new FeedbackEvaluationThreshold("r2-prereg-v1", 2, 0.1, 0, 0), NOW));
+    }
+
     @Test void promotionEligibilityRequiresPositiveLowerConfidenceBoundNoSafetyRegressionAndNoCostRegression() {
         var candidate=candidate();
-        var report=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate,positiveHoldout(),
+        var report=evaluatorFor(positiveHoldout()).evaluate(candidate,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0.0,0),NOW);
         assertEquals(PolicyDisposition.ELIGIBLE_FOR_AUTHORIZED_ACTIVATION,report.decision());
         assertTrue(report.lowerConfidenceBound95()>0.1);
@@ -97,12 +132,13 @@ class OutcomeFeedbackPolicyTest {
 
     @Test void policyCannotActivateWithoutPassingEvidenceOrSeparateHostAuthorization() {
         var candidate=candidate();
-        var badReport=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate,List.of(
-                new FeedbackEvaluationObservation("holdout-1",10,9,0,0,8,9),
-                new FeedbackEvaluationObservation("holdout-2",10,9,0,0,8,9)),
+        var negativeHoldout = List.of(
+                new FeedbackEvaluationObservation("holdout-1",sha("negative-unit-1"),sha("negative-base-1"),sha("negative-candidate-1"),10,9,0,0,8,9),
+                new FeedbackEvaluationObservation("holdout-2",sha("negative-unit-2"),sha("negative-base-2"),sha("negative-candidate-2"),10,9,0,0,8,9));
+        var badReport=evaluatorFor(negativeHoldout).evaluate(candidate,negativeHoldout,
                 new FeedbackEvaluationThreshold("r2-prereg-v1",2,0.1,0,0),NOW);
         assertEquals(PolicyDisposition.REJECTED,badReport.decision());
-        var eligible=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate,positiveHoldout(),
+        var eligible=evaluatorFor(positiveHoldout()).evaluate(candidate,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         var service=new FeedbackPolicyActivationService((candidateArg,reportArg,approver,reference,at)->false);
         var badApproval=new FeedbackPolicyActivationApproval(SCOPE,candidate.policyId(),candidate.version(),badReport.evaluationFingerprint(),
@@ -113,7 +149,7 @@ class OutcomeFeedbackPolicyTest {
         assertThrows(SecurityException.class,()->service.activate(candidate,eligible,unauthorized,NOW.plusSeconds(2)));
     }
     @Test void emptyOrInsufficientHoldoutProducesFiniteShadowReportAndCannotActivate() {
-        var report=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate(),List.of(),
+        var report=evaluatorFor(List.of()).evaluate(candidate(),List.of(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         assertEquals(PolicyDisposition.SHADOW,report.decision());
         assertTrue(Double.isFinite(report.lowerConfidenceBound95()));
@@ -121,13 +157,13 @@ class OutcomeFeedbackPolicyTest {
 
     @Test void evaluationFingerprintBindsExactCandidateScopeSourceAndAdjustmentPayload() {
         var first=candidate();
-        var firstReport=new FeedbackPolicyHoldoutEvaluator().evaluate(first,positiveHoldout(),
+        var firstReport=evaluatorFor(positiveHoldout()).evaluate(first,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         var changed=new OutcomeFeedbackPolicyCandidate(first.policyId(),first.version(),first.scopeId(),
                 first.baselinePolicyVersion(),java.util.Map.of("candidate-a",0.25),first.sourceOutcomeIds(),
-                first.trainingCycleIds(),first.minimumObservationsPerCandidate(),first.maximumAbsoluteAdjustment(),
+                first.trainingCycleIds(),first.trainingExperimentUnitFingerprints(),first.minimumObservationsPerCandidate(),first.maximumAbsoluteAdjustment(),
                 first.sourceFingerprint(),first.trainedAt(),PolicyDisposition.SHADOW);
-        var changedReport=new FeedbackPolicyHoldoutEvaluator().evaluate(changed,positiveHoldout(),
+        var changedReport=evaluatorFor(positiveHoldout()).evaluate(changed,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         assertFalse(firstReport.evaluationFingerprint().equals(changedReport.evaluationFingerprint()));
         var mismatchApproval=new FeedbackPolicyActivationApproval(SCOPE,changed.policyId(),changed.version(),
@@ -138,7 +174,7 @@ class OutcomeFeedbackPolicyTest {
 
     @Test void authorizedPolicyOverlayChangesB1AndB3RankingButCannotChangeOtherScopes() {
         var candidate=candidate();
-        var report=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate,positiveHoldout(),
+        var report=evaluatorFor(positiveHoldout()).evaluate(candidate,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         var active=new FeedbackPolicyActivationService((candidateArg,reportArg,approver,reference,at)->
                 candidateArg.scopeId().equals(SCOPE)&&reportArg.evaluationFingerprint().equals(report.evaluationFingerprint()))
@@ -184,7 +220,7 @@ class OutcomeFeedbackPolicyTest {
 
     @Test void activePolicyCannotTransferFeedbackAcrossTenantScopes() {
         var candidate=candidate();
-        var report=new FeedbackPolicyHoldoutEvaluator().evaluate(candidate,positiveHoldout(),
+        var report=evaluatorFor(positiveHoldout()).evaluate(candidate,positiveHoldout(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);
         var active=new FeedbackPolicyActivationService((candidateArg,reportArg,approver,reference,at)->true).activate(candidate,report,
                 new FeedbackPolicyActivationApproval(SCOPE,candidate.policyId(),candidate.version(),report.evaluationFingerprint(),

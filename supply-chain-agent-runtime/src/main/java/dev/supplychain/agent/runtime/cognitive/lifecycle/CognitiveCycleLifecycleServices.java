@@ -18,6 +18,8 @@ import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
 import dev.supplychain.agent.mechanisms.b2.ChildResolutionResult;
 import dev.supplychain.agent.mechanisms.b2.ImpasseCaseStatus;
 import dev.supplychain.agent.mechanisms.b2.ImpasseResolutionService;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftRequest;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftService;
 import dev.supplychain.agent.mechanisms.b2.ParentContextSnapshot;
 import dev.supplychain.agent.mechanisms.b2.ResolutionDisposition;
 import dev.supplychain.agent.mechanisms.b2.ResolutionFinding;
@@ -74,6 +76,8 @@ public final class CognitiveCycleLifecycleServices {
     private final ChildInvestigationStepStore childSteps;
     private final Clock clock;
     private final ResourceBudgetExecutionGuard resourceBudgetGuard;
+    private final RecoveryProcedureDraftService recoveryProcedureDrafts;
+    private final RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory;
 
     public CognitiveCycleLifecycleServices(
             WorkingMemoryService workingMemory,
@@ -141,6 +145,23 @@ public final class CognitiveCycleLifecycleServices {
             ChildInvestigationStepStore childSteps,
             ResourceBudgetExecutionGuard resourceBudgetGuard,
             Clock clock) {
+        this(workingMemory, episodicMemory, impasses, intentions, metaControl, actionDispatcher, actionRegistry,
+                interpreter, decisionServices, domain, authority, actionPlans, childArtifacts, actionBatches,
+                observations, childSteps, resourceBudgetGuard, clock, null, null);
+    }
+
+    /** Full R2 composition: resolved B2 returns may produce a typed, durable learning draft. */
+    public CognitiveCycleLifecycleServices(
+            WorkingMemoryService workingMemory, EpisodicMemoryService episodicMemory,
+            ImpasseResolutionService impasses, RecoveryIntentionService intentions, MetaControlGovernor metaControl,
+            ActionDispatcher actionDispatcher, ActionRegistry actionRegistry, RequestInterpreter interpreter,
+            CognitiveCycleDecisionServices decisionServices, CognitiveCycleLifecyclePort domain,
+            CognitiveCycleAuthorityPort authority, AuthorizedActionPlanStore actionPlans,
+            ImpasseChildArtifactStore childArtifacts, ActionExecutionBatchStore actionBatches,
+            ObservationStore observations, ChildInvestigationStepStore childSteps,
+            ResourceBudgetExecutionGuard resourceBudgetGuard, Clock clock,
+            RecoveryProcedureDraftService recoveryProcedureDrafts,
+            RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory) {
         this.workingMemory = Objects.requireNonNull(workingMemory, "workingMemory");
         this.episodicMemory = Objects.requireNonNull(episodicMemory, "episodicMemory");
         this.impasses = Objects.requireNonNull(impasses, "impasses");
@@ -159,6 +180,11 @@ public final class CognitiveCycleLifecycleServices {
         this.childSteps = childSteps;
         this.clock = Objects.requireNonNull(clock, "clock");
         this.resourceBudgetGuard = resourceBudgetGuard;
+        if ((recoveryProcedureDrafts == null) != (recoveryDraftRequestFactory == null)) {
+            throw new IllegalArgumentException("R2 recovery draft service and request factory must be configured together");
+        }
+        this.recoveryProcedureDrafts = recoveryProcedureDrafts;
+        this.recoveryDraftRequestFactory = recoveryDraftRequestFactory;
         validateBudgetedActionBindings();
     }
 
@@ -371,11 +397,29 @@ public final class CognitiveCycleLifecycleServices {
                     artifact.intentionReturn(), now);
         }
         if (resolved.status() == ImpasseCaseStatus.RESOLVED) {
+            String recoveryDraftId = "";
+            if (recoveryProcedureDrafts != null) {
+                var latestResolvedCase = impasses.get(caseId);
+                var proposal = Objects.requireNonNull(recoveryDraftRequestFactory.create(context, latestResolvedCase,
+                        resolved.result(), currentParent, clock.instant()),
+                        "R2 recovery draft request factory returned null");
+                if (proposal.isPresent()) {
+                    var request = proposal.get();
+                    if (!request.impasseCaseId().equals(caseId)
+                            || request.expectedCaseVersion() != latestResolvedCase.version()
+                            || !request.scopeId().equals(currentParent.scopeId())
+                            || !request.currentParent().equals(currentParent)) {
+                        throw new SecurityException("R2 recovery draft proposal is not bound to the exact resolved B2 case and parent snapshot");
+                    }
+                    recoveryDraftId = recoveryProcedureDrafts.createDraft(request, clock.instant()).id();
+                }
+            }
             return new ImpasseResolved(ImpasseDisposition.RESOLVED, "b2-child-result:" + caseId,
-                    "parent version, objective fingerprint and evidence-backed child findings validated");
+                    "parent version, objective fingerprint and evidence-backed child findings validated",
+                    recoveryDraftId);
         }
         return new ImpasseResolved(ImpasseDisposition.UNRESOLVED, "",
-                resolved.terminalReason() == null ? "B2 child did not resolve the impasse" : resolved.terminalReason());
+                resolved.terminalReason() == null ? "B2 child did not resolve the impasse" : resolved.terminalReason(), "");
     }
 
     public IntentionGovernance governIntention(CycleContext context) {

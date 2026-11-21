@@ -11,7 +11,8 @@ import java.util.Set;
 public record WorkspaceAdmissionRequest(String cycleId,MemoryScopeId scopeId,int capacityUnits,int maximumCandidates,
                                         Set<String> requiredCoverage,Map<String,Double> coverageValue,
                                         WorkspaceScoringPolicy scoringPolicy,List<WorkspaceCandidate> candidates,Instant createdAt,
-                                        UncertaintyAssessment.Reference uncertaintyAssessmentReference){
+                                        UncertaintyAssessment.Reference uncertaintyAssessmentReference,
+                                        String experimentUnitFingerprint){
     public WorkspaceAdmissionRequest{
         cycleId=require(cycleId,"cycleId");scopeId=Objects.requireNonNull(scopeId,"scopeId");
         if(capacityUnits<1||maximumCandidates<1)throw new IllegalArgumentException("workspace capacity and maximum candidates must be positive");
@@ -21,6 +22,9 @@ public record WorkspaceAdmissionRequest(String cycleId,MemoryScopeId scopeId,int
         if(!coverageValue.keySet().containsAll(requiredCoverage))throw new IllegalArgumentException("every required coverage tag must have a value");
         scoringPolicy=Objects.requireNonNull(scoringPolicy,"scoringPolicy");candidates=List.copyOf(Objects.requireNonNull(candidates,"candidates"));
         createdAt=Objects.requireNonNull(createdAt,"createdAt");
+        experimentUnitFingerprint=experimentUnitFingerprint==null?"":experimentUnitFingerprint.trim();
+        if(!experimentUnitFingerprint.isEmpty()&&!experimentUnitFingerprint.matches("[0-9a-f]{64}"))
+            throw new IllegalArgumentException("experimentUnitFingerprint must be an empty value or SHA-256");
         if (uncertaintyAssessmentReference != null
                 && (!uncertaintyAssessmentReference.memoryScopeId().equals(scopeId.value()))) {
             throw new SecurityException("workspace uncertainty assessment belongs to a different memory scope");
@@ -33,7 +37,21 @@ public record WorkspaceAdmissionRequest(String cycleId,MemoryScopeId scopeId,int
                                      WorkspaceScoringPolicy scoringPolicy, List<WorkspaceCandidate> candidates,
                                      Instant createdAt) {
         this(cycleId, scopeId, capacityUnits, maximumCandidates, requiredCoverage, coverageValue,
-                scoringPolicy, candidates, createdAt, null);
+                scoringPolicy, candidates, createdAt, null, "");
+    }
+
+    /** Compatibility constructor for callers already supplying the active uncertainty reference. */
+    public WorkspaceAdmissionRequest(String cycleId, MemoryScopeId scopeId, int capacityUnits, int maximumCandidates,
+                                     Set<String> requiredCoverage, Map<String, Double> coverageValue,
+                                     WorkspaceScoringPolicy scoringPolicy, List<WorkspaceCandidate> candidates,
+                                     Instant createdAt, UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
+        this(cycleId, scopeId, capacityUnits, maximumCandidates, requiredCoverage, coverageValue,
+                scoringPolicy, candidates, createdAt, uncertaintyAssessmentReference, "");
+    }
+
+    public WorkspaceAdmissionRequest withExperimentUnitFingerprint(String fingerprint) {
+        return new WorkspaceAdmissionRequest(cycleId, scopeId, capacityUnits, maximumCandidates, requiredCoverage,
+                coverageValue, scoringPolicy, candidates, createdAt, uncertaintyAssessmentReference, fingerprint);
     }
 
     private static String require(String v,String n){String s=Objects.requireNonNull(v,n).trim();if(s.isEmpty())throw new IllegalArgumentException(n+" cannot be blank");return s;}

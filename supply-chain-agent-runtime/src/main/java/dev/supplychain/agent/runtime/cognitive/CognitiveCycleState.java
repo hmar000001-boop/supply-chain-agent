@@ -40,6 +40,7 @@ public final class CognitiveCycleState extends AgentState {
     public static final String SELECTED_CANDIDATE_ID = "selectedCandidateId";
     public static final String IMPASSE_CASE_ID = "impasseCaseId";
     public static final String IMPASSE_INVESTIGATION_REFERENCE = "impasseInvestigationReference";
+    public static final String RECOVERY_PROCEDURE_DRAFT_ID = "recoveryProcedureDraftId";
     public static final String APPROVAL_ID = "approvalId";
     public static final String APPROVAL_RESPONSE_ID = "approvalResponseId";
     public static final String APPROVER_ID = "approverId";
@@ -91,6 +92,7 @@ public final class CognitiveCycleState extends AgentState {
             Map.entry(SELECTED_CANDIDATE_ID, Channels.base(() -> "")),
             Map.entry(IMPASSE_CASE_ID, Channels.base(() -> "")),
             Map.entry(IMPASSE_INVESTIGATION_REFERENCE, Channels.base(() -> "")),
+            Map.entry(RECOVERY_PROCEDURE_DRAFT_ID, Channels.base(() -> "")),
             Map.entry(APPROVAL_ID, Channels.base(() -> "")),
             Map.entry(APPROVAL_RESPONSE_ID, Channels.base(() -> "")),
             Map.entry(APPROVER_ID, Channels.base(() -> "")),

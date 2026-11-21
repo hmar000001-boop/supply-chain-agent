@@ -275,7 +275,13 @@ public final class CognitiveCycleDecisionServices {
         if (context.evidenceSetId().isBlank()) {
             throw new IllegalStateException("B3 workspace admission requires the persisted B1 evidence-set reference");
         }
-        var request = domainPort.workspaceAdmissionRequest(context, at);
+        var request = Objects.requireNonNull(domainPort.workspaceAdmissionRequest(context, at), "domain port returned null workspace admission request")
+                .withExperimentUnitFingerprint(Objects.requireNonNull(
+                        domainPort.experimentUnitFingerprint(context, at), "domain port returned null experiment-unit fingerprint"));
+        if (!request.experimentUnitFingerprint().isEmpty()
+                && !request.experimentUnitFingerprint().matches("[0-9a-f]{64}")) {
+            throw new SecurityException("experimental unit identity must be a canonical SHA-256 scenario-input fingerprint");
+        }
         if (!Objects.equals(request.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
             throw new SecurityException("B3 admission request must carry the exact current uncertainty assessment reference");
         }

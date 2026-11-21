@@ -1,33 +1,41 @@
-# Validation report — R2 PostgreSQL restore-verifier correction
+# R2-02 Validation Report
 
-## Root cause
+## Source-level implementation verified
 
-The R1-DEF restore verifier hardcoded schema version 10 and required exactly ten migration-history records. R2 correctly adds V011, so backup creation and SHA-256 validation succeeded, restore itself completed, but verification rejected the restored schema as newer than the stale R1-DEF expectation.
+- B2: `CognitiveCycleLifecycleServices.validateImpasseReturn` invokes the typed recovery-draft service only after the child result resolves and the current parent scope/request/working-memory version/objective fingerprint has been revalidated. The graph carries the draft ID into parent state.
+- B3: `FullGraphEvaluationHost` injects one configured `B3OutcomeEvidenceService` into `WorkspaceBroadcastService` as the receipt recorder and exposes that same service for separately submitted downstream outcomes. Persisted outcomes are revalidated before verified training wrappers are minted.
+- B1/B3: the same `CandidateOutcomeAdjustment` derived from the approved active policy is injected into the actual `B1RetrievalSelector` and `WorkspaceAdmissionService` used by the compiled cognitive-cycle graph.
+- Holdout: training/holdout independence uses a common immutable experiment-unit fingerprint. Paired baseline/candidate source-run fingerprints require trusted host verification against the common unit and exact baseline/candidate policy versions.
+- No-corpus behavior remains neutral/SHADOW/DISABLED; the synthetic integration test is explicitly not an empirical benchmark.
 
-## Changes
+## Local Java 21 validation
 
-One complete source replacement: `scripts/postgres/restore-verify.sh`.
+| Check | Result |
+|---|---:|
+| Mechanisms production compilation | 123 source files passed |
+| Runtime production compilation | 37 source files passed |
+| Application production compilation | 2 source files passed |
+| PostgreSQL infrastructure production compilation | 38 source files passed |
+| Evaluation production compilation | 23 source files passed |
+| Mechanism test source compilation | 9 classes passed |
+| Mechanism tests executed with assertion-capable focused runner | 94 passed, 0 failed |
+| Runtime test source compilation | 11 classes passed |
+| Evaluation test source compilation | 8 classes passed |
+| R2 PostgreSQL integration test source compilation | Passed |
+| Architecture verifier | Passed |
+| R2 evidence verifier | Passed |
+| V011 restore-verification Bash syntax | Passed |
+| ZIP integrity and checksums | Passed |
 
-Expected schema version is derived from all repository module migration resource paths. V001 is in `supply-chain-agent-memory`; later migrations are in `supply-chain-agent-infrastructure-postgres`. Migration filenames must form a contiguous version sequence. Restored schema version and migration-history count must match it. R2 evidence tables and required columns are explicitly checked.
+Framework and test APIs unavailable to the local compilation environment were represented by API-compatible stubs for source/type checking. This is not equivalent to the real Maven compiler or JUnit Surefire execution. The fullgraph tests were compiled but not executed locally against the real LangGraph4j runtime.
 
-## Checks executed
+## Not run locally / hosted acceptance required
 
-- `bash -n scripts/postgres/restore-verify.sh`: passed.
-- Simulated restore with schema V011 and all expected tables/columns: passed.
-- Simulated stale restored schema V010 while source contains V011: correctly failed with exit 67.
-- Simulated missing R2 evidence table: correctly failed with exit 71.
-- Simulated missing R2 evidence column: correctly failed with exit 72.
-- Simulated non-contiguous migration files (V010 absent): correctly failed with exit 67.
-- Simulated incomplete migration history: correctly failed with exit 70.
-- Backup SHA-256 verification path: passed using a test backup and generated checksum.
-- `unzip -t` and packaged source SHA-256: passed.
+- `./mvnw -B -ntp -Dphase0.postgres=true clean install` across all 12 Maven modules.
+- Execution of the fullgraph B2/B3/B1 integration tests using the real LangGraph4j runtime.
+- Live PostgreSQL execution of the updated R2 evidence integration test and V011 migration/repository checks.
+- Backup/restore verification against a live isolated PostgreSQL target.
 
-The restore tests used local command stubs for `psql` and `pg_restore`. No live PostgreSQL backup/restore was run locally. GitHub Actions remains the authoritative end-to-end acceptance for the actual PostgreSQL server, backup, restore and workflow.
+## Acceptance status
 
-## Safety properties retained
-
-- Restore target must be explicitly confirmed and empty.
-- Backup checksum is checked when its `.sha256` sidecar exists.
-- `pg_restore --list` is checked before restoration.
-- Restore remains single-transaction and uses neither `--clean` nor `--if-exists`.
-- Existing runtime and B6 lease checks remain.
+**IMPLEMENTED — PENDING ONE HOSTED CI ACCEPTANCE CYCLE.** Do not mark R2-02 complete until the full workflow is green. This increment is intended to close the identified educational integration gaps; it does not prove production readiness or empirical adaptive-policy superiority.

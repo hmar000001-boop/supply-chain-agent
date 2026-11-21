@@ -16,6 +16,8 @@ import java.util.TreeMap;
  * broadcast/receipt alone never becomes a positive learning signal.
  */
 public final class B3OutcomeEvidenceService implements WorkspaceReceiptRecorder {
+    /** Evidence type whose ID is the SHA-256 of immutable scenario inputs, not an output workspace. */
+    public static final String EXPERIMENT_UNIT_EVIDENCE_TYPE = "experiment-unit-sha256";
     private final B3OutcomeEvidenceRepository repository;
     private final DownstreamOutcomeEvidenceVerifier verifier;
     private final String admissionPolicyVersion;
@@ -45,7 +47,8 @@ public final class B3OutcomeEvidenceService implements WorkspaceReceiptRecorder 
         }
         String receiptId=receiptId(snapshot.id(),receipt.consumerId());
         WorkspaceReceiptEvidence evidence=new WorkspaceReceiptEvidence(receiptId,snapshot.scopeId(),snapshot.cycleId(),snapshot.id(),
-                receipt.consumerId(),receipt.status(),consumed,workspaceFingerprint(snapshot),admissionPolicyVersion,receipt.receivedAt());
+                receipt.consumerId(),receipt.status(),consumed,workspaceFingerprint(snapshot),snapshot.experimentUnitFingerprint(),
+                admissionPolicyVersion,receipt.receivedAt());
         repository.appendReceipt(evidence);
     }
 
@@ -61,7 +64,7 @@ public final class B3OutcomeEvidenceService implements WorkspaceReceiptRecorder 
             throw new SecurityException("downstream outcome evidence could not be verified");
         DownstreamOutcomeEvidence outcome=new DownstreamOutcomeEvidence(report.idempotencyKey(),receipt.receiptId(),receipt.scopeId(),
                 receipt.cycleId(),receipt.workspaceId(),report.candidateId(),fingerprint,receipt.consumerId(),report.signal(),
-                verifierId,report.evidence(),receipt.admissionPolicyVersion(),report.verifiedAt());
+                verifierId,report.evidence(),receipt.experimentUnitFingerprint(),receipt.admissionPolicyVersion(),report.verifiedAt());
         repository.appendOutcome(outcome);
         return outcome;
     }
@@ -89,12 +92,15 @@ public final class B3OutcomeEvidenceService implements WorkspaceReceiptRecorder 
                     ||!receipt.consumerId().equals(outcome.consumerId())
                     ||!receipt.admissionPolicyVersion().equals(outcome.admissionPolicyVersion())
                     ||!outcome.candidateFingerprint().equals(consumedFingerprint)
+                    ||!outcome.experimentUnitFingerprint().equals(receipt.experimentUnitFingerprint())
+                    ||!outcome.experimentUnitFingerprint().matches("[0-9a-f]{64}")
+                    ||!outcome.evidence().contains(new EvidenceReference(EXPERIMENT_UNIT_EVIDENCE_TYPE, outcome.experimentUnitFingerprint()))
                     ||outcome.verifiedAt().isBefore(receipt.receivedAt())
                     ||!verifierId.equals(outcome.verifierId()))
                 throw new SecurityException("persisted B3 outcome no longer matches its exact accepted receipt/verifier");
             if(!verifier.verify(scopeId,outcome.receiptId(),outcome.candidateId(),outcome.signal(),outcome.evidence(),outcome.verifiedAt()))
                 throw new SecurityException("persisted downstream outcome proof failed revalidation");
-            return new VerifiedDownstreamOutcomeEvidence(outcome);
+            return new VerifiedDownstreamOutcomeEvidence(outcome, outcome.experimentUnitFingerprint());
         }).toList();
     }
 

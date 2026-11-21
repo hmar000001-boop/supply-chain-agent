@@ -48,10 +48,13 @@ public final class OutcomeFeedbackPolicyTrainer {
         });
         List<String> ids=ordered.stream().map(DownstreamOutcomeEvidence::idempotencyKey).toList();
         var cycles=ordered.stream().map(DownstreamOutcomeEvidence::cycleId).collect(Collectors.toUnmodifiableSet());
+        var verifiedUnits=verifiedOutcomes.stream().map(VerifiedDownstreamOutcomeEvidence::experimentUnitFingerprint)
+                .collect(Collectors.toUnmodifiableSet());
+        if(verifiedUnits.size()<2) throw new IllegalArgumentException("adaptive training requires at least two distinct verified experimental units");
         String canonical=scopeId.value()+"|"+policyId+"|"+nextVersion+"|"+baselinePolicyVersion+"|"
-                +ordered+"|"+cycles.stream().sorted().toList()+"|"+new TreeMap<>(adjustments)+"|"
+                +ordered+"|"+cycles.stream().sorted().toList()+"|"+verifiedUnits.stream().sorted().toList()+"|"+new TreeMap<>(adjustments)+"|"
                 +minimumObservationsPerCandidate+"|"+Double.toHexString(maximumAbsoluteAdjustment)+"|"+trainedAt;
-        return new OutcomeFeedbackPolicyCandidate(policyId,nextVersion,scopeId,baselinePolicyVersion,adjustments,ids,cycles,
+        return new OutcomeFeedbackPolicyCandidate(policyId,nextVersion,scopeId,baselinePolicyVersion,adjustments,ids,cycles,verifiedUnits,
                 minimumObservationsPerCandidate,maximumAbsoluteAdjustment,sha256(canonical),trainedAt,PolicyDisposition.SHADOW);
     }
     private static String sha256(String value){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}
