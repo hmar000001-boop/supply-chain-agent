@@ -1,41 +1,38 @@
-# R2-02 Validation Report
+# Validation Report — R2-02 CI Fix 1
 
-## Source-level implementation verified
+## CI failure diagnosis
 
-- B2: `CognitiveCycleLifecycleServices.validateImpasseReturn` invokes the typed recovery-draft service only after the child result resolves and the current parent scope/request/working-memory version/objective fingerprint has been revalidated. The graph carries the draft ID into parent state.
-- B3: `FullGraphEvaluationHost` injects one configured `B3OutcomeEvidenceService` into `WorkspaceBroadcastService` as the receipt recorder and exposes that same service for separately submitted downstream outcomes. Persisted outcomes are revalidated before verified training wrappers are minted.
-- B1/B3: the same `CandidateOutcomeAdjustment` derived from the approved active policy is injected into the actual `B1RetrievalSelector` and `WorkspaceAdmissionService` used by the compiled cognitive-cycle graph.
-- Holdout: training/holdout independence uses a common immutable experiment-unit fingerprint. Paired baseline/candidate source-run fingerprints require trusted host verification against the common unit and exact baseline/candidate policy versions.
-- No-corpus behavior remains neutral/SHADOW/DISABLED; the synthetic integration test is explicitly not an empirical benchmark.
+The supplied hosted CI log shows:
+- Modules 1–11 succeeded.
+- Runtime: 84 tests, 0 failures/errors.
+- Mechanisms: 94 tests, 0 failures/errors before this fix.
+- PostgreSQL infrastructure: 54 tests, 0 failures/errors.
+- Evaluation: 31 tests, 0 assertion failures, 4 errors.
 
-## Local Java 21 validation
+The four errors were:
+- Three `M8B4FullGraphWorkflowTest` scenarios: `planning request was built from a stale working-memory version`.
+- `M8R2OutcomeFeedbackEvidenceCliTest`: normal adaptive trainer rejected the empty corpus because it requires at least two distinct verified experimental units.
+
+## Validation performed after corrections
 
 | Check | Result |
-|---|---:|
-| Mechanisms production compilation | 123 source files passed |
-| Runtime production compilation | 37 source files passed |
-| Application production compilation | 2 source files passed |
-| PostgreSQL infrastructure production compilation | 38 source files passed |
-| Evaluation production compilation | 23 source files passed |
-| Mechanism test source compilation | 9 classes passed |
-| Mechanism tests executed with assertion-capable focused runner | 94 passed, 0 failed |
-| Runtime test source compilation | 11 classes passed |
-| Evaluation test source compilation | 8 classes passed |
-| R2 PostgreSQL integration test source compilation | Passed |
-| Architecture verifier | Passed |
-| R2 evidence verifier | Passed |
-| V011 restore-verification Bash syntax | Passed |
-| ZIP integrity and checksums | Passed |
+|---|---|
+| Java 21 `javac --release 21 -Xlint:all` compilation of 346 production sources across domain, memory, core, simulator, actions, mechanisms and planning | PASS |
+| All 9 mechanism test classes using the local assertion-capable JUnit-compatible runner | 95 passed, 0 failed |
+| `M8R2OutcomeFeedbackEvidenceCliTest` using the same local JUnit-compatible runner | 1 passed, 0 failed |
+| Java syntax parse of all 6 changed Java files with Java 21 compiler parser | PASS |
+| `scripts/verify-m8-b5-architecture.py` | PASS |
+| `scripts/verify-m8-r2-evidence.py` | PASS |
+| ZIP integrity | PASS |
+| SHA-256 checksums for packaged files | PASS |
 
-Framework and test APIs unavailable to the local compilation environment were represented by API-compatible stubs for source/type checking. This is not equivalent to the real Maven compiler or JUnit Surefire execution. The fullgraph tests were compiled but not executed locally against the real LangGraph4j runtime.
+## Validation limitations
 
-## Not run locally / hosted acceptance required
-
-- `./mvnw -B -ntp -Dphase0.postgres=true clean install` across all 12 Maven modules.
-- Execution of the fullgraph B2/B3/B1 integration tests using the real LangGraph4j runtime.
-- Live PostgreSQL execution of the updated R2 evidence integration test and V011 migration/repository checks.
-- Backup/restore verification against a live isolated PostgreSQL target.
+- Maven is not installed locally. The Maven wrapper attempted to retrieve Maven 3.9.16, but DNS resolution for `archive.apache.org` and `downloads.apache.org` failed.
+- Therefore the full Maven reactor was not rerun locally.
+- The changed full-graph host and integration test were syntax-parsed and checked against the repository contracts. Their complete type-check and execution with real LangGraph4j dependencies, and the PostgreSQL suite after these changes, remain for hosted CI.
+- The local JUnit-compatible runner is not Maven Surefire and does not replace the hosted Maven acceptance cycle.
 
 ## Acceptance status
 
-**IMPLEMENTED — PENDING ONE HOSTED CI ACCEPTANCE CYCLE.** Do not mark R2-02 complete until the full workflow is green. This increment is intended to close the identified educational integration gaps; it does not prove production readiness or empirical adaptive-policy superiority.
+`R2-02` remains `IMPLEMENTED_PENDING_CI`. This package is intended to resolve the four evaluation errors in the supplied CI run. Do not mark R2-02 or pre-M8-B7 closed until a new full Java 21/PostgreSQL reactor run succeeds.

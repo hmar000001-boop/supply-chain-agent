@@ -148,6 +148,26 @@ class OutcomeFeedbackPolicyTest {
                 "ops-lead","change-42",NOW.plusSeconds(1));
         assertThrows(SecurityException.class,()->service.activate(candidate,eligible,unauthorized,NOW.plusSeconds(2)));
     }
+    @Test void noEvidenceShadowCandidateCannotActivateEvenWithAnOtherwiseEligibleHoldoutReport() {
+        var noEvidence = new OutcomeFeedbackPolicyTrainer().createNoEvidenceShadowCandidate(
+                "empty-shadow", 1, SCOPE, "b1-topk/b3-base-v1", 3, 1.0, NOW);
+        assertTrue(noEvidence.sourceOutcomeIds().isEmpty());
+        assertTrue(noEvidence.trainingCycleIds().isEmpty());
+        assertTrue(noEvidence.trainingExperimentUnitFingerprints().isEmpty());
+        assertTrue(noEvidence.candidateAdjustments().isEmpty());
+
+        var holdout = positiveHoldout();
+        var report = evaluatorFor(holdout).evaluate(noEvidence, holdout,
+                new FeedbackEvaluationThreshold("r2-prereg-v1", 10, 0.1, 0, 0), NOW);
+        assertEquals(PolicyDisposition.ELIGIBLE_FOR_AUTHORIZED_ACTIVATION, report.decision(),
+                "holdout scoring alone must not silently manufacture a training corpus");
+        var approval = new FeedbackPolicyActivationApproval(SCOPE, noEvidence.policyId(), noEvidence.version(),
+                report.evaluationFingerprint(), "ops-lead", "empty-corpus-change", NOW.plusSeconds(1));
+        assertThrows(SecurityException.class, () -> new FeedbackPolicyActivationService(
+                (candidateArg, reportArg, approver, reference, at) -> true)
+                .activate(noEvidence, report, approval, NOW.plusSeconds(2)));
+    }
+
     @Test void emptyOrInsufficientHoldoutProducesFiniteShadowReportAndCannotActivate() {
         var report=evaluatorFor(List.of()).evaluate(candidate(),List.of(),
                 new FeedbackEvaluationThreshold("r2-prereg-v1",10,0.1,0,0),NOW);

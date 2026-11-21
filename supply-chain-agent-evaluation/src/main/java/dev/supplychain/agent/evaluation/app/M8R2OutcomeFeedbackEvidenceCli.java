@@ -46,10 +46,10 @@ public final class M8R2OutcomeFeedbackEvidenceCli {
 
     public static EvidenceArtifacts generate(Path outputDirectory) throws IOException {
         Files.createDirectories(outputDirectory);
-        var candidate = new OutcomeFeedbackPolicyTrainer().train(
+        var candidate = new OutcomeFeedbackPolicyTrainer().createNoEvidenceShadowCandidate(
                 "m8-r2-outcome-feedback-evidence-v1", 1,
                 new MemoryScopeId("r2-offline-evidence-only"), BASELINE_VERSION,
-                List.of(), 5, 1.0, REFERENCE_TIME);
+                5, 1.0, REFERENCE_TIME);
         var threshold = new FeedbackEvaluationThreshold("m8-r2-preregistered-holdout-v1",
                 12, 0.10, 0.0, 0);
         var report = new FeedbackPolicyHoldoutEvaluator((candidateArg, observation, at) -> false)

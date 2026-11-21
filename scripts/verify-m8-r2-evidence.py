@@ -93,11 +93,18 @@ require("approval.evaluationFingerprint()" in activation and "authority.isAuthor
         "activation must bind the exact report and delegate to host authority")
 require("report.decision()!=PolicyDisposition.ELIGIBLE_FOR_AUTHORIZED_ACTIVATION" in activation,
         "activation must reject any candidate that fails held-out evaluation")
+require("trainingExperimentUnitFingerprints().size() < 2" in activation,
+        "activation must reject candidates without two distinct verified training units")
+trainer = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTrainer.java")
+require("createNoEvidenceShadowCandidate" in trainer and "NO_VERIFIED_OUTCOME_CORPUS" in trainer,
+        "empty-corpus status must use an explicit non-trained shadow candidate, not the adaptive trainer")
 
 # Full cognitive-cycle composition: all R2 services must be the instances used by the graph.
 full_host = read("supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java")
 require("R2WorkflowConfiguration r2 = ports.r2Workflow()" in full_host,
         "full graph host must accept explicit R2 workflow dependencies")
+require("WorkingMemoryServiceAwareDecisionPort" in full_host and "attachWorkingMemoryService(workingMemoryService)" in full_host,
+        "full-graph evaluation decision adapters must receive the same working-memory service as B1 projection")
 require("new B3OutcomeEvidenceService" in full_host and "WorkspaceReceiptRecorder receiptRecorder = b3Evidence == null ? WorkspaceReceiptRecorder.noOp() : b3Evidence" in full_host,
         "configured full graph broadcasts must persist B3 consumer receipts through the evidence service")
 require("new B1RetrievalSelector" in full_host and "new WorkspaceAdmissionService" in full_host
@@ -116,7 +123,8 @@ full_test = read("supply-chain-agent-evaluation/src/test/java/dev/supplychain/ag
 for token in ("fullGraphB3BroadcastPersistsReceiptAndSupportsVerifiedOutcomeLearningEvidence",
               "fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference",
               "authorizedFeedbackOverlayIsConsumedByB1AndB3DuringTheCompiledFullGraphRun",
-              "initialVerifiedEpisodes", "lastB1Selection", "activeGraphRuntime.graph().stream"):
+              "initialVerifiedEpisodes", "lastB1Selection", "activeGraphRuntime.graph().stream",
+              "assertPlanningUsesActiveWorkingMemory", "workingMemoryService.load(new WorkingMemoryId(context.workingMemoryId()))"):
     require(token in full_test, f"full-graph R2 integration test is missing: {token}")
 
 # PostgreSQL migration and typed repositories.

@@ -97,6 +97,16 @@ import java.util.Objects;
 public final class FullGraphEvaluationHost {
     public static final Instant HOST_TIME = Instant.parse("2026-11-20T12:00:00Z");
 
+    /**
+     * Optional evaluation adapter contract. A deterministic decision-port fixture that builds a
+     * PlanningRequest from working memory must read the same repository-backed snapshot that the
+     * graph lifecycle opened and B1 may have projected into. It must not reconstruct a snapshot
+     * from fixture defaults or guess its version.
+     */
+    public interface WorkingMemoryServiceAwareDecisionPort {
+        void attachWorkingMemoryService(WorkingMemoryService workingMemoryService);
+    }
+
     /** Explicit trusted dependencies for a full-graph evaluation host. */
     public record Ports(
             CognitiveCycleDecisionPort decisionDomain,
@@ -207,6 +217,9 @@ public final class FullGraphEvaluationHost {
         Objects.requireNonNull(saverFactory, "saverFactory");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
         var workingMemoryService = new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1));
+        if (ports.decisionDomain() instanceof WorkingMemoryServiceAwareDecisionPort awareDecisionPort) {
+            awareDecisionPort.attachWorkingMemoryService(workingMemoryService);
+        }
         var episodicRepository = new InMemoryEpisodeRepository();
         ports.initialVerifiedEpisodes().forEach(episodicRepository::append);
         var retrieval = new MemoryRetrievalService(workingMemoryRepository, episodicRepository,

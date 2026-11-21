@@ -11,8 +11,11 @@ public final class FeedbackPolicyActivationService {
             FeedbackPolicyActivationApproval approval,Instant now) {
         Objects.requireNonNull(candidate,"candidate");Objects.requireNonNull(report,"report");
         Objects.requireNonNull(approval,"approval");Objects.requireNonNull(now,"now");
-        if(!candidate.policyId().equals(report.policyId())||candidate.version()!=report.policyVersion())
+        if (!candidate.policyId().equals(report.policyId()) || candidate.version() != report.policyVersion())
             throw new SecurityException("evaluation report does not refer to the exact candidate policy version");
+        if (candidate.sourceOutcomeIds().isEmpty() || candidate.trainingExperimentUnitFingerprints().size() < 2) {
+            throw new SecurityException("policy activation requires at least two distinct verified training experimental units");
+        }
         if(!candidate.scopeId().equals(approval.scopeId())||!candidate.policyId().equals(approval.policyId())
                 ||candidate.version()!=approval.policyVersion()
                 ||!report.evaluationFingerprint().equals(approval.evaluationFingerprint()))

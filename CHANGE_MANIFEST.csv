@@ -1,37 +1,14 @@
-path,change_type,purpose
-docs/phase8/M8-ARCHITECTURE-TRACEABILITY.csv,REPLACE_COMPLETE_FILE,Trace R2 B2/B3/feedback integration to the full graph and tests.
-docs/phase8/M8-TEST-INVENTORY.csv,REPLACE_COMPLETE_FILE,Refresh test/source inventory after graph integration.
-docs/pre-b7/M8-PREB7-ACCEPTANCE-REGISTER.csv,REPLACE_COMPLETE_FILE,Record R2-02 graph integration implementation pending hosted CI acceptance.
-docs/pre-b7/M8-PREB7-R2-EXPERIMENT-PROTOCOL.md,REPLACE_COMPLETE_FILE,Define shared immutable experimental-unit and authoritative paired-run provenance requirements.
-docs/pre-b7/M8-PREB7-R2-OUTCOME-FEEDBACK-AND-FINAL-EVIDENCE.md,REPLACE_COMPLETE_FILE,"Document the full-graph integration, host injection boundary and synthetic test evidence limitations."
-scripts/verify-m8-b5-architecture.py,REPLACE_COMPLETE_FILE,Refresh source/test inventory and architecture guard for the integrated graph.
-scripts/verify-m8-r2-evidence.py,REPLACE_COMPLETE_FILE,Guard R2 graph integration and trusted holdout provenance in source/evidence verification.
-supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/app/M8R2OutcomeFeedbackEvidenceCli.java,REPLACE_COMPLETE_FILE,Complete source or evidence update for the R2 full-graph integration increment.
-supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java,REPLACE_COMPLETE_FILE,"Compose B2 draft service, B3 receipt/outcome service, and shared B1/B3 policy overlay into the compiled full graph."
-supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,REPLACE_COMPLETE_FILE,"Exercise B2 draft propagation, B3 receipt/outcome capture, baseline ranking, holdout verification contract, and authorized overlay consumption in the real graph."
-supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/R2OutcomeEvidencePostgresIntegrationTest.java,REPLACE_COMPLETE_FILE,Validate PostgreSQL persistence and immutable experiment-unit provenance for B3 evidence.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/B3OutcomeEvidenceService.java,REPLACE_COMPLETE_FILE,Revalidate persisted receipt/outcome evidence before minting verified training inputs.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/DownstreamOutcomeEvidence.java,REPLACE_COMPLETE_FILE,Bind verified outcome and receipt provenance to the immutable experiment unit.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/VerifiedDownstreamOutcomeEvidence.java,REPLACE_COMPLETE_FILE,Bind verified outcome and receipt provenance to the immutable experiment unit.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceAdmissionRequest.java,REPLACE_COMPLETE_FILE,Propagate immutable experiment-unit fingerprint through the graph into B3 workspace/receipt evidence.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceAdmissionService.java,REPLACE_COMPLETE_FILE,Expose persisted graph-created workspace snapshots for integration verification while retaining scope checks.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceReceiptEvidence.java,REPLACE_COMPLETE_FILE,Bind verified outcome and receipt provenance to the immutable experiment unit.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceSnapshot.java,REPLACE_COMPLETE_FILE,Propagate immutable experiment-unit fingerprint through the graph into B3 workspace/receipt evidence.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackEvaluationObservation.java,REPLACE_COMPLETE_FILE,Carry immutable experiment-unit and paired source-run fingerprints in holdout observations.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackPolicyHoldoutEvaluator.java,REPLACE_COMPLETE_FILE,Enforce same-unit train/holdout separation and authenticated paired baseline/candidate runs.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyCandidate.java,REPLACE_COMPLETE_FILE,Bind training provenance and common immutable experiment units to each candidate fingerprint.
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTrainer.java,REPLACE_COMPLETE_FILE,Consume only verifier-minted outcomes and retain experiment-unit provenance in candidates.
-supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b3/B3OutcomeEvidenceServiceTest.java,REPLACE_COMPLETE_FILE,"Test receipt revalidation, immutable-unit independence, paired-run authentication and activation constraints."
-supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTest.java,REPLACE_COMPLETE_FILE,"Test receipt revalidation, immutable-unit independence, paired-run authentication and activation constraints."
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionGraphState.java,REPLACE_COMPLETE_FILE,Propagate the recovery-procedure draft reference from the resolved B2 child into parent graph state.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionSubgraph.java,REPLACE_COMPLETE_FILE,Propagate the recovery-procedure draft reference from the resolved B2 child into parent graph state.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,REPLACE_COMPLETE_FILE,Propagate the recovery-procedure draft reference from the resolved B2 child into parent graph state.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleOperations.java,REPLACE_COMPLETE_FILE,Carry typed B2 recovery-draft reference in the operation result contract.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleState.java,REPLACE_COMPLETE_FILE,Propagate the recovery-procedure draft reference from the resolved B2 child into parent graph state.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionPort.java,REPLACE_COMPLETE_FILE,Propagate immutable experiment-unit fingerprint through the graph into B3 workspace/receipt evidence.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServices.java,REPLACE_COMPLETE_FILE,Propagate immutable experiment-unit fingerprint through the graph into B3 workspace/receipt evidence.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java,REPLACE_COMPLETE_FILE,Create a typed recovery draft after validating the resolved B2 child return and current parent snapshot.
-supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphRuntime.java,ADD_COMPLETE_FILE,Expose the exact R2 service instances used by the compiled cognitive-cycle graph.
-supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/R2WorkflowConfiguration.java,ADD_COMPLETE_FILE,"Expose explicit R2 repositories, verifiers, approval authority, request factory and optional active policy to the full graph host."
-supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackEvaluationEvidenceVerifier.java,ADD_COMPLETE_FILE,Define trusted paired-run verification boundary for immutable experiment units and exact policy versions.
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/RecoveryProcedureDraftRequestFactory.java,ADD_COMPLETE_FILE,Define the runtime boundary that proposes typed recovery drafts only after resolved B2 returns.
+operation,path,bytes,sha256
+replace,README.md,2715,3b8441a29f2b33a4d6caaffd33abeaefc72fb9cf64bbf564253a93aa275e0444
+replace,VALIDATION_REPORT.md,2222,bcf9fca38742e9c67aa7663f3a4c07b5feda4490434a9f89f0ffadd0ef009e80
+replace,docs/phase8/M8-TEST-INVENTORY.csv,3958,1e9eb2e03d123e3869723211ddb2762ad49f8f719a088fc62f414ae50f63567c
+replace,docs/pre-b7/M8-PREB7-ACCEPTANCE-REGISTER.csv,6203,59665ac9d36bdeffa19405ed6ce2e7a6efda67885c46c7b10582a682341ce011
+replace,docs/pre-b7/M8-PREB7-R2-OUTCOME-FEEDBACK-AND-FINAL-EVIDENCE.md,16156,e4c8be69cdd5812f4b370fc13ec49a5f02b2515c573ac97e933ff45ab942e31f
+replace,scripts/verify-m8-b5-architecture.py,9421,3077b4468295b0089b38e9fdd6e355934158f629a1b32b0a16849a5eb2c27caf
+replace,scripts/verify-m8-r2-evidence.py,16514,90bdb6aa229975a3c49ecba478660232524a4f0143a7472855d8f991f46fdf07
+replace,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/app/M8R2OutcomeFeedbackEvidenceCli.java,6770,7105987b6d718eca17013682438a8a509ff910b071008874e7156096bd135165
+replace,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java,21826,13e02dd7edc58b6f5031aeabdaa9b5af8414c312d26acb1598e2c1c9e94b944d
+replace,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,104121,c4ad693689220ac58500bf5b817640ec77dbc1803ad0cf0df3a213b44ed8fe23
+replace,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackPolicyActivationService.java,2426,ceec1446a0d13dddbd5323607a8ad2f555b6d5ce147274c9ebb2341c912fc206
+replace,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTrainer.java,6403,a6a1389db0a2b86d476428de33bda4de1a70064ce894513be51f3fc682710f55
+replace,supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTest.java,18148,4af1edb58849c6f82f3e21fef2141d6514981147cc08854e373914fe35d8bab1

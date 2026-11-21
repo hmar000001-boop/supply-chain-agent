@@ -1,34 +1,32 @@
-# M8-PreB7 R2-02 — Full-Agent Workflow Integration and Holdout Provenance
+# M8-PreB7 R2-02 CI Fix 1 — Full-Graph Working-Memory and Empty-Corpus Corrections
 
-**Delivery type:** changes-only ZIP, complete files at repository-relative paths.  
-**Baseline:** accepted green R1-DEF + accepted R2 implementation + R2 V011 backup/restore verifier correction.  
-**Purpose:** close the integration gaps identified in the independent R2 review and make the educational full cognitive-cycle implementation ready for M8-B7, subject to one hosted CI acceptance cycle.
+This is an incremental, changes-only delivery. Apply it at the repository root on top of the accepted R1-DEF baseline, the R2 initial implementation, R2 CI Fix 1 (V011 backup/restore verifier), and R2-02 full-graph integration package.
 
-## Apply
+## CI failures addressed
 
-1. Start from the repository revision containing the accepted R1-DEF, original R2 delivery, and R2 CI Fix 1 (the V011-aware `scripts/postgres/restore-verify.sh`).
-2. Extract this ZIP at the repository root and overwrite matching files.
-3. Review `CHANGE_MANIFEST.csv` and `VALIDATION_REPORT.md`.
-4. Commit and push the cumulative changeset.
-5. Run the agreed single acceptance command:
+The latest hosted run passed the first 11 Maven modules, including 54 PostgreSQL tests, but the evaluation module reported four test errors:
+
+1. Three full-graph scenarios failed because the deterministic evaluation `DecisionAdapter` built its planning request from a fixture-created version-1 working-memory snapshot, while B1 had already projected selected episodic references into the graph's active snapshot and incremented its version. The graph correctly rejected the stale request.
+2. The empty-corpus R2 evidence CLI called the normal trainer with zero evidence, even though normal training correctly requires at least two distinct verified experimental units.
+
+## Corrections
+
+- `FullGraphEvaluationHost` now exposes an optional evaluation-only binding contract for a decision adapter to receive the host's exact `WorkingMemoryService` instance.
+- The full-graph test `DecisionAdapter` now loads the snapshot identified by the active graph context, verifies its scope and exact version, and builds the planning request from that snapshot. The integration assertion verifies the planner received the selected CoALA episodic references projected by B1.
+- `OutcomeFeedbackPolicyTrainer.createNoEvidenceShadowCandidate(...)` creates a deterministic, non-trained placeholder for the no-corpus CLI path. It contains no source outcomes, training cycles, experiment units or score adjustments. The normal `train(...)` method retains its minimum-evidence requirement.
+- `FeedbackPolicyActivationService` independently rejects candidates without at least two distinct verified training experiment units and at least one source outcome.
+- The R2 evidence CLI now uses the no-evidence factory. Inventory, architecture/evidence verifiers, acceptance register and R2 technical note are updated.
+
+## Application
+
+Extract the ZIP at the repository root and overwrite the 11 matching files. Do not remove or replace any earlier R1/R2 files.
+
+Then run:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-## What this increment connects
+## Scope and claims
 
-- **B2 → runtime lifecycle → parent graph:** a resolved child return is revalidated against its current parent context, converted into a typed recovery-procedure draft using registered action references, persisted through the configured repository, and its draft ID is carried into parent graph state. Draft creation is not approval or execution.
-- **B3 → broadcast → receipts/outcomes:** the full graph host injects the same configured B3 evidence service as the workspace receipt recorder. Consumer receipt capture occurs during actual graph broadcasts; a downstream outcome is separately submitted and revalidated before it can become training evidence.
-- **B1/B3 → shared authorized overlay:** one `CandidateOutcomeAdjustment` derived from an explicitly authorized, immutable, scope-bound active policy is injected into the B1 retrieval selector and B3 admission service used by the compiled graph. Without an active policy, both remain neutral.
-- **Holdout integrity:** training and holdout are separated by the same immutable experiment-unit SHA-256 fingerprint, not unrelated cycle/scenario identifier strings. Each holdout observation binds paired source-run fingerprints; a trusted host verifier must authenticate both runs, the common input unit, the frozen baseline version and exact candidate ID/version.
-
-## Evidence boundary
-
-The full-graph tests exercise actual graph composition and the B2/B3/B1 paths. The paired holdout run ledger and utility figures in the graph activation test are synthetic test fixtures: they verify the approval/provenance/overlay wiring only. They are not external evaluation results and do not demonstrate adaptive-policy superiority. With no verified outcome corpus, the deterministic R2 evidence CLI must continue to report `NO_VERIFIED_OUTCOME_CORPUS`, `SHADOW`, `DISABLED`, and `baselinePreserved=true`.
-
-The evaluation `FullGraphEvaluationHost` is a deterministic test/evaluation composition. An application host must inject its real durable repositories and trusted run/evidence verifiers; no domain authority is manufactured by the composition layer.
-
-## Validation summary
-
-See `VALIDATION_REPORT.md`. The affected Java 21 production sources and test source sets were compiled locally. Focused mechanism tests passed. The full Maven reactor, real LangGraph4j runtime execution, and live PostgreSQL integration tests still require the hosted CI acceptance run; this package is not declared accepted until that run is green.
+The new graph tests deliberately use synthetic in-memory training/holdout evidence to verify the graph wiring and authorization boundary only. They are not empirical adaptive-learning results. The real outcome corpus remains empty, the production candidate remains SHADOW, activation remains DISABLED, and the baseline remains active.

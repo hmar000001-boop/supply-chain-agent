@@ -19,6 +19,31 @@ import java.util.stream.Collectors;
 
 /** Deterministic bounded outcome-to-score trainer. It cannot directly activate a policy. */
 public final class OutcomeFeedbackPolicyTrainer {
+    /**
+     * Creates a deterministic, non-trained SHADOW placeholder when no verified outcome corpus
+     * exists. This is deliberately separate from {@link #train}: it carries no source outcomes,
+     * training cycles, experimental units or score adjustments and cannot pass activation.
+     */
+    public OutcomeFeedbackPolicyCandidate createNoEvidenceShadowCandidate(String policyId, long nextVersion,
+            MemoryScopeId scopeId, String baselinePolicyVersion, int minimumObservationsPerCandidate,
+            double maximumAbsoluteAdjustment, Instant createdAt) {
+        Objects.requireNonNull(scopeId, "scopeId");
+        Objects.requireNonNull(createdAt, "createdAt");
+        if (minimumObservationsPerCandidate < 1) {
+            throw new IllegalArgumentException("minimumObservationsPerCandidate must be positive");
+        }
+        if (!Double.isFinite(maximumAbsoluteAdjustment) || maximumAbsoluteAdjustment <= 0
+                || maximumAbsoluteAdjustment > 5.0) {
+            throw new IllegalArgumentException("maximumAbsoluteAdjustment must be in (0,5]");
+        }
+        String canonical = "NO_VERIFIED_OUTCOME_CORPUS|" + scopeId.value() + "|" + policyId + "|"
+                + nextVersion + "|" + baselinePolicyVersion + "|" + minimumObservationsPerCandidate + "|"
+                + Double.toHexString(maximumAbsoluteAdjustment) + "|" + createdAt;
+        return new OutcomeFeedbackPolicyCandidate(policyId, nextVersion, scopeId, baselinePolicyVersion,
+                Map.of(), List.of(), java.util.Set.of(), java.util.Set.of(), minimumObservationsPerCandidate,
+                maximumAbsoluteAdjustment, sha256(canonical), createdAt, PolicyDisposition.SHADOW);
+    }
+
     public OutcomeFeedbackPolicyCandidate train(String policyId,long nextVersion,MemoryScopeId scopeId,
             String baselinePolicyVersion,List<VerifiedDownstreamOutcomeEvidence> verifiedOutcomes,
             int minimumObservationsPerCandidate,double maximumAbsoluteAdjustment,Instant trainedAt) {

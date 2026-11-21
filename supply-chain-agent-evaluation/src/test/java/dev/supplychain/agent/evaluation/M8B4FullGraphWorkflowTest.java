@@ -49,6 +49,7 @@ import dev.supplychain.agent.memory.retrieval.MemoryRetrievalResult;
 import dev.supplychain.agent.memory.working.MemoryValue;
 import dev.supplychain.agent.memory.working.WorkingMemoryId;
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
+import dev.supplychain.agent.memory.working.WorkingMemoryService;
 import dev.supplychain.agent.mechanisms.b1.B1CandidateFeatureProvider;
 import dev.supplychain.agent.mechanisms.b1.B1ScoringPolicy;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionRequest;
@@ -149,6 +150,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.EnumMap;
@@ -437,6 +439,7 @@ class M8B4FullGraphWorkflowTest {
         var scenario = ScenarioRuntime.createR2("REQ-09", false);
         assertTrue(scenario.runUntilApproval());
         var state = scenario.graph.getState(scenario.config).state();
+        scenario.assertPlanningUsesActiveWorkingMemory(state);
         String workspaceId = state.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
         assertFalse(workspaceId.isBlank(), "the real full graph must persist its B3 workspace reference");
         var scope = new MemoryScopeId(state.text(CognitiveCycleState.MEMORY_SCOPE_ID));
@@ -465,6 +468,7 @@ class M8B4FullGraphWorkflowTest {
     void fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference() throws Exception {
         var scenario = ScenarioRuntime.createR2("FAIL-11", true);
         var terminal = scenario.runToTerminal();
+        scenario.assertPlanningUsesActiveWorkingMemory(terminal.state());
         String draftId = terminal.state().text(CognitiveCycleState.RECOVERY_PROCEDURE_DRAFT_ID);
         assertFalse(draftId.isBlank(), "the resolved B2 return must carry the created recovery draft reference into parent graph state");
         assertEquals(1, scenario.lifecycle.childStepsExecuted.get(), "the full graph must execute the registered read-only B2 child step");
@@ -490,6 +494,7 @@ class M8B4FullGraphWorkflowTest {
         var scope = new MemoryScopeId(scenario.fixture.planningRequest().workingMemory().scopeId().value());
         Instant at = ScenarioFixtureFactory.FIXTURE_AS_OF.plusSeconds(20);
         var firstState = scenario.graph.getState(scenario.config).state();
+        scenario.assertPlanningUsesActiveWorkingMemory(firstState);
         String firstWorkspaceId = firstState.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
         var firstWorkspace = scenario.fullGraphRuntime.b3WorkspaceAdmission().findById(firstWorkspaceId).orElseThrow();
         assertEquals(candidateB, firstWorkspace.entries().stream().filter(e -> e.candidate().id().equals(candidateA)
@@ -571,6 +576,7 @@ class M8B4FullGraphWorkflowTest {
         assertEquals(candidateA, scenario.decision.lastB1Selection.selectedCandidates().getFirst().candidateId(),
                 "the real graph's M2 -> B1 path must consume the authorized overlay");
         var activeState = activeGraphRuntime.graph().getState(scenario.config).state();
+        scenario.assertPlanningUsesActiveWorkingMemory(activeState);
         String activeWorkspaceId = activeState.text(CognitiveCycleState.WORKSPACE_SNAPSHOT_ID);
         var activeWorkspace = activeGraphRuntime.b3WorkspaceAdmission().findById(activeWorkspaceId).orElseThrow();
         var rankedFeedbackCandidates = activeWorkspace.entries().stream()
@@ -826,6 +832,23 @@ class M8B4FullGraphWorkflowTest {
             }
         }
 
+        void assertPlanningUsesActiveWorkingMemory(CognitiveCycleState state) {
+            assertNotNull(decision.lastPlanningRequest, "full graph must create a planning request");
+            var planningMemory = decision.lastPlanningRequest.workingMemory();
+            assertEquals(state.text(CognitiveCycleState.WORKING_MEMORY_ID), planningMemory.id().value());
+            assertTrue(decision.lastPlanningContextWorkingMemoryVersion >= 0,
+                    "planning adapter must retain the graph context version used for the request");
+            assertEquals(decision.lastPlanningContextWorkingMemoryVersion, planningMemory.version(),
+                    "planning must consume the exact active working-memory version after B1 projection");
+            var projectionEntry = planningMemory.values().get(
+                    dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices.COALA_RETRIEVED_MEMORY_REFERENCES_KEY);
+            assertNotNull(projectionEntry, "selected long-term memories must be projected into the planned working-memory snapshot");
+            assertInstanceOf(MemoryValue.TextList.class, projectionEntry.value());
+            var references = ((MemoryValue.TextList) projectionEntry.value()).values();
+            assertTrue(references.stream().anyMatch(reference -> reference.startsWith("episodic:candidate-a@")));
+            assertTrue(references.stream().anyMatch(reference -> reference.startsWith("episodic:candidate-b@")));
+        }
+
         boolean runUntilApproval() {
             var stream = graph.stream(GraphInput.args(input()), config);
             for (var ignored : stream) { /* consume the real graph up to its static approval breakpoint */ }
@@ -913,17 +936,26 @@ class M8B4FullGraphWorkflowTest {
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "fixture plan", 1)));
     }
 
-    private static final class DecisionAdapter implements CognitiveCycleDecisionPort {
+    private static final class DecisionAdapter implements CognitiveCycleDecisionPort,
+            FullGraphEvaluationHost.WorkingMemoryServiceAwareDecisionPort {
         private final ScenarioFixture fixture;
         private final ScenarioWorldStore worldStore;
         private WorkspaceBroadcastReport lastBroadcast;
         private PlanningRequest lastPlanningRequest;
         private B1SelectionResult lastB1Selection;
+        private long lastPlanningContextWorkingMemoryVersion = -1L;
         private boolean includeFeedbackCandidates;
+        private WorkingMemoryService workingMemoryService;
 
         private DecisionAdapter(ScenarioFixture fixture, ScenarioWorldStore worldStore) {
             this.fixture = fixture;
             this.worldStore = worldStore;
+        }
+
+        @Override public void attachWorkingMemoryService(WorkingMemoryService workingMemoryService) {
+            // The evaluation deliberately compiles a baseline graph and then a second graph with
+            // the authorized overlay. Each compilation owns its own repository-backed memory.
+            this.workingMemoryService = Objects.requireNonNull(workingMemoryService, "workingMemoryService");
         }
 
         @Override public MemoryScopeId memoryScope(CognitiveCycleOperations.CycleContext context) {
@@ -1003,12 +1035,18 @@ class M8B4FullGraphWorkflowTest {
 
         @Override public PlanningRequest planningRequest(CognitiveCycleOperations.CycleContext context, Instant at) {
             var base = fixture.planningRequest();
-            var scope = memoryScope(context);
-            var workingMemoryId = new WorkingMemoryId("working-memory:" + context.executionId());
-            Instant expiry = at.plus(Duration.ofDays(1));
-            var working = WorkingMemorySnapshot.empty(workingMemoryId, scope, at, expiry)
-                    .put("request:current", new MemoryValue.Text(context.request()),
-                            List.of(new EvidenceReference("request", context.requestId())), at, expiry);
+            if (workingMemoryService == null) {
+                throw new IllegalStateException("full-graph evaluation decision adapter was not bound to the host working-memory service");
+            }
+            if (context.workingMemoryId().isBlank()) {
+                throw new IllegalStateException("planning context does not identify the active working-memory snapshot");
+            }
+            var working = workingMemoryService.load(new WorkingMemoryId(context.workingMemoryId()));
+            if (!working.scopeId().equals(memoryScope(context))
+                    || working.version() != context.workingMemoryVersion()) {
+                throw new IllegalStateException("planning adapter loaded a working-memory snapshot that does not match the graph context");
+            }
+            lastPlanningContextWorkingMemoryVersion = context.workingMemoryVersion();
             lastPlanningRequest = copy(base, working, worldStore.snapshot(),
                     worldStore.actionDescriptors(base.availableActionDefinitions()),
                     worldStore.evidence(base.evidence()), context.executionId(),

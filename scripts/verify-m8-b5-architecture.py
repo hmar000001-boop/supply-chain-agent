@@ -23,7 +23,7 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
     "supply-chain-agent-actions": (58, 5, 28, 4, 1),
-    "supply-chain-agent-mechanisms": (123, 9, 94, 9, 0),
+    "supply-chain-agent-mechanisms": (123, 9, 95, 9, 0),
     "supply-chain-agent-planning": (51, 8, 37, 7, 1),
     "supply-chain-agent-runtime": (37, 11, 84, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (40, 15, 54, 13, 2),
@@ -159,8 +159,13 @@ if failures:
         print(f" - {failure}", file=sys.stderr)
     raise SystemExit(1)
 
+total_production = sum(value[0] for value in EXPECTED_INVENTORY.values())
+total_test_sources = sum(value[1] for value in EXPECTED_INVENTORY.values())
+total_annotations = sum(value[2] for value in EXPECTED_INVENTORY.values())
+total_annotated_sources = sum(value[3] for value in EXPECTED_INVENTORY.values())
+total_helpers = sum(value[4] for value in EXPECTED_INVENTORY.values())
 print(f"M8-B5 architecture verification: PASS ({len(modules)} modules; acyclic internal dependency graph)")
 print("Direct framework dependencies: PASS (all imports declared by their owning modules)")
 print("Framework-neutral module boundary: PASS")
-print("Source/test inventory: PASS (444 production Java files; 69 test sources; 402 test annotations/factories; 63 annotated test sources; 6 helpers)")
+print(f"Source/test inventory: PASS ({total_production} production Java files; {total_test_sources} test sources; {total_annotations} test annotations/factories; {total_annotated_sources} annotated test sources; {total_helpers} helpers)")
 print("CI workflow mirror and M8-B2 artifact capture: PASS")
