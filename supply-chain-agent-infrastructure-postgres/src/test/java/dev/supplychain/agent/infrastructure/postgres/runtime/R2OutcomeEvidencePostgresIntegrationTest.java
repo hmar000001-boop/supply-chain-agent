@@ -5,7 +5,9 @@ import dev.supplychain.agent.actions.api.Capability;
 import dev.supplychain.agent.infrastructure.postgres.config.PostgresDataSourceFactory;
 import dev.supplychain.agent.infrastructure.postgres.config.PostgresDatabaseConfig;
 import dev.supplychain.agent.infrastructure.postgres.migration.PostgresMigrationRunner;
+import dev.supplychain.agent.infrastructure.postgres.memory.PostgresRecoveryProcedureArtifactStore;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraft;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureArtifact;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureStatus;
 import dev.supplychain.agent.mechanisms.b2.RegisteredRecoveryActionReference;
 import dev.supplychain.agent.mechanisms.b3.ConsumerReceiptStatus;
@@ -44,7 +46,7 @@ class R2OutcomeEvidencePostgresIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(11, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(12, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test void b2DraftAndAppendOnlyVersionHistorySurviveRepositoryReplacement() throws Exception {
@@ -75,6 +77,35 @@ class R2OutcomeEvidencePostgresIntegrationTest {
         var otherScope = new PostgresRecoveryProcedureDraftRepository(dataSource, "other-" + scopeValue, draftCodec());
         assertTrue(otherScope.findById(draft.id()).isEmpty(), "scope-qualified reads must not expose another tenant's draft");
         assertFalse(replacementReader.compareAndSet(draft.id(), 0, approved), "stale versions must not overwrite the approved draft");
+    }
+
+    @Test void approvedB2ArtifactsAreContentAddressedImmutableAndSurviveRepositoryReplacement() throws Exception {
+        String scopeValue = "r2-b2-artifact-" + UUID.randomUUID();
+        var scope = new MemoryScopeId(scopeValue);
+        String actionDigest = "a".repeat(64);
+        String sourceDigest = "c".repeat(64);
+        var artifact = new RecoveryProcedureArtifact(1, "draft-artifact-" + UUID.randomUUID(), scope,
+                "inventory.shortage", "b".repeat(64),
+                List.of(new RegisteredRecoveryActionReference("inventory.reserve", Capability.INVENTORY_RESERVE,
+                        ActionEffect.DOMAIN_WRITE, actionDigest)),
+                List.of("inventory.available"), List.of("reservation.confirmed"),
+                List.of("reservation.rejected"), List.of(new EvidenceReference("erp", "inventory-version-17")),
+                sourceDigest, "ops-lead", "approval-artifact-1", NOW);
+
+        var writer = new PostgresRecoveryProcedureArtifactStore(dataSource);
+        var reference = writer.publish(artifact);
+        assertEquals("urn:sha256:" + reference.sha256(), reference.location().toString());
+        assertEquals(reference, writer.publish(artifact), "content-identical republishing must return the same immutable address");
+
+        var reader = new PostgresRecoveryProcedureArtifactStore(dataSource);
+        assertEquals(artifact, reader.retrieve(reference, scope).orElseThrow(),
+                "artifact payload must survive repository replacement and codec reconstruction");
+        assertThrows(SecurityException.class, () -> reader.retrieve(reference, new MemoryScopeId("other-" + scopeValue)),
+                "a content address must not bypass the expected tenant scope");
+        assertEquals(1L, countArtifact(reference.sha256()), "content-addressed retry must not create a duplicate row");
+        assertTrue(new PostgresRecoveryProcedureArtifactStore(dataSource).retrieve(
+                new dev.supplychain.agent.memory.procedural.ProcedureArtifactReference(
+                        java.net.URI.create("urn:sha256:" + "d".repeat(64)), "d".repeat(64)), scope).isEmpty());
     }
 
     @Test void b3ReceiptsAndVerifiedOutcomesSurviveRepositoryReplacementAndRemainAppendOnly() {
@@ -111,6 +142,14 @@ class R2OutcomeEvidencePostgresIntegrationTest {
                 "idempotency-key reuse with different outcome evidence must fail closed");
         assertTrue(new PostgresB3OutcomeEvidenceRepository(dataSource, "other-" + scopeValue, receiptCodec(), outcomeCodec())
                 .findReceipt(new MemoryScopeId("other-" + scopeValue), receiptId).isEmpty());
+    }
+
+    private static long countArtifact(String digest) throws Exception {
+        try (var c = dataSource.getConnection(); var q = c.prepareStatement(
+                "SELECT count(*) FROM coala_recovery_procedure_artifact WHERE artifact_sha256 = ?")) {
+            q.setString(1, digest);
+            try (var row = q.executeQuery()) { assertTrue(row.next()); return row.getLong(1); }
+        }
     }
 
     private static long count(String sql, String scope, String id) throws Exception {

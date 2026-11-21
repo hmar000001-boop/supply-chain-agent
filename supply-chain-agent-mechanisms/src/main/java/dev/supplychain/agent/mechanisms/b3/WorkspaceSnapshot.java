@@ -7,10 +7,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+/** Immutable result of one bounded B3 admission and coalition-competition cycle. */
 public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
                                 List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions,
                                 Set<String> coveredTags, WorkspaceStatus status, long version,
-                                Instant createdAt, Instant updatedAt, String experimentUnitFingerprint) {
+                                Instant createdAt, Instant updatedAt, String experimentUnitFingerprint,
+                                List<WorkspaceCoalitionProposal> evaluatedCoalitionProposals,
+                                boolean coalitionSearchTruncated) {
     public WorkspaceSnapshot {
         id = require(id, "id");
         cycleId = require(cycleId, "cycleId");
@@ -21,6 +24,7 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
         entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
         coalitions = List.copyOf(Objects.requireNonNull(coalitions, "coalitions"));
         coveredTags = Set.copyOf(Objects.requireNonNull(coveredTags, "coveredTags"));
+        evaluatedCoalitionProposals = List.copyOf(Objects.requireNonNull(evaluatedCoalitionProposals, "evaluatedCoalitionProposals"));
         status = Objects.requireNonNull(status, "status");
         createdAt = Objects.requireNonNull(createdAt, "createdAt");
         updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
@@ -50,6 +54,35 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
             throw new IllegalArgumentException("coveredTags does not match ordered workspace admission entries");
         }
 
+        var proposalIds = new HashSet<String>();
+        var selectedRounds = new HashSet<Integer>();
+        int previousRound = -1;
+        for (WorkspaceCoalitionProposal proposal : evaluatedCoalitionProposals) {
+            if (!proposalIds.add(proposal.id())) throw new IllegalArgumentException("duplicate coalition proposal ID");
+            if (proposal.round() < previousRound) throw new IllegalArgumentException("coalition proposals are not ordered by evaluation round");
+            previousRound = proposal.round();
+            if (proposal.selected()) {
+                if (!selectedRounds.add(proposal.round())) throw new IllegalArgumentException("multiple coalitions selected in one admission round");
+                if (!entriesById.keySet().containsAll(proposal.candidateIds())
+                        || !coveredTags.containsAll(proposal.newlyCoveredTags())) {
+                    throw new IllegalArgumentException("selected coalition proposal references content outside the admitted snapshot");
+                }
+            }
+        }
+
+        if (!evaluatedCoalitionProposals.isEmpty()) {
+            for (WorkspaceCoalition coalition : coalitions) {
+                boolean traced = evaluatedCoalitionProposals.stream().anyMatch(proposal -> proposal.selected()
+                        && proposal.candidateIds().equals(coalition.candidateIds())
+                        && proposal.newlyCoveredTags().equals(coalition.jointCoverageTags())
+                        && proposal.contextUnits() == coalition.contextUnits());
+                if (!traced) throw new IllegalArgumentException("admitted coalition has no matching selected competition proposal");
+            }
+            long selectedProposalCount = evaluatedCoalitionProposals.stream().filter(WorkspaceCoalitionProposal::selected).count();
+            if (selectedProposalCount != coalitions.size())
+                throw new IllegalArgumentException("selected coalition proposal count does not match admitted coalitions");
+        }
+
         for (WorkspaceCoalition coalition : coalitions) {
             if (!entriesById.keySet().containsAll(coalition.candidateIds())
                     || !coveredTags.containsAll(coalition.jointCoverageTags())) {
@@ -69,12 +102,13 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
         }
     }
 
-    public WorkspaceSnapshot close(Instant at) {
-        if (status == WorkspaceStatus.CLOSED) return this;
-        Objects.requireNonNull(at, "at");
-        if (at.isBefore(updatedAt)) throw new IllegalArgumentException("workspace time cannot move backwards");
-        return new WorkspaceSnapshot(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions,
-                coveredTags, WorkspaceStatus.CLOSED, version + 1, createdAt, at, experimentUnitFingerprint);
+    /** Compatibility constructor for callers that predate explicit coalition competition traces. */
+    public WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
+                             List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions,
+                             Set<String> coveredTags, WorkspaceStatus status, long version,
+                             Instant createdAt, Instant updatedAt, String experimentUnitFingerprint) {
+        this(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions, coveredTags, status, version,
+                createdAt, updatedAt, experimentUnitFingerprint, List.of(), false);
     }
 
     /** Compatibility constructor for historical workspace fixtures without experimental provenance. */
@@ -82,7 +116,16 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
                               List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions, Set<String> coveredTags,
                               WorkspaceStatus status, long version, Instant createdAt, Instant updatedAt) {
         this(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions, coveredTags, status, version,
-                createdAt, updatedAt, "");
+                createdAt, updatedAt, "", List.of(), false);
+    }
+
+    public WorkspaceSnapshot close(Instant at) {
+        if (status == WorkspaceStatus.CLOSED) return this;
+        Objects.requireNonNull(at, "at");
+        if (at.isBefore(updatedAt)) throw new IllegalArgumentException("workspace time cannot move backwards");
+        return new WorkspaceSnapshot(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions,
+                coveredTags, WorkspaceStatus.CLOSED, version + 1, createdAt, at, experimentUnitFingerprint,
+                evaluatedCoalitionProposals, coalitionSearchTruncated);
     }
 
     private static String require(String value, String name) {

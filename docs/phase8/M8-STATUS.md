@@ -124,3 +124,16 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 - Hosted CI now regenerates the existing M8-B3 mechanism ablation JSONL artifacts, emits the R2 evidence-status artifact with run/source provenance and checksums, and produces CodeQL and Trivy SARIF plus tool-version evidence. Findings must be reviewed and triaged before R2 acceptance.
 - Current static inventory: 444 production Java files, 69 test Java sources, 402 test annotation/factory occurrences, 63 annotated test sources and 6 helper sources. These are repository source counts, not executed test totals.
 - R1-DEF's full-graph restart proof remains bounded to a safe pre-effect clarification boundary with deterministic test adapters. It does not certify durability of all live business/authority adapters or post-effect full-graph restart.
+
+
+## M8-PreB7 — F-03/F-04 candidate implementation (hosted CI pending)
+
+- Current static inventory for this candidate: **461 production Java files, 71 test Java sources, 429 test/factory annotations, 65 annotated test sources and 6 support/helper sources**. The architecture guard and `M8-TEST-INVENTORY.csv` were synchronized to these counts; they are not test execution totals.
+
+
+- F-03 bridges an approved, evidence-bound B2 recovery draft into CoALA procedural memory as a `DRAFT`; the B2 approver cannot also perform procedural validation or activation. The immutable artifact contains registered action references, opaque condition keys and evidence, not executable commands or generated free-form steps.
+- Active recovery procedures return through the shared CoALA `MemoryRetrievalService` and B1 candidate factory. Exact artifact dereference revalidates scope, evidence and current action-descriptor fingerprints. No automatic activation or dispatcher execution is added.
+- PostgreSQL V012 adds content-addressed immutable recovery-artifact payload storage; migrations V001-V011 remain unchanged. The PG adapter and repository-replacement test are present; the full evaluation host still uses in-memory procedural/artifact stores.
+- F-04 changes B3 optional admission from post-hoc aggregation to bounded comparison of singleton options and pair/triple content coalitions. Proposal traces record membership, joint coverage, score and winner. Mandatory content remains protected; conflicts are excluded; a truncated search cannot win from incomplete alternatives and falls back to singleton admission.
+- B3 workspace snapshots remain ephemeral. Receipt/outcome evidence and R2 shadow/disabled feedback gates are unchanged. Coalition competition is an engineering extension, not a claim of full LIDA reproduction.
+- Added `scripts/verify-m8-preb7-f03-f04.py` to both identical CI workflow copies. The new increment depends on F-01/F-02 being accepted first. Focused Java 21 compilation and 35 targeted tests passed locally; the Maven wrapper could not download Maven in this environment, so hosted Java 21/PostgreSQL CI remains the acceptance gate.

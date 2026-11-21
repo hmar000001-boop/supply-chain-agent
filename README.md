@@ -1,37 +1,23 @@
-# F-01 / F-02 implementation changeset
+# M8 Pre-B7 F03/F04 Changeset
 
-**Base source archive:** `supply-chain-agent-main (6).zip`  
-**Base SHA-256:** `ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6`  
-**Scope:** F-01 B4 planner-method authority and F-02 B6 next-planning-call compute downshift.  
-**Explicitly deferred:** F-03 (B2 recovery draft promotion/reuse) and F-04 (B3 alternative coalition competition) are not modified.
+This is an incremental, repository-root-relative changeset containing only the F03 and F04 implementation, tests, migrations, CI guardrails and traceability updates. It has no outer wrapper directory.
 
-## Apply
+## Dependency / application order
 
-Extract this ZIP at the repository root, on top of the exact base archive above. The archive contains repository-root-relative paths and complete replacements for every modified source/document file, plus complete new source files. It does not contain an outer wrapper directory.
+This package is built on top of the exact green-CI source archive `supply-chain-agent-main (6).zip` **plus** the preceding F01/F02 changeset. Apply it only after F01/F02 has passed hosted CI and has been incorporated into the repository. Do not apply this package directly to the unmodified source archive.
 
-Then run:
+Extract the ZIP at the repository root, allowing the complete source files to replace the existing files. No POM or dependency declarations are changed.
 
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean install
-```
+## F03 — governed B2 recovery knowledge
 
-## F-01 — B4 method controls the next planner
+An approved B2 recovery draft can be staged as a CoALA procedural-memory `DRAFT`. Activation remains a separate procedural-memory governance step requiring an independent reviewer and approver. The artifact is immutable, content-addressed, scope checked and persisted through the new PostgreSQL V012 table. Later retrieval checks scope, source provenance, evidence freshness and current registered action descriptor fingerprints. It returns typed planning knowledge, not executable commands; it cannot dispatch actions. The normal M2 memory retrieval surfaces an active procedure as a procedural memory reference and B1 candidate.
 
-- Introduces a typed `PlannerSelectionOverride` bound to the persisted intention ID/version, method reference and objective SHA-256 fingerprint.
-- Resolves supported B4 method IDs to registered M5 planners; unknown identifiers fail closed. Hosts can inject a domain-specific `PlannerMethodResolver`.
-- `PlannerRouter` honours the verified override before the generic complexity policy. The planner still produces only a proposal; it receives no execution authority.
-- A method/objective/authority binding change clears the previous planner-session reference so a session from an old method version is not resumed under new authority.
-- The objective fingerprint must match both the persisted intention and the actual planning request.
+The evaluation host uses in-memory stores. The PostgreSQL artifact adapter exists, but this change does not claim a durable production full-graph composition root.
 
-## F-02 — B6 downshifts the next planning call
+## F04 — first-class B3 coalition competition
 
-- `REDUCE_COMPUTATION` carries a typed `PlannerBudgetDownshift` directive.
-- The graph applies a bounded cumulative scale to the next `PlannerBudget` (expansions, evaluations, model calls, rollouts and call-local runtime).
-- Structural search depth, result cardinality and the absolute deadline are preserved.
-- The shared execution-wide `ResourceBudget` remains unchanged and continues to be enforced by the common reservation/lease guard.
-- If no further consumable reduction is possible, the graph refuses another planner invocation rather than pretending the downshift succeeded.
-- Planner reservation identity now includes planning round and effective per-call budget envelope, preserving checkpoint retry idempotency while avoiding collisions between distinct downshifted planning attempts.
+Workspace admission now evaluates bounded feasible coalitions (in addition to singleton candidates) as explicit alternatives. The selected coalition, evaluated alternatives and search-truncation status are preserved in the snapshot. If the bounded search truncates, the algorithm falls back to singleton admission rather than claiming optimality over an incomplete search. Scoring and enumeration are engineering choices, not a full LIDA reproduction or a formula prescribed by Fan & Lan.
 
-## Validation boundary
+## Validation
 
-The accompanying `VALIDATION_REPORT.md` lists the checks actually run. The full Maven reactor, Surefire with the real dependencies, and the hosted PostgreSQL integration tests have **not** been run locally. GitHub Actions remains the authoritative validation of this integrated changeset.
+See `VALIDATION_REPORT.md` for exact checks and limitations. Hosted CI is authoritative for Maven compilation, full-graph tests and live PostgreSQL integration.

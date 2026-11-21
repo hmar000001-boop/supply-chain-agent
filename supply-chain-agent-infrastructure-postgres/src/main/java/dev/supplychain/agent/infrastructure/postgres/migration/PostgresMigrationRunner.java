@@ -38,7 +38,8 @@ public final class PostgresMigrationRunner {
             new Migration(8, "scope_runtime_operation_and_messaging_keys", "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql"),
             new Migration(9, "durable_b6_resource_budget_ledger", "db/migration/V009__durable_b6_resource_budget_ledger.sql"),
             new Migration(10, "fenced_b6_reservation_leases", "db/migration/V010__fenced_b6_reservation_leases.sql"),
-            new Migration(11, "b2_procedure_drafts_and_b3_outcome_evidence", "db/migration/V011__b2_procedure_drafts_and_b3_outcome_evidence.sql"));
+            new Migration(11, "b2_procedure_drafts_and_b3_outcome_evidence", "db/migration/V011__b2_procedure_drafts_and_b3_outcome_evidence.sql"),
+            new Migration(12, "b2_immutable_recovery_procedure_artifacts", "db/migration/V012__b2_immutable_recovery_procedure_artifacts.sql"));
 
     private final DataSource dataSource;
 

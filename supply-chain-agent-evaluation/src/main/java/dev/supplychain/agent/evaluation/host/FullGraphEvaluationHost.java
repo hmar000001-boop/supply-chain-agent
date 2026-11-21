@@ -6,6 +6,8 @@ import dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceService;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceReceiptRecorder;
 import dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftService;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedurePromotionService;
+import dev.supplychain.agent.mechanisms.b2.InMemoryRecoveryProcedureArtifactStore;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
 import dev.supplychain.agent.actions.api.InMemoryActionExecutionLedger;
@@ -18,6 +20,7 @@ import dev.supplychain.agent.memory.inmemory.InMemoryEpisodeRepository;
 import dev.supplychain.agent.memory.episodic.Episode;
 import dev.supplychain.agent.memory.episodic.EpisodeStatus;
 import dev.supplychain.agent.memory.inmemory.InMemoryProceduralMemoryRepository;
+import dev.supplychain.agent.memory.procedural.ProceduralMemoryService;
 import dev.supplychain.agent.memory.inmemory.InMemorySemanticFactRepository;
 import dev.supplychain.agent.memory.inmemory.InMemoryWorkingMemoryRepository;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalService;
@@ -222,8 +225,11 @@ public final class FullGraphEvaluationHost {
         }
         var episodicRepository = new InMemoryEpisodeRepository();
         ports.initialVerifiedEpisodes().forEach(episodicRepository::append);
+        var proceduralRepository = new InMemoryProceduralMemoryRepository();
+        var proceduralMemory = new ProceduralMemoryService(proceduralRepository);
+        var recoveryArtifactStore = new InMemoryRecoveryProcedureArtifactStore();
         var retrieval = new MemoryRetrievalService(workingMemoryRepository, episodicRepository,
-                new InMemorySemanticFactRepository(), new InMemoryProceduralMemoryRepository());
+                new InMemorySemanticFactRepository(), proceduralRepository);
         var actionRegistry = ports.actionRegistry();
         var impasses = new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository());
         R2WorkflowConfiguration r2 = ports.r2Workflow();
@@ -246,6 +252,9 @@ public final class FullGraphEvaluationHost {
         RecoveryProcedureDraftService recoveryDraftService = r2 == null ? null : new RecoveryProcedureDraftService(
                 impasses, actionRegistry, r2.recoveryDraftRepository(), r2.recoveryDraftEvidenceVerifier(),
                 r2.recoveryProcedureApprovalAuthority());
+        RecoveryProcedurePromotionService recoveryProcedurePromotion = r2 == null ? null
+                : new RecoveryProcedurePromotionService(recoveryDraftService, proceduralMemory, recoveryArtifactStore,
+                        actionRegistry, r2.recoveryDraftEvidenceVerifier());
         var lifecycleServices = new CognitiveCycleLifecycleServices(
                 workingMemoryService,
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),
@@ -270,7 +279,8 @@ public final class FullGraphEvaluationHost {
                 ? CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver)
                 : CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver,
                         ports.resourceBudgetGuard());
-        return new FullGraphRuntime(graph, recoveryDraftService, b3Evidence, b1Selector, workspaceAdmission, workspaceBroadcast);
+        return new FullGraphRuntime(graph, recoveryDraftService, recoveryProcedurePromotion, b3Evidence,
+                b1Selector, workspaceAdmission, workspaceBroadcast);
     }
 
     @FunctionalInterface

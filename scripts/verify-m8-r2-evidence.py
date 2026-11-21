@@ -28,7 +28,12 @@ def read(relative: str) -> str:
 b2 = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureDraftService.java")
 require("impasse.status()!=ImpasseCaseStatus.RESOLVED" in b2, "B2 draft creation must require a resolved child case")
 require("objectiveFingerprint()" in b2 and "workingMemoryVersion()" in b2, "B2 must bind the current parent objective and working-memory version")
-require("actions.descriptor(id)" in b2, "B2 draft action references must resolve through the registered ActionRegistry")
+require("RecoveryProcedureActionReferences.current(actions, id)" in b2,
+        "B2 draft action references must use the shared registered ActionRegistry descriptor resolver")
+action_refs = read("supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureActionReferences.java")
+require("registry.descriptor(id)" in action_refs and "HexFormat.of().formatHex" in action_refs
+        and "descriptor.requiredCapability()" in action_refs and "descriptor.effect()" in action_refs,
+        "B2 draft/promotion/retrieval must share a canonical registered ActionRegistry descriptor fingerprint")
 require("evidenceVerifier.verify" in b2, "B2 draft and approval must revalidate scoped evidence")
 require("approvalAuthority.isAuthorized(current" in b2, "B2 review transition must require host approval authority")
 require("public RecoveryProcedureDraft execute" not in b2 and "public void dispatch" not in b2,

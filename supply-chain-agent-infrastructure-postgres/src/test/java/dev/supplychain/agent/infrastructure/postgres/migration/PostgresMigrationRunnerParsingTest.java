@@ -37,8 +37,8 @@ class PostgresMigrationRunnerParsingTest {
         }
     }
     @Test void runtimeScopeMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
-        assertEquals(11, PostgresMigrationRunner.latestSupportedVersion());
-        assertEquals(11, PostgresMigrationRunner.supportedMigrationCount());
+        assertEquals(12, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(12, PostgresMigrationRunner.supportedMigrationCount());
         try (var stream = getClass().getClassLoader().getResourceAsStream(
                 "db/migration/V008__scope_runtime_operation_and_messaging_keys.sql")) {
             assertNotNull(stream, "V008 runtime scope migration must be packaged in the infrastructure module");
@@ -53,8 +53,8 @@ class PostgresMigrationRunnerParsingTest {
 
 
     @Test void m8b4DurableBudgetMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
-        assertEquals(11, PostgresMigrationRunner.latestSupportedVersion());
-        assertEquals(11, PostgresMigrationRunner.supportedMigrationCount());
+        assertEquals(12, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(12, PostgresMigrationRunner.supportedMigrationCount());
         try (var stream = getClass().getClassLoader().getResourceAsStream(
                 "db/migration/V009__durable_b6_resource_budget_ledger.sql")) {
             assertNotNull(stream, "V009 M8-B4 durable B6 budget migration must be packaged");
@@ -68,8 +68,8 @@ class PostgresMigrationRunnerParsingTest {
     }
 
     @Test void r1DefFencedBudgetLeaseMigrationIsRegisteredAndSplitsIntoExpectedStatements() throws Exception {
-        assertEquals(11, PostgresMigrationRunner.latestSupportedVersion());
-        assertEquals(11, PostgresMigrationRunner.supportedMigrationCount());
+        assertEquals(12, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(12, PostgresMigrationRunner.supportedMigrationCount());
         try (var stream = getClass().getClassLoader().getResourceAsStream(
                 "db/migration/V010__fenced_b6_reservation_leases.sql")) {
             assertNotNull(stream, "V010 R1-DEF fenced B6 reservation migration must be packaged");
@@ -84,8 +84,8 @@ class PostgresMigrationRunnerParsingTest {
     }
 
     @Test void r2B2B3EvidenceMigrationIsRegisteredAndAppendOnlyTablesAreDeclared() throws Exception {
-        assertEquals(11, PostgresMigrationRunner.latestSupportedVersion());
-        assertEquals(11, PostgresMigrationRunner.supportedMigrationCount());
+        assertEquals(12, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(12, PostgresMigrationRunner.supportedMigrationCount());
         try (var stream = getClass().getClassLoader().getResourceAsStream(
                 "db/migration/V011__b2_procedure_drafts_and_b3_outcome_evidence.sql")) {
             assertNotNull(stream, "V011 R2 evidence migration must be packaged");
@@ -98,6 +98,20 @@ class PostgresMigrationRunnerParsingTest {
             assertTrue(sql.contains("USEFUL"));
             assertTrue(sql.contains("HARMFUL"));
         }
+    }
+
+
+    @Test void v012ImmutableB2RecoveryArtifactMigrationIsPackaged() throws Exception {
+        try (var stream = getClass().getClassLoader().getResourceAsStream(
+                "db/migration/V012__b2_immutable_recovery_procedure_artifacts.sql")) {
+            assertNotNull(stream, "V012 immutable B2 artifact migration must be packaged");
+            String sql = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(sql.contains("CREATE TABLE coala_recovery_procedure_artifact"));
+            assertTrue(sql.contains("artifact_sha256"));
+            assertTrue(sql.contains("payload bytea"));
+        }
+        assertEquals(12, PostgresMigrationRunner.latestSupportedVersion());
+        assertEquals(12, PostgresMigrationRunner.supportedMigrationCount());
     }
 
 }

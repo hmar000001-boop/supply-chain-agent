@@ -43,6 +43,9 @@ jobs:
       - name: Verify M8-R2 outcome-feedback and evidence guardrails
         run: python3 scripts/verify-m8-r2-evidence.py
 
+      - name: Verify M8 pre-B7 F-03/F-04 procedural learning and coalition competition
+        run: python3 scripts/verify-m8-preb7-f03-f04.py
+
       - name: Prepare security evidence directory
         run: mkdir -p target/security
 

@@ -1,6 +1,5 @@
 package dev.supplychain.agent.mechanisms.b2;
 
-import dev.supplychain.agent.actions.api.ActionDescriptor;
 import dev.supplychain.agent.actions.api.ActionId;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.memory.common.EvidenceReference;
@@ -109,9 +108,7 @@ public final class RecoveryProcedureDraftService {
     public RecoveryProcedureDraft get(String id) { return repository.findById(id).orElseThrow(()->new IllegalArgumentException("unknown recovery procedure draft: "+id)); }
 
     private RegisteredRecoveryActionReference registeredReference(ActionId id) {
-        ActionDescriptor d=actions.descriptor(id);
-        String canonical=d.id().value()+"|"+d.name()+"|"+d.description()+"|"+d.category()+"|"+d.effect()+"|"+d.requiredCapability()+"|"+d.idempotencyRequired();
-        return new RegisteredRecoveryActionReference(d.id().value(),d.requiredCapability(),d.effect(),sha256(canonical));
+        return RecoveryProcedureActionReferences.current(actions, id);
     }
     private static void requireParent(RecoveryProcedureDraft draft,ParentContextSnapshot parent) {
         Objects.requireNonNull(parent,"currentParent");
@@ -128,6 +125,6 @@ public final class RecoveryProcedureDraftService {
     }
     private static String sha256(String value) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); }
-        catch(NoSuchAlgorithmException impossible) { throw new IllegalStateException("SHA-256 unavailable",impossible); }
+        catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException("SHA-256 unavailable", impossible); }
     }
 }

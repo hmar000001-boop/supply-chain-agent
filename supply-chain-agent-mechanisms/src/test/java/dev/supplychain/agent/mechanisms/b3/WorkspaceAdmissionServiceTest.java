@@ -50,6 +50,86 @@ class WorkspaceAdmissionServiceTest {
         assertEquals(Set.of("supplier","inventory"),Set.copyOf(result.snapshot().coalitions().getFirst().candidateIds()));
         assertEquals(Set.of("supplier-capacity","inventory-availability"),result.snapshot().coalitions().getFirst().jointCoverageTags());
     }
+    @Test void alternativeCoalitionsCompeteAsFirstClassOptionsAndRecordTheWinner() {
+        var repo = new InMemoryWorkspaceRepository();
+        var anchor = candidate("anchor", 8, 1, Set.of("anchor.signal"), Set.of(), false);
+        var supplier = candidate("supplier", 1, 1, Set.of("supplier.capacity"), Set.of(), false);
+        var inventory = candidate("inventory", 1, 1, Set.of("inventory.available"), Set.of(), false);
+        var request = new WorkspaceAdmissionRequest("cycle-coalition", SCOPE, 2, 2,
+                Set.of("supplier.capacity", "inventory.available"),
+                Map.of("supplier.capacity", 10.0, "inventory.available", 10.0, "anchor.signal", 1.0),
+                new WorkspaceScoringPolicy(0, 1), List.of(anchor, supplier, inventory), NOW);
+        var result = new WorkspaceAdmissionService(repo).admit(request);
+
+        assertEquals(List.of("inventory", "supplier"), result.snapshot().entries().stream()
+                .map(entry -> entry.candidate().id()).sorted().toList());
+        assertEquals(3, result.snapshot().evaluatedCoalitionProposals().size(),
+                "each feasible pair is represented as a competing alternative");
+        var selectedProposal = result.snapshot().evaluatedCoalitionProposals().stream().filter(WorkspaceCoalitionProposal::selected).findFirst().orElseThrow();
+        assertEquals(List.of("inventory", "supplier"), selectedProposal.candidateIds());
+        assertEquals(Set.of("supplier.capacity", "inventory.available"), selectedProposal.newlyCoveredTags());
+        assertEquals(1, result.snapshot().coalitions().size());
+        assertFalse(result.snapshot().coalitionSearchTruncated());
+        var snapshot = result.snapshot();
+        assertThrows(IllegalArgumentException.class, () -> new WorkspaceSnapshot(snapshot.id(), snapshot.cycleId(),
+                snapshot.scopeId(), snapshot.capacityUnits(), snapshot.usedUnits(), snapshot.entries(), List.of(),
+                snapshot.coveredTags(), snapshot.status(), snapshot.version(), snapshot.createdAt(), snapshot.updatedAt(),
+                snapshot.experimentUnitFingerprint(), snapshot.evaluatedCoalitionProposals(), snapshot.coalitionSearchTruncated()),
+                "the durable competition trace cannot claim a selected coalition absent from the admitted snapshot");
+    }
+
+    @Test void incompleteCoalitionEnumerationFallsBackToSingletonAdmissionAndReportsTruncation() {
+        var repo = new InMemoryWorkspaceRepository();
+        var a = candidate("a", 5, 1, Set.of("a.signal"), Set.of(), false);
+        var b = candidate("b", 4, 1, Set.of("b.signal"), Set.of(), false);
+        var c = candidate("c", 3, 1, Set.of("c.signal"), Set.of(), false);
+        var request = new WorkspaceAdmissionRequest("cycle-bounded", SCOPE, 2, 2,
+                Set.of(), Map.of(), new WorkspaceScoringPolicy(0, 1), List.of(c, b, a), NOW);
+        var service = new WorkspaceAdmissionService(repo,
+                dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment.neutral(),
+                new WorkspaceCoalitionCompetitionPolicy(3, 1));
+        var result = service.admit(request);
+
+        assertTrue(result.snapshot().coalitionSearchTruncated());
+        assertTrue(result.snapshot().coalitions().isEmpty(), "partial coalition search must not select from an incomplete option set");
+        assertTrue(result.explanation().contains("singleton fallback"));
+        assertTrue(result.snapshot().evaluatedCoalitionProposals().stream().noneMatch(WorkspaceCoalitionProposal::selected));
+        assertEquals(List.of("a", "b"), result.snapshot().entries().stream()
+                .map(entry -> entry.candidate().id()).sorted().toList());
+    }
+
+    @Test void coalitionCompetitionIsDeterministicAcrossCandidateInputOrder() {
+        var a = candidate("a", 1, 1, Set.of("a.signal"), Set.of(), false);
+        var b = candidate("b", 1, 1, Set.of("b.signal"), Set.of(), false);
+        var c = candidate("c", 1, 1, Set.of("c.signal"), Set.of(), false);
+        var policy = new WorkspaceScoringPolicy(0, 1);
+        var firstRequest = new WorkspaceAdmissionRequest("cycle-deterministic", SCOPE, 2, 2,
+                Set.of(), Map.of(), policy, List.of(a, b, c), NOW);
+        var secondRequest = new WorkspaceAdmissionRequest("cycle-deterministic", SCOPE, 2, 2,
+                Set.of(), Map.of(), policy, List.of(c, a, b), NOW);
+        var first = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository()).admit(firstRequest).snapshot();
+        var second = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository()).admit(secondRequest).snapshot();
+        assertEquals(first.entries().stream().map(e -> e.candidate().id()).toList(),
+                second.entries().stream().map(e -> e.candidate().id()).toList());
+        assertEquals(first.evaluatedCoalitionProposals().stream().map(WorkspaceCoalitionProposal::id).toList(),
+                second.evaluatedCoalitionProposals().stream().map(WorkspaceCoalitionProposal::id).toList());
+        assertEquals(first.evaluatedCoalitionProposals().stream().filter(WorkspaceCoalitionProposal::selected)
+                        .map(WorkspaceCoalitionProposal::candidateIds).toList(),
+                second.evaluatedCoalitionProposals().stream().filter(WorkspaceCoalitionProposal::selected)
+                        .map(WorkspaceCoalitionProposal::candidateIds).toList());
+    }
+
+    @Test void coalitionGenerationNeverCombinesConflictingCandidates() {
+        var repo = new InMemoryWorkspaceRepository();
+        var a = candidate("a", 5, 1, Set.of("a.signal"), Set.of("b"), false);
+        var b = candidate("b", 5, 1, Set.of("b.signal"), Set.of(), false);
+        var request = new WorkspaceAdmissionRequest("cycle-conflict", SCOPE, 2, 2, Set.of(), Map.of(),
+                new WorkspaceScoringPolicy(0, 1), List.of(a, b), NOW);
+        var result = new WorkspaceAdmissionService(repo).admit(request);
+        assertTrue(result.snapshot().evaluatedCoalitionProposals().isEmpty());
+        assertTrue(result.snapshot().coalitions().isEmpty());
+    }
+
     @Test void reportsIncompleteCoverageWhenCapacityCannotCoverAllRequiredTags(){
         var repo=new InMemoryWorkspaceRepository();var a=candidate("a",3,1,Set.of("inventory"),Set.of(),false);
         var result=admit(repo,1,2,Set.of("inventory","supplier"),Map.of("inventory",2.0,"supplier",2.0),List.of(a));

@@ -111,7 +111,7 @@ class PostgresM7B2CoreIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(11, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(12, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test void m3LedgerIsScopeBoundIdempotentAndRequiresReconciliationAfterLeaseExpiry() throws Exception {
@@ -469,7 +469,7 @@ class PostgresM7B2CoreIntegrationTest {
         assertTrue(health.liveness(), "liveness is independent of transient database health");
         var readiness = health.readiness();
         assertTrue(readiness.ready(), () -> "database should be ready after V010 (M8-PreB7 R1-DEF), found " + readiness.statusCode());
-        assertEquals(11, readiness.schemaVersion(), "R2 V011 procedure-draft and outcome-evidence migration is installed");
+        assertEquals(12, readiness.schemaVersion(), "F-03 V012 immutable recovery-procedure artifact migration is installed after R2 V011");
 
         String activeScope = "metrics-active-" + UUID.randomUUID();
         String otherScope = "metrics-other-" + UUID.randomUUID();

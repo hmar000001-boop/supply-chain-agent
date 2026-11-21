@@ -1,47 +1,37 @@
-# Validation report — F-01 / F-02
+# Validation report — F03/F04
 
-## Source baseline
+**Date:** 2026-11-21  
+**Base:** exact user-provided green-CI archive `supply-chain-agent-main (6).zip` plus F01/F02 candidate changeset  
+**Change scope:** 14 added files, 21 modified files, no removals; no POM/dependency changes.
 
-- Uploaded base archive: `supply-chain-agent-main (6).zip`
-- SHA-256: `ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6`
-- Target: Java 21; 11 Maven modules.
+## Implemented
 
-## Checks performed locally
+- F03: approved B2 drafts may be staged as governed CoALA procedural-memory DRAFTs; validation, review and activation remain separate; procedural reviewer and activator must be independent of the original B2 approver and each other. Content-addressed immutable artifact storage, scope-bound retrieval, V012 migration, current action descriptor and evidence freshness revalidation are included. Active procedures become eligible for standard M2 retrieval and B1 procedural candidate construction. No procedure is executed or dispatched automatically.
+- F04: bounded first-class coalition enumeration and scoring competes singleton and multi-candidate options; coalition and proposal trace invariants are enforced; deterministic singleton fallback is used after search truncation. This is not claimed to reproduce the full LIDA mechanism.
+- CI: new F03/F04 static guard added to both mirrored workflows; architecture/R2 guards and traceability inventories updated.
 
-| Check | Result | Notes |
-|---|---|---|
-| Java syntax parse | PASS | 523 Java files parsed; zero syntax errors. |
-| Framework-neutral production compile | PASS | 349 Java source files across domain, memory, actions, mechanisms, planning, core and simulator; `javac --release 21 -Xlint:all`. |
-| Changed runtime service compile | PASS | `CognitiveCycleOperations`, `ResourceBudgetExecutionGuard`, `CognitiveCycleDecisionServices`, `CognitiveCycleLifecycleServices`; compiled against compiled project modules and minimal B2/LangGraph interfaces where required. |
-| Changed runtime graph/state compile | PASS WITH STUBS | `CognitiveCycleGraph` and `CognitiveCycleState` compiled against narrow LangGraph4j/B2 API stubs. This does not prove compatibility against the real LangGraph4j artifact. |
-| Selected test source compile | PASS WITH JUNIT SHIM | Five selected test classes compiled against local JUnit-compatible stubs. |
-| Selected test execution | PASS WITH JUNIT SHIM | 66 selected test methods passed under a lightweight local reflection runner; not Maven Surefire or the real JUnit runtime. |
-| Full evaluation test syntax | PASS | All 523 Java files, including `M8B4FullGraphWorkflowTest`, parsed successfully. |
-| Full evaluation graph test compile/execution | NOT RUN | Real LangGraph4j/JUnit/PostgreSQL dependency jars were unavailable locally. |
-| Full Maven reactor | NOT RUN | Maven executable/dependency cache and wrapper distribution were unavailable in the environment. |
-| PostgreSQL migrations/integration tests | NOT RUN | Must be confirmed in hosted CI. |
+## Checks that passed locally
 
-## Selected tests executed (66)
+1. Java 21 compilation of 461 framework-neutral production Java sources across the applicable core modules.
+2. Focused test run: **36/36 passed**, comprising `RecoveryProcedureDraftServiceTest` (7), `RecoveryProcedurePromotionServiceTest` (9), and `WorkspaceAdmissionServiceTest` (20), using the local lightweight JUnit-compatible runner.
+3. PostgreSQL migration runner parsing tests: **8/8 passed**, including V012 resource/version checks.
+4. Changed PostgreSQL main sources compiled with Java 21.
+5. `R2OutcomeEvidencePostgresIntegrationTest` source compiled against the relevant application/repository sources and compile-only test/config stubs; its database tests were **not executed**.
+6. Static guards passed: `verify-m8-b5-architecture.py`, `verify-m8-r2-evidence.py`, and `verify-m8-preb7-f03-f04.py`.
+7. `.github/workflows/ci.yml` and `workflows/ci.yml` are byte-identical.
+8. Package root paths, ZIP integrity and per-file SHA-256 checksums verified.
 
-- `PlannerRouterTest`: 8
-- `PlannerBudgetTest`: 3
-- `MetaControlGovernorTest`: 18
-- `CognitiveCycleDecisionServicesTest`: 13
-- `CognitiveCycleLifecycleServicesTest`: 24
+## Not verified locally
 
-## Important limitations
+- The full Maven reactor was not run successfully. Maven wrapper distribution retrieval failed because the environment could not resolve `archive.apache.org` / `downloads.apache.org`; required real Maven/dependencies were unavailable.
+- No live PostgreSQL integration test was executed locally.
+- The full evaluation-host graph tests and the end-to-end R2/PostgreSQL tests must be verified by hosted CI.
+- F01/F02 is still a prerequisite pending its own CI result; this package is not a claim that the combined F01–F04 stack is green.
 
-- The full-graph B4/B6 tests are included in source, but their actual execution depends on hosted CI with the project's pinned dependencies.
-- The local LangGraph4j stubs validate Java type use against the shapes represented by those stubs; they are not a substitute for compilation against the real library.
-- No empirical improvement claim is made for B4/B6. The change demonstrates control propagation and bounded behavior in deterministic tests.
-- F-03 and F-04 are intentionally outside this changeset.
-
-## Required hosted validation
-
-Run:
+## Required hosted CI command
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-Only report the change as CI-green after this command and the related GitHub Actions jobs pass on the commit containing this changeset.
+Review the V012 migration, F03 procedural activation/retrieval tests, F04 coalition competition/truncation tests, full-graph integration tests and PostgreSQL R2 integration tests in the hosted run.

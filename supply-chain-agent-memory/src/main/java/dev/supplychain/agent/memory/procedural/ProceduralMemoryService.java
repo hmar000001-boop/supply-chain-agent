@@ -22,6 +22,15 @@ public final class ProceduralMemoryService {
                 artifact, provenance, at, author, predecessor));
     }
 
+    /** Stages a preconstructed immutable draft while preserving repository append/uniqueness rules. */
+    public ProcedureVersion stage(ProcedureVersion draft) {
+        Objects.requireNonNull(draft, "draft");
+        if (draft.status() != ProcedureStatus.DRAFT || draft.lifecycleRevision() != 0) {
+            throw new IllegalArgumentException("only a new procedural-memory DRAFT can be staged");
+        }
+        return repository.stage(draft);
+    }
+
     public ProcedureVersion validate(ProcedureVersionId id, long expectedRevision, String reviewer, Instant at) {
         ProcedureVersion current = load(id);
         requireRevision(current, expectedRevision);
