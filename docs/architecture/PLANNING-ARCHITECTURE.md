@@ -78,7 +78,7 @@ The aggregate risk calculation treats per-action risks as independent for this i
 - higher-complexity cases select MCTS when rollout budget exists;
 - otherwise the router falls back to bounded ToT-style search.
 
-These thresholds are starting policy values, not empirically optimal thresholds. M8 must tune/evaluate them using the same scenario corpus and comparable resource budgets for each strategy. Explicit planner overrides remain visible in the returned selection explanation.
+These thresholds are starting policy values, not empirically optimal thresholds. M8 must tune/evaluate them using the same scenario corpus and comparable resource budgets for each strategy. Explicit planner overrides remain visible in the returned selection explanation. The full cognitive-cycle runtime also supplies a B4 `PlannerSelectionOverride` derived from the current versioned intention. This authoritative method binding takes precedence over the generic complexity heuristic, is checked against the immutable objective fingerprint, and is included in the planning fingerprint. When the intention identity, version, method reference or objective binding changes, the graph clears the previous planner-session reference so a checkpoint created under the prior authority context cannot be reused. `PlannerMethodResolver` maps the persisted method identifier to a registered strategy; unmapped methods fail closed.
 
 ## Identity, checkpoints, and resume
 
@@ -90,7 +90,7 @@ The current `InMemoryPlannerSessionStore` is a deterministic local/reference ada
 
 ## B6 resource integration
 
-Planner limits in `PlannerBudget` are local algorithmic ceilings. `B6PlannerResourceMeter` separately reserves and consumes the shared computational resource units through the M4 meta-control contracts. The planner execution context records expansions, evaluations, model calls, rollouts, pruned branches, backtracks, and cumulative elapsed time across checkpoint/resume. A resource/deadline stop is represented as a typed termination reason and does not weaken domain hard constraints.
+Planner limits in `PlannerBudget` are local algorithmic ceilings. `B6PlannerResourceMeter` and the runtime `ResourceBudgetExecutionGuard` separately reserve and consume the shared computational resource units through the M4 meta-control contracts. When B6 selects `REDUCE_COMPUTATION`, a typed downshift directive scales the next request's consumable planner limits and call-local runtime allowance. Structural depth, candidate cardinality and the absolute deadline are preserved. The shared execution-wide resource account remains unchanged and authoritative; the next planner reservation is recalculated from the effective local envelope. Planner reservation identity includes planning round and effective budget because the semantic planning fingerprint intentionally excludes replenishable consumable resource limits. The planner execution context records expansions, evaluations, model calls, rollouts, pruned branches, backtracks, and cumulative elapsed time across checkpoint/resume. A resource/deadline stop is represented as a typed termination reason and does not weaken domain hard constraints.
 
 ## Failure and stopping semantics
 

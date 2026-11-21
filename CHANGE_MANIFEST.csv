@@ -1,4 +1,24 @@
-path,change_type,reason
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,complete-source-replacement,Route NO_FEASIBLE_CANDIDATE through B2 and bound repeated B2 attempts within one execution
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionGraphState.java,complete-source-replacement,Carry scalar parent identities and versioned evidence/planning references without copying parent objective content or capabilities
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionSubgraph.java,complete-source-replacement,Propagate parent references into B2 lifecycle operations and reconstruct a context that resolves authoritative parent records
+change,repository_relative_path,description
+REPLACE,docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md,Documents B4 planner authority and B6 compute downshift semantics.
+REPLACE,docs/architecture/FAN_LAN-MECHANISM-ARCHITECTURE.md,Documents B4 planner authority and B6 compute downshift semantics.
+REPLACE,docs/architecture/PLANNING-ARCHITECTURE.md,Documents B4 planner authority and B6 compute downshift semantics.
+REPLACE,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,"Full-graph tests for B4 planner switch, B6 downshift and composition."
+REPLACE,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b6/MetaControlDecision.java,Requires typed planner downshift when REDUCE_COMPUTATION is selected.
+REPLACE,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b6/MetaControlGovernor.java,Emits a bounded typed downshift for low resource margin.
+REPLACE,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b6/MetaControlPolicy.java,Adds configurable planner budget reduction percentage.
+NEW,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b6/PlannerBudgetDownshift.java,Typed bounded B6 downshift directive.
+REPLACE,supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b6/MetaControlGovernorTest.java,Tests configurable typed B6 downshift policy.
+REPLACE,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/api/PlannerBudget.java,Adds immutable scaling for a planner call compute envelope.
+NEW,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/api/PlannerSelectionOverride.java,"Typed, objective-bound B4 planner override."
+REPLACE,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/api/PlanningRequest.java,Carries validated B4 override and supports controlled planner request copies.
+REPLACE,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/api/PlanningRequestFingerprint.java,Includes B4 planner method binding in planner session fingerprint.
+NEW,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/routing/PlannerMethodResolver.java,Fail-closed mapping from persisted B4 method IDs to registered planner strategies.
+REPLACE,supply-chain-agent-planning/src/main/java/dev/supplychain/agent/planning/routing/PlannerRouter.java,Honours B4 planner override before generic complexity routing.
+NEW,supply-chain-agent-planning/src/test/java/dev/supplychain/agent/planning/api/PlannerBudgetTest.java,Tests B6 per-call planner budget scaling.
+REPLACE,supply-chain-agent-planning/src/test/java/dev/supplychain/agent/planning/routing/PlannerRouterTest.java,"Tests B4 override routing, objective preservation and unknown method rejection."
+REPLACE,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,Propagates B4 authority and applies B6 downshift in full cognitive graph.
+REPLACE,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleOperations.java,Carries B4 planner method and B6 budget scale in cycle context.
+REPLACE,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleState.java,Adds checkpointed B4 method and B6 downshift state.
+REPLACE,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServices.java,Resolves persisted B4 intention and applies effective B6 planner budget.
+REPLACE,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java,Exposes persisted intention method and protected objective fingerprint.
+REPLACE,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServicesTest.java,Tests stable and unique planner reservation identities.

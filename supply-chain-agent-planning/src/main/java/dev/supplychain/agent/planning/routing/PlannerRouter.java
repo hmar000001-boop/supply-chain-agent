@@ -30,6 +30,13 @@ public final class PlannerRouter {
 
     public PlannerSelection select(PlanningRequest request) {
         Objects.requireNonNull(request, "request");
+        var override = request.plannerSelectionOverride();
+        if (override != null) {
+            return new PlannerSelection(override.plannerId(),
+                    "B4 intention method " + override.methodId() + " (" + override.intentionId()
+                            + "@v" + override.intentionVersion() + ") controls planner selection; "
+                            + override.reason());
+        }
         return selectionPolicy.select(request.complexity(), request.budget());
     }
 

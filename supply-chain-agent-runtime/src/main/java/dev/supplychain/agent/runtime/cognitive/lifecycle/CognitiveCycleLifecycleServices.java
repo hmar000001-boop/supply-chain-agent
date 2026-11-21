@@ -242,7 +242,8 @@ public final class CognitiveCycleLifecycleServices {
             intention = intentions.get(new RecoveryIntentionId(context.intentionId()));
             if (!intention.scopeId().equals(scope)) throw new SecurityException("recovery intention belongs to a different memory scope");
         }
-        return new ContextLoaded(memory.id().value(), memory.version(), intention.id().value(), intention.version());
+        return new ContextLoaded(memory.id().value(), memory.version(), intention.id().value(), intention.version(),
+                intention.currentMethod(), intention.objectiveFingerprint());
     }
 
     public EvidenceAccepted acceptExternalEvidence(CycleContext context) {
@@ -447,7 +448,8 @@ public final class CognitiveCycleLifecycleServices {
             }
             case ESCALATE -> { /* Escalation is recorded by the graph's terminal path; objective remains protected. */ }
         }
-        return new IntentionGovernance(directive.action(), updated.id().value(), updated.version(), directive.reason());
+        return new IntentionGovernance(directive.action(), updated.id().value(), updated.version(), directive.reason(),
+                updated.currentMethod(), updated.objectiveFingerprint());
     }
 
     public UncertaintyAssessment.Reference assessUncertainty(CycleContext context, String triggerId) {

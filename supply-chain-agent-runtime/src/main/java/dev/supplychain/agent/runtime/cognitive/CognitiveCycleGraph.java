@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.mechanisms.b6.MetaControlAction;
+import dev.supplychain.agent.mechanisms.b6.PlannerBudgetDownshift;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.*;
 import org.bsc.langgraph4j.CompileConfig;
 import org.bsc.langgraph4j.CompiledGraph;
@@ -109,11 +110,27 @@ public final class CognitiveCycleGraph {
 
         NodeAction<CognitiveCycleState> loadContext = state -> {
             var loaded = Objects.requireNonNull(operations.loadContext(state.context()), "loaded context");
+            boolean plannerBindingChanged = !loaded.intentionId().equals(state.text(CognitiveCycleState.INTENTION_ID))
+                    || loaded.intentionVersion() != state.number(CognitiveCycleState.INTENTION_VERSION)
+                    || !Objects.equals(loaded.currentMethod() == null ? "" : loaded.currentMethod().methodId(),
+                            state.text(CognitiveCycleState.PLANNING_METHOD_ID))
+                    || !Objects.equals(loaded.currentMethod() == null ? "" : loaded.currentMethod().candidatePlanReference(),
+                            state.text(CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE))
+                    || !Objects.equals(loaded.intentionObjectiveFingerprint(),
+                            state.text(CognitiveCycleState.INTENTION_OBJECTIVE_FINGERPRINT));
             return update("working-context-loaded:" + loaded.workingMemoryId(),
+                    CognitiveCycleState.PLANNER_SESSION_ID, plannerBindingChanged ? "" : state.text(CognitiveCycleState.PLANNER_SESSION_ID),
                     CognitiveCycleState.WORKING_MEMORY_ID, loaded.workingMemoryId(),
                     CognitiveCycleState.WORKING_MEMORY_VERSION, loaded.workingMemoryVersion(),
                     CognitiveCycleState.INTENTION_ID, loaded.intentionId(),
                     CognitiveCycleState.INTENTION_VERSION, loaded.intentionVersion(),
+                    // Never carry a previous intention's method or objective binding into a
+                    // newly loaded context. Missing persisted B4 data must fail closed at planning.
+                    CognitiveCycleState.PLANNING_METHOD_ID, loaded.currentMethod() == null
+                            ? "" : loaded.currentMethod().methodId(),
+                    CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE, loaded.currentMethod() == null
+                            ? "" : loaded.currentMethod().candidatePlanReference(),
+                    CognitiveCycleState.INTENTION_OBJECTIVE_FINGERPRINT, loaded.intentionObjectiveFingerprint(),
                     CognitiveCycleState.DECISION_STATUS, "CONTEXT_READY");
         };
 
@@ -236,10 +253,26 @@ public final class CognitiveCycleGraph {
             if (result.action() == IntentionAction.RECONSIDER || result.action() == IntentionAction.CHANGE_METHOD) {
                 reconsiderations++;
             }
+            boolean plannerBindingChanged = !result.intentionId().equals(state.text(CognitiveCycleState.INTENTION_ID))
+                    || result.intentionVersion() != state.number(CognitiveCycleState.INTENTION_VERSION)
+                    || !Objects.equals(result.currentMethod() == null ? "" : result.currentMethod().methodId(),
+                            state.text(CognitiveCycleState.PLANNING_METHOD_ID))
+                    || !Objects.equals(result.currentMethod() == null ? "" : result.currentMethod().candidatePlanReference(),
+                            state.text(CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE))
+                    || !Objects.equals(result.intentionObjectiveFingerprint(),
+                            state.text(CognitiveCycleState.INTENTION_OBJECTIVE_FINGERPRINT));
             return update("b4-intention:" + result.action().name(),
                     CognitiveCycleState.RECONSIDERATION_COUNT, reconsiderations,
+                    CognitiveCycleState.PLANNER_SESSION_ID, plannerBindingChanged ? "" : state.text(CognitiveCycleState.PLANNER_SESSION_ID),
                     CognitiveCycleState.INTENTION_ID, result.intentionId(),
                     CognitiveCycleState.INTENTION_VERSION, result.intentionVersion(),
+                    // Governance results replace the active B4 binding atomically. A missing
+                    // method/fingerprint is not allowed to inherit stale authority from a prior version.
+                    CognitiveCycleState.PLANNING_METHOD_ID, result.currentMethod() == null
+                            ? "" : result.currentMethod().methodId(),
+                    CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE, result.currentMethod() == null
+                            ? "" : result.currentMethod().candidatePlanReference(),
+                    CognitiveCycleState.INTENTION_OBJECTIVE_FINGERPRINT, result.intentionObjectiveFingerprint(),
                     CognitiveCycleState.DECISION_STATUS, result.action().name(),
                     CognitiveCycleState.LAST_REASON, result.reason());
         };
@@ -247,11 +280,30 @@ public final class CognitiveCycleGraph {
         NodeAction<CognitiveCycleState> metaControl = state -> {
             var result = Objects.requireNonNull(operations.governMetaControl(state.context()), "meta-control decision");
             int metaControlRound = state.integer(CognitiveCycleState.META_CONTROL_ROUND) + 1;
+            int budgetScale = state.integer(CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT);
+            String downshiftReason = state.text(CognitiveCycleState.PLANNER_BUDGET_DOWNSHIFT_REASON);
+            String status = result.action().name();
+            String reason = result.explanation();
+            if (result.action() == dev.supplychain.agent.mechanisms.b6.MetaControlAction.REDUCE_COMPUTATION) {
+                var directive = Objects.requireNonNull(result.plannerBudgetDownshift(),
+                        "REDUCE_COMPUTATION must carry a typed planner-budget downshift");
+                int reducedScale = reduceScale(budgetScale, directive.reductionPercent());
+                if (reducedScale == budgetScale) {
+                    status = "REDUCTION_EXHAUSTED";
+                    reason = reason + "; no further reduction is possible within the planner's minimum compute envelope";
+                } else {
+                    budgetScale = reducedScale;
+                    downshiftReason = result.explanation() + " [" + directive.policyId() + ", "
+                            + directive.reductionPercent() + "% reduction; cumulative scale=" + budgetScale + "%]";
+                }
+            }
             return update("b6-meta-control:" + result.action().name(),
                     CognitiveCycleState.META_CONTROL_ROUND, metaControlRound,
                     CognitiveCycleState.META_CONTROL_MAXIMUM_UNCERTAINTY, result.maximumUncertainty(),
-                    CognitiveCycleState.DECISION_STATUS, result.action().name(),
-                    CognitiveCycleState.LAST_REASON, result.explanation());
+                    CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT, budgetScale,
+                    CognitiveCycleState.PLANNER_BUDGET_DOWNSHIFT_REASON, downshiftReason,
+                    CognitiveCycleState.DECISION_STATUS, status,
+                    CognitiveCycleState.LAST_REASON, reason);
         };
 
         NodeAction<CognitiveCycleState> resolveHumanControl = state -> {
@@ -266,13 +318,29 @@ public final class CognitiveCycleGraph {
             if (!state.text(CognitiveCycleState.HUMAN_CONTROL_RESPONSE_ID).equals(result.responseReference())) {
                 throw new SecurityException("human-control response reference does not match the host-issued response");
             }
+            int budgetScale = state.integer(CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT);
+            String downshiftReason = state.text(CognitiveCycleState.PLANNER_BUDGET_DOWNSHIFT_REASON);
+            String status = result.action().name();
+            String reason = result.reason();
+            if (result.action() == HumanControlAction.REDUCE_COMPUTATION) {
+                int reducedScale = reduceScale(budgetScale, PlannerBudgetDownshift.halfBudget().reductionPercent());
+                if (reducedScale == budgetScale) {
+                    status = "REDUCTION_EXHAUSTED";
+                    reason = reason + "; no further reduction is possible within the planner's minimum compute envelope";
+                } else {
+                    budgetScale = reducedScale;
+                    downshiftReason = reason + " [human-authorized 50% downshift; cumulative scale=" + budgetScale + "%]";
+                }
+            }
             return update("human-control:" + result.action().name(),
                     CognitiveCycleState.HUMAN_CONTROL_AUDIT_REFERENCE, result.responseReference(),
                     CognitiveCycleState.HUMAN_CONTROL_ACTOR_AUDIT_ID, result.actorId(),
                     CognitiveCycleState.HUMAN_CONTROL_RESPONSE_ID, "",
                     CognitiveCycleState.HUMAN_CONTROL_ACTOR_ID, "",
-                    CognitiveCycleState.DECISION_STATUS, result.action().name(),
-                    CognitiveCycleState.LAST_REASON, result.reason());
+                    CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT, budgetScale,
+                    CognitiveCycleState.PLANNER_BUDGET_DOWNSHIFT_REASON, downshiftReason,
+                    CognitiveCycleState.DECISION_STATUS, status,
+                    CognitiveCycleState.LAST_REASON, reason);
         };
 
         NodeAction<CognitiveCycleState> authorize = state -> {
@@ -664,6 +732,14 @@ public final class CognitiveCycleGraph {
         return update(event + ":v" + next.version(),
                 CognitiveCycleState.UNCERTAINTY_ASSESSMENT_ID, next.assessmentId(),
                 CognitiveCycleState.UNCERTAINTY_ASSESSMENT_VERSION, next.version());
+    }
+
+    private static int reduceScale(int currentPercent, int reductionPercent) {
+        if (currentPercent < 1 || currentPercent > 100 || reductionPercent < 1 || reductionPercent > 90) {
+            throw new IllegalArgumentException("invalid cumulative planner downshift percentages");
+        }
+        int next = (int) ((long) currentPercent * (100 - reductionPercent) / 100L);
+        return Math.max(1, next);
     }
 
     private static Map<String, Object> update(String event, Object... pairs) {

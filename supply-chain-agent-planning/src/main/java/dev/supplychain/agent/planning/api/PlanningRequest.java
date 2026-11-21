@@ -9,6 +9,7 @@ import dev.supplychain.agent.domain.recovery.RecoveryObjective;
 import dev.supplychain.agent.domain.world.SupplyChainSnapshot;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
+import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -38,7 +39,8 @@ public record PlanningRequest(
         PlannerBudget budget,
         Instant requestedAt,
         String resumeSessionId,
-        UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
+        UncertaintyAssessment.Reference uncertaintyAssessmentReference,
+        PlannerSelectionOverride plannerSelectionOverride) {
     public PlanningRequest {
         executionId = require(executionId, "executionId");
         objective = Objects.requireNonNull(objective, "objective");
@@ -54,6 +56,10 @@ public record PlanningRequest(
         budget = Objects.requireNonNull(budget, "budget");
         requestedAt = Objects.requireNonNull(requestedAt, "requestedAt");
         resumeSessionId = resumeSessionId == null || resumeSessionId.isBlank() ? null : resumeSessionId.trim();
+        if (plannerSelectionOverride != null
+                && !plannerSelectionOverride.objectiveFingerprint().equals(ObjectiveFingerprint.from(objective).value())) {
+            throw new SecurityException("B4 planner-method override is bound to a different recovery objective");
+        }
         if (uncertaintyAssessmentReference != null
                 && (!uncertaintyAssessmentReference.executionId().equals(executionId)
                 || !uncertaintyAssessmentReference.memoryScopeId().equals(workingMemory.scopeId().value()))) {
@@ -90,7 +96,29 @@ public record PlanningRequest(
                            PlannerBudget budget, Instant requestedAt, String resumeSessionId) {
         this(executionId, objective, initialWorld, workingMemory, evidence, availableActionDefinitions,
                 hardConstraints, scoringProfile, riskPolicy, authorityPolicy, complexity, budget,
-                requestedAt, resumeSessionId, null);
+                requestedAt, resumeSessionId, null, null);
+    }
+
+    /** Source-compatible constructor retaining the versioned uncertainty reference. */
+    public PlanningRequest(String executionId, RecoveryObjective objective, SupplyChainSnapshot initialWorld,
+                           WorkingMemorySnapshot workingMemory, List<EvidenceReference> evidence,
+                           List<ActionDescriptor> availableActionDefinitions, Set<RecoveryConstraint> hardConstraints,
+                           PlanningScoringProfile scoringProfile, PlanningRiskPolicy riskPolicy,
+                           PlanningAuthorityPolicy authorityPolicy, PlanningComplexity complexity,
+                           PlannerBudget budget, Instant requestedAt, String resumeSessionId,
+                           UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
+        this(executionId, objective, initialWorld, workingMemory, evidence, availableActionDefinitions,
+                hardConstraints, scoringProfile, riskPolicy, authorityPolicy, complexity, budget,
+                requestedAt, resumeSessionId, uncertaintyAssessmentReference, null);
+    }
+
+    /** Returns a copy with the B4 planner binding and B6's per-request compute envelope applied. */
+    public PlanningRequest withPlannerControl(PlannerBudget effectiveBudget,
+                                              PlannerSelectionOverride selectionOverride) {
+        return new PlanningRequest(executionId, objective, initialWorld, workingMemory, evidence,
+                availableActionDefinitions, hardConstraints, scoringProfile, riskPolicy, authorityPolicy,
+                complexity, Objects.requireNonNull(effectiveBudget, "effectiveBudget"), requestedAt,
+                resumeSessionId, uncertaintyAssessmentReference, selectionOverride);
     }
 
     public Map<ActionId, ActionDescriptor> actionDefinitionsById() {

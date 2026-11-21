@@ -97,6 +97,7 @@ import dev.supplychain.agent.mechanisms.b4.RecoveryMethodReference;
 import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudget;
+import dev.supplychain.agent.mechanisms.b6.InMemoryResourceBudgetLedger;
 import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetSnapshot;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
@@ -107,6 +108,9 @@ import dev.supplychain.agent.planning.api.ActionImpactEstimate;
 import dev.supplychain.agent.planning.api.CandidateEvaluator;
 import dev.supplychain.agent.planning.api.DeterministicCandidateEvaluator;
 import dev.supplychain.agent.planning.api.PlanningAction;
+import dev.supplychain.agent.planning.api.PlannerBudget;
+import dev.supplychain.agent.planning.api.PlannerId;
+import dev.supplychain.agent.planning.api.PlanningStrategy;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.planning.api.PlanningWorldModel;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
@@ -155,6 +159,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.EnumMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import static org.bsc.langgraph4j.StateGraph.END;
@@ -233,6 +240,114 @@ class M8B4FullGraphWorkflowTest {
             }
             throw new IllegalArgumentException("unknown full-graph probe mode: " + mode);
         }
+    }
+
+    @Test
+    void b4MethodChangeControlsTheNextFullGraphPlannerWithoutChangingTheCommittedObjective() throws Exception {
+        var scenario = ScenarioRuntime.create("REQ-01", ApprovalMode.APPROVED);
+        scenario.decision.useGraphPlannerSessionId = true;
+        String objectiveFingerprint = ObjectiveFingerprint.from(scenario.fixture.planningRequest().objective()).value();
+        scenario.lifecycle.enqueueIntentionDirective(new IntentionDirective(
+                CognitiveCycleOperations.IntentionAction.RECONSIDER,
+                "request reconsideration before changing the planner method", null,
+                objectiveFingerprint, ""));
+        scenario.lifecycle.enqueueIntentionDirective(new IntentionDirective(
+                CognitiveCycleOperations.IntentionAction.CHANGE_METHOD,
+                "switch to bounded tree search while preserving the recovery objective",
+                new RecoveryMethodReference("tot", "candidate:verified-tot-method"),
+                objectiveFingerprint, ""));
+
+        assertTrue(scenario.runUntilApproval());
+
+        assertTrue(scenario.plannerInvocations.size() >= 3,
+                "the graph must invoke the initial method, reconsider, then invoke the replacement method");
+        assertEquals(PlannerId.COT_SEQUENTIAL, scenario.plannerInvocations.get(0).plannerId());
+        assertEquals(PlannerId.COT_SEQUENTIAL, scenario.plannerInvocations.get(1).plannerId());
+        var replacementInvocation = scenario.plannerInvocations.get(2);
+        assertEquals(PlannerId.TOT_BOUNDED_SEARCH, replacementInvocation.plannerId(),
+                "the changed B4 method must select the registered ToT strategy on the next planning cycle");
+
+        var override = replacementInvocation.request().plannerSelectionOverride();
+        assertNotNull(override, "planner call must carry its authoritative B4 intention binding");
+        assertEquals("tot", override.methodId());
+        assertEquals("candidate:verified-tot-method", override.candidatePlanReference());
+        assertEquals(scenario.graph.getState(scenario.config).state().text(CognitiveCycleState.INTENTION_ID),
+                override.intentionId());
+        assertEquals(scenario.graph.getState(scenario.config).state().number(CognitiveCycleState.INTENTION_VERSION),
+                override.intentionVersion());
+        assertEquals(objectiveFingerprint, override.objectiveFingerprint());
+        assertTrue(replacementInvocation.request().resumeSessionId() == null,
+                "a planner session created under the previous B4 intention version must not resume under the changed method");
+        assertEquals(objectiveFingerprint, ObjectiveFingerprint.from(replacementInvocation.request().objective()).value());
+        assertEquals("tot", scenario.graph.getState(scenario.config).state().text(CognitiveCycleState.PLANNING_METHOD_ID));
+        assertEquals("candidate:verified-tot-method",
+                scenario.graph.getState(scenario.config).state().text(CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE));
+    }
+
+    @Test
+    void b4MethodAuthorityAndB6DownshiftComposeOnTheSameSubsequentPlannerCall() throws Exception {
+        var scenario = ScenarioRuntime.createWithB6Downshift("REQ-01");
+        String objectiveFingerprint = ObjectiveFingerprint.from(scenario.fixture.planningRequest().objective()).value();
+        scenario.lifecycle.enqueueIntentionDirective(new IntentionDirective(
+                CognitiveCycleOperations.IntentionAction.RECONSIDER,
+                "reconsider the current recovery method", null, objectiveFingerprint, ""));
+        scenario.lifecycle.enqueueIntentionDirective(new IntentionDirective(
+                CognitiveCycleOperations.IntentionAction.CHANGE_METHOD,
+                "select bounded tree search while retaining the committed objective",
+                new RecoveryMethodReference("tot", "candidate:combined-method-change"),
+                objectiveFingerprint, ""));
+        PlannerBudget originalBudget = scenario.fixture.planningRequest().budget();
+
+        assertTrue(scenario.runUntilApproval());
+
+        assertTrue(scenario.plannerInvocations.size() >= 4,
+                "the workflow must plan, reconsider, switch method, then plan again under the B6 downshift");
+        assertEquals(PlannerId.COT_SEQUENTIAL, scenario.plannerInvocations.get(0).plannerId());
+        assertEquals(PlannerId.COT_SEQUENTIAL, scenario.plannerInvocations.get(1).plannerId());
+        assertEquals(PlannerId.TOT_BOUNDED_SEARCH, scenario.plannerInvocations.get(2).plannerId());
+        var controlledInvocation = scenario.plannerInvocations.get(3);
+        assertEquals(PlannerId.TOT_BOUNDED_SEARCH, controlledInvocation.plannerId(),
+                "B6 must reduce compute without overriding the B4-selected planning method");
+        assertEquals(originalBudget.maxExpansions() / 2, controlledInvocation.request().budget().maxExpansions());
+        assertEquals(originalBudget.maxEvaluations() / 2, controlledInvocation.request().budget().maxEvaluations());
+        assertEquals("tot", controlledInvocation.request().plannerSelectionOverride().methodId());
+        assertEquals(objectiveFingerprint,
+                controlledInvocation.request().plannerSelectionOverride().objectiveFingerprint());
+        assertEquals(50, scenario.graph.getState(scenario.config).state()
+                .integer(CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT));
+    }
+
+    @Test
+    void b6LowMarginDownshiftsTheNextPlannerRequestWithoutChangingTheSharedExecutionCeiling() throws Exception {
+        var scenario = ScenarioRuntime.createWithB6Downshift("REQ-01");
+        PlannerBudget originalBudget = scenario.fixture.planningRequest().budget();
+        assertTrue(scenario.runUntilApproval());
+
+        assertTrue(scenario.plannerInvocations.size() >= 2,
+                "B6 downshift must return control to the planner for another invocation");
+        PlannerBudget first = scenario.plannerInvocations.get(0).request().budget();
+        PlannerBudget second = scenario.plannerInvocations.get(1).request().budget();
+        assertEquals(originalBudget, first, "the first planning call must retain the baseline envelope");
+        assertEquals(originalBudget.maxExpansions() / 2, second.maxExpansions());
+        assertEquals(originalBudget.maxEvaluations() / 2, second.maxEvaluations());
+        assertEquals(originalBudget.maxModelCalls() / 2, second.maxModelCalls());
+        assertEquals(originalBudget.maxRollouts() / 2, second.maxRollouts());
+        assertEquals(originalBudget.maxDepth(), second.maxDepth(), "B6 must not mutate the structural search depth");
+        assertEquals(originalBudget.maxCandidates(), second.maxCandidates(), "B6 must not change the result cardinality contract");
+        assertEquals(originalBudget.deadline(), second.deadline(), "B6 must preserve the execution's absolute deadline");
+        assertEquals(50, scenario.graph.getState(scenario.config).state()
+                .integer(CognitiveCycleState.PLANNER_BUDGET_SCALE_PERCENT));
+        assertTrue(scenario.graph.getState(scenario.config).state()
+                .text(CognitiveCycleState.PLANNER_BUDGET_DOWNSHIFT_REASON).contains("b6-resource-margin-downshift-v1"));
+
+        var sharedSnapshot = scenario.resourceBudgetLedger.snapshot(
+                scenario.fixture.planningRequest().executionId(), ScenarioFixtureFactory.FIXTURE_AS_OF.plusSeconds(1));
+        assertEquals(100L, sharedSnapshot.budget().limit(ResourceUnit.SEARCH_EXPANSIONS),
+                "the per-call planner downshift must not mutate the shared execution-wide B6 ceiling");
+        assertTrue(sharedSnapshot.consumed().getOrDefault(ResourceUnit.SEARCH_EXPANSIONS, 0L) >= 80L,
+                "the test must exercise the same shared account that triggered the low-margin decision");
+        assertEquals(0L, sharedSnapshot.reserved().getOrDefault(ResourceUnit.SEARCH_EXPANSIONS, 0L),
+                "the planner reservation must be committed or released after the call");
     }
 
     @Test
@@ -599,6 +714,7 @@ class M8B4FullGraphWorkflowTest {
     }
 
     private record TerminalOutput(String node, CognitiveCycleState state) { }
+    private record PlannerInvocation(PlannerId plannerId, PlanningRequest request) { }
 
     private static final class ScenarioRuntime {
         private final ScenarioFixture fixture;
@@ -617,6 +733,8 @@ class M8B4FullGraphWorkflowTest {
         private final InMemoryRecoveryProcedureDraftRepository r2DraftRepository;
         private final FullGraphRuntime fullGraphRuntime;
         private final FullGraphEvaluationHost.Ports ports;
+        private final List<PlannerInvocation> plannerInvocations = new CopyOnWriteArrayList<>();
+        private InMemoryResourceBudgetLedger resourceBudgetLedger;
 
         private ScenarioRuntime(ScenarioFixture fixture, ApprovalMode approvalMode) throws Exception {
             this(fixture, approvalMode, false, null, null, null, null, false, false, null);
@@ -669,7 +787,14 @@ class M8B4FullGraphWorkflowTest {
                     broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
                     broadcast.broadcastAt(), "deterministic planner consumer accepted the admitted workspace"));
             if (r2Enabled) registry.register(new R2InventoryReadTestHandler());
-            var strategies = new EvaluationPlannerFactory(world).strategiesForFullGraph(fixture);
+            var strategies = new EvaluationPlannerFactory(world).strategiesForFullGraph(fixture).stream()
+                    .map(delegate -> (PlanningStrategy) new PlanningStrategy() {
+                        @Override public PlannerId id() { return delegate.id(); }
+                        @Override public dev.supplychain.agent.planning.api.PlanningResult plan(PlanningRequest request) {
+                            plannerInvocations.add(new PlannerInvocation(delegate.id(), request));
+                            return delegate.plan(request);
+                        }
+                    }).toList();
             AtomicInteger interpretationCalls = new AtomicInteger();
             var interpreter = (dev.supplychain.agent.core.interpretation.RequestInterpreter) request -> {
                 if (clarifyOnFirstInterpretation && interpretationCalls.getAndIncrement() == 0) {
@@ -711,6 +836,22 @@ class M8B4FullGraphWorkflowTest {
             var catalog = ScenarioCatalog.loadDefault();
             var factory = new ScenarioFixtureFactory(catalog);
             return new ScenarioRuntime(factory.create(scenarioId), mode);
+        }
+
+        static ScenarioRuntime createWithB6Downshift(String scenarioId) throws Exception {
+            var fixture = new ScenarioFixtureFactory(ScenarioCatalog.loadDefault()).create(scenarioId);
+            var limits = new EnumMap<ResourceUnit, Long>(ResourceUnit.class);
+            for (ResourceUnit unit : ResourceUnit.values()) limits.put(unit, 1_000L);
+            limits.put(ResourceUnit.SEARCH_EXPANSIONS, 100L);
+            var budget = new ResourceBudget(limits, ScenarioFixtureFactory.FIXTURE_AS_OF.plus(Duration.ofDays(90)));
+            var ledger = new InMemoryResourceBudgetLedger();
+            Clock clock = Clock.fixed(ScenarioFixtureFactory.FIXTURE_AS_OF, ZoneOffset.UTC);
+            var guard = new ResourceBudgetExecutionGuard(ledger, ignored -> budget, clock);
+            var runtime = new ScenarioRuntime(fixture, ApprovalMode.APPROVED, false, null, null,
+                    guard, budget, false, false, null);
+            runtime.resourceBudgetLedger = ledger;
+            runtime.lifecycle.forceNextMetaControlDownshift(ledger);
+            return runtime;
         }
 
         static ScenarioRuntime createR2(String scenarioId, boolean resolveB2) throws Exception {
@@ -947,6 +1088,7 @@ class M8B4FullGraphWorkflowTest {
         private B1SelectionResult lastB1Selection;
         private long lastPlanningContextWorkingMemoryVersion = -1L;
         private boolean includeFeedbackCandidates;
+        private boolean useGraphPlannerSessionId;
         private WorkingMemoryService workingMemoryService;
 
         private DecisionAdapter(ScenarioFixture fixture, ScenarioWorldStore worldStore) {
@@ -1049,20 +1191,23 @@ class M8B4FullGraphWorkflowTest {
                 throw new IllegalStateException("planning adapter loaded a working-memory snapshot that does not match the graph context");
             }
             lastPlanningContextWorkingMemoryVersion = context.workingMemoryVersion();
+            String resumeSessionId = useGraphPlannerSessionId
+                    ? (context.plannerSessionId().isBlank() ? null : context.plannerSessionId())
+                    : base.resumeSessionId();
             lastPlanningRequest = copy(base, working, worldStore.snapshot(),
                     worldStore.actionDescriptors(base.availableActionDefinitions()),
                     worldStore.evidence(base.evidence()), context.executionId(),
-                    context.requireUncertaintyAssessmentReference());
+                    context.requireUncertaintyAssessmentReference(), resumeSessionId);
             return lastPlanningRequest;
         }
 
         private PlanningRequest copy(PlanningRequest base, WorkingMemorySnapshot working,
                                      dev.supplychain.agent.domain.world.SupplyChainSnapshot world,
                                      List<ActionDescriptor> descriptors, List<EvidenceReference> evidence, String executionId,
-                                     UncertaintyAssessment.Reference uncertaintyReference) {
+                                     UncertaintyAssessment.Reference uncertaintyReference, String resumeSessionId) {
             return new PlanningRequest(executionId, base.objective(), world, working, evidence,
                     descriptors, base.hardConstraints(), base.scoringProfile(), base.riskPolicy(),
-                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), base.resumeSessionId(),
+                    base.authorityPolicy(), base.complexity(), base.budget(), base.requestedAt(), resumeSessionId,
                     uncertaintyReference);
         }
     }
@@ -1083,6 +1228,9 @@ class M8B4FullGraphWorkflowTest {
         private final boolean resolveB2;
         private final Map<String, UncertaintyAssessment.Reference> uncertaintyByTrigger = new java.util.HashMap<>();
         private final Map<UncertaintyAssessment.Reference, UncertaintyAssessment> uncertaintyByReference = new java.util.HashMap<>();
+        private final ConcurrentLinkedQueue<IntentionDirective> scriptedIntentionDirectives = new ConcurrentLinkedQueue<>();
+        private final AtomicBoolean forceMetaControlDownshift = new AtomicBoolean();
+        private InMemoryResourceBudgetLedger downshiftLedger;
 
         private LifecycleAdapter(ScenarioFixture fixture, Clock clock, ApprovalMode approvalMode,
                                  ScenarioEffectStore effects, ScenarioWorldStore worldStore,
@@ -1119,7 +1267,7 @@ class M8B4FullGraphWorkflowTest {
 
         @Override public Optional<IntentionSeed> intentionSeed(CognitiveCycleOperations.CycleContext context, Instant at) {
             return Optional.of(new IntentionSeed(new RecoveryIntentionId("intention:" + context.executionId()),
-                    objective, "m8-b4-test-owner", new RecoveryMethodReference("m8-b4-initial-method", "candidate:pending")));
+                    objective, "m8-b4-test-owner", new RecoveryMethodReference("cot", "candidate:initial-cot-method")));
         }
 
         @Override public List<ContextFact> contextFacts(CognitiveCycleOperations.CycleContext context,
@@ -1181,8 +1329,19 @@ class M8B4FullGraphWorkflowTest {
                     context.requestId(), latestWorkingMemory.version(), objectiveFingerprint(context));
         }
 
+        void enqueueIntentionDirective(IntentionDirective directive) {
+            scriptedIntentionDirectives.add(Objects.requireNonNull(directive, "directive"));
+        }
+
+        void forceNextMetaControlDownshift(InMemoryResourceBudgetLedger ledger) {
+            downshiftLedger = Objects.requireNonNull(ledger, "ledger");
+            forceMetaControlDownshift.set(true);
+        }
+
         @Override public IntentionDirective intentionDirective(CognitiveCycleOperations.CycleContext context,
                 dev.supplychain.agent.mechanisms.b4.RecoveryIntention current, Instant at) {
+            IntentionDirective scripted = scriptedIntentionDirectives.poll();
+            if (scripted != null) return scripted;
             return new IntentionDirective(CognitiveCycleOperations.IntentionAction.CONTINUE,
                     "preserve the active recovery objective during this workflow", null,
                     objectiveFingerprint(context), "");
@@ -1218,11 +1377,34 @@ class M8B4FullGraphWorkflowTest {
 
         @Override public MetaControlInputs metaControlInputs(CognitiveCycleOperations.CycleContext context, Instant at) {
             var uncertainty = currentUncertaintyAssessment(context, at);
+            boolean triggerDownshift = forceMetaControlDownshift.compareAndSet(true, false);
+            if (triggerDownshift) {
+                if (downshiftLedger == null || durableBudget == null) {
+                    throw new IllegalStateException("the B6 downshift fixture requires the same registered execution ledger and budget used by the planner guard");
+                }
+                var before = downshiftLedger.snapshot(context.executionId(), at);
+                long remaining = before.remaining(ResourceUnit.SEARCH_EXPANSIONS);
+                long targetRemaining = Math.max(1L, Math.min(19L, durableBudget.limit(ResourceUnit.SEARCH_EXPANSIONS) / 5L));
+                long preconsume = Math.max(0L, remaining - targetRemaining);
+                if (preconsume > 0L) {
+                    String reservationId = "fixture-prior-search-work:" + context.executionId();
+                    var usage = ResourceUsage.of(ResourceUnit.SEARCH_EXPANSIONS, preconsume);
+                    downshiftLedger.reserve(context.executionId(), reservationId, usage, at);
+                    downshiftLedger.commit(context.executionId(), reservationId, usage, at);
+                }
+            }
             var budgetDefinition = durableBudget == null
                     ? new ResourceBudget(Map.of(), at.plusSeconds(60)) : durableBudget;
-            var budget = new ResourceBudgetSnapshot(context.executionId(),
-                    budgetDefinition, Map.of(), Map.of(), at);
-            return new MetaControlInputs(budget, uncertainty, new ResourceUsage(Map.of()));
+            // When this fixture pre-consumes the execution ledger, the governor must inspect
+            // that same authoritative snapshot. An empty synthetic usage map would hide the
+            // low-margin condition and make the full-graph downshift test a false positive.
+            var budget = downshiftLedger != null && durableBudget != null
+                    ? downshiftLedger.snapshot(context.executionId(), at)
+                    : new ResourceBudgetSnapshot(context.executionId(),
+                            budgetDefinition, Map.of(), Map.of(), at);
+            ResourceUsage required = triggerDownshift
+                    ? ResourceUsage.of(ResourceUnit.SEARCH_EXPANSIONS, 1L) : new ResourceUsage(Map.of());
+            return new MetaControlInputs(budget, uncertainty, required);
         }
 
         @Override public void recordMetaControlDecision(CognitiveCycleOperations.CycleContext context,

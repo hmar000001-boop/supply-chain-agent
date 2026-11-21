@@ -91,10 +91,14 @@ class MetaControlGovernorTest {
         var d=governor().evaluate(l.snapshot("e1",NOW),uncertainty(0.1,0.1,0.1),ResourceUsage.of(ResourceUnit.MODEL_CALLS,1),NOW);
         assertEquals(MetaControlAction.CONTINUE,d.action());
     }
-    @Test void lowResourceMarginSelectsReducedComputation(){
+    @Test void lowResourceMarginSelectsReducedComputationWithAnExplicitTypedPlannerDirective(){
         var l=ledger("e1",budget(Map.of(ResourceUnit.INPUT_TOKENS,100L),NOW.plusSeconds(100)));
         l.reserve("e1","r1",ResourceUsage.of(ResourceUnit.INPUT_TOKENS,85),NOW);l.commit("e1","r1",ResourceUsage.of(ResourceUnit.INPUT_TOKENS,85),NOW.plusSeconds(1));
-        var d=governor().evaluate(l.snapshot("e1",NOW.plusSeconds(2)),uncertainty(0.1,0.1,0.1),ResourceUsage.of(ResourceUnit.INPUT_TOKENS,1),NOW.plusSeconds(2));assertEquals(MetaControlAction.REDUCE_COMPUTATION,d.action());
+        var policy = new MetaControlPolicy(0.5, 0.8, 0.2, 40);
+        var d=new MetaControlGovernor(policy).evaluate(l.snapshot("e1",NOW.plusSeconds(2)),uncertainty(0.1,0.1,0.1),ResourceUsage.of(ResourceUnit.INPUT_TOKENS,1),NOW.plusSeconds(2));
+        assertEquals(MetaControlAction.REDUCE_COMPUTATION,d.action());
+        assertEquals(40,d.plannerBudgetDownshift().reductionPercent());
+        assertEquals("b6-resource-margin-downshift-v1",d.plannerBudgetDownshift().policyId());
     }
     @Test void missingUncertaintyDimensionIsNotSilentlyTreatedAsZero(){
         var incomplete=Map.of(UncertaintyDimension.EVIDENCE,new UncertaintySignal(UncertaintyDimension.EVIDENCE,0.1,"known",1));

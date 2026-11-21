@@ -1,6 +1,7 @@
 package dev.supplychain.agent.runtime.cognitive;
 
 import dev.supplychain.agent.core.interpretation.InterpretationOutcome;
+import dev.supplychain.agent.mechanisms.b4.RecoveryMethodReference;
 import dev.supplychain.agent.mechanisms.b6.MetaControlDecision;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.planning.api.PlannerId;
@@ -128,7 +129,12 @@ public interface CognitiveCycleOperations {
             String executionOperationId,
             String observationId,
             String lastReason,
-            UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
+            UncertaintyAssessment.Reference uncertaintyAssessmentReference,
+            String planningMethodId,
+            String planningCandidatePlanReference,
+            int plannerBudgetScalePercent,
+            String plannerBudgetDownshiftReason,
+            String intentionObjectiveFingerprint) {
         public CycleContext {
             requestId = optional(requestId);
             executionId = optional(executionId);
@@ -156,6 +162,26 @@ public interface CognitiveCycleOperations {
             executionOperationId = optional(executionOperationId);
             observationId = optional(observationId);
             lastReason = optional(lastReason);
+            planningMethodId = optional(planningMethodId);
+            planningCandidatePlanReference = optional(planningCandidatePlanReference);
+            plannerBudgetDownshiftReason = optional(plannerBudgetDownshiftReason);
+            intentionObjectiveFingerprint = optional(intentionObjectiveFingerprint);
+            if (!intentionObjectiveFingerprint.isEmpty()
+                    && !intentionObjectiveFingerprint.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException("intention objective fingerprint must be lowercase SHA-256 hex");
+            }
+            if (intentionId.isEmpty() && !intentionObjectiveFingerprint.isEmpty()) {
+                throw new IllegalArgumentException("an absent intention cannot carry an objective fingerprint");
+            }
+            if (planningMethodId.isEmpty() != planningCandidatePlanReference.isEmpty()) {
+                throw new IllegalArgumentException("B4 planning method ID and candidate reference must be supplied together");
+            }
+            if (plannerBudgetScalePercent < 1 || plannerBudgetScalePercent > 100) {
+                throw new IllegalArgumentException("planner budget scale must be between 1 and 100 percent");
+            }
+            if (plannerBudgetScalePercent == 100 && !plannerBudgetDownshiftReason.isEmpty()) {
+                throw new IllegalArgumentException("an unchanged planner budget cannot carry a downshift reason");
+            }
             if (uncertaintyAssessmentReference != null
                     && (!uncertaintyAssessmentReference.executionId().equals(executionId)
                     || !uncertaintyAssessmentReference.memoryScopeId().equals(memoryScopeId))) {
@@ -165,6 +191,51 @@ public interface CognitiveCycleOperations {
                     || intentionVersion < 0 || planningRound < 0) {
                 throw new IllegalArgumentException("cycle counters and versions must be nonnegative");
             }
+        }
+
+        /** Source-compatible constructor retaining the previous canonical assessment-aware shape. */
+        public CycleContext(String requestId, String executionId, String memoryScopeId, String request,
+                            String normalizedIntent, String summary, String clarificationContext,
+                            int clarificationRound, String workingMemoryId, long workingMemoryVersion,
+                            String evidenceSetId, int evidenceRequestCount, String evidenceResponseId,
+                            String workspaceSnapshotId, String intentionId, long intentionVersion,
+                            String plannerId, String plannerSessionId, String candidateSetId, int planningRound,
+                            String selectedCandidateId, String impasseCaseId, String impasseInvestigationReference,
+                            String approvalId, String approvalResponseId, String approverId,
+                            String humanControlResponseId, String humanControlActorId,
+                            String executionOperationId, String observationId, String lastReason,
+                            UncertaintyAssessment.Reference uncertaintyAssessmentReference) {
+            this(requestId, executionId, memoryScopeId, request, normalizedIntent, summary, clarificationContext,
+                    clarificationRound, workingMemoryId, workingMemoryVersion, evidenceSetId, evidenceRequestCount,
+                    evidenceResponseId, workspaceSnapshotId, intentionId, intentionVersion, plannerId,
+                    plannerSessionId, candidateSetId, planningRound, selectedCandidateId, impasseCaseId,
+                    impasseInvestigationReference, approvalId, approvalResponseId, approverId,
+                    humanControlResponseId, humanControlActorId, executionOperationId, observationId, lastReason,
+                    uncertaintyAssessmentReference, "", "", 100, "", "");
+        }
+
+        /** Source-compatible constructor retaining the previous B4/B6-aware context shape. */
+        public CycleContext(String requestId, String executionId, String memoryScopeId, String request,
+                            String normalizedIntent, String summary, String clarificationContext,
+                            int clarificationRound, String workingMemoryId, long workingMemoryVersion,
+                            String evidenceSetId, int evidenceRequestCount, String evidenceResponseId,
+                            String workspaceSnapshotId, String intentionId, long intentionVersion,
+                            String plannerId, String plannerSessionId, String candidateSetId, int planningRound,
+                            String selectedCandidateId, String impasseCaseId, String impasseInvestigationReference,
+                            String approvalId, String approvalResponseId, String approverId,
+                            String humanControlResponseId, String humanControlActorId,
+                            String executionOperationId, String observationId, String lastReason,
+                            UncertaintyAssessment.Reference uncertaintyAssessmentReference,
+                            String planningMethodId, String planningCandidatePlanReference,
+                            int plannerBudgetScalePercent, String plannerBudgetDownshiftReason) {
+            this(requestId, executionId, memoryScopeId, request, normalizedIntent, summary, clarificationContext,
+                    clarificationRound, workingMemoryId, workingMemoryVersion, evidenceSetId, evidenceRequestCount,
+                    evidenceResponseId, workspaceSnapshotId, intentionId, intentionVersion, plannerId,
+                    plannerSessionId, candidateSetId, planningRound, selectedCandidateId, impasseCaseId,
+                    impasseInvestigationReference, approvalId, approvalResponseId, approverId,
+                    humanControlResponseId, humanControlActorId, executionOperationId, observationId, lastReason,
+                    uncertaintyAssessmentReference, planningMethodId, planningCandidatePlanReference,
+                    plannerBudgetScalePercent, plannerBudgetDownshiftReason, "");
         }
 
         /** Source-compatible constructor for callers that have not yet entered the assessment stage. */
@@ -183,7 +254,8 @@ public interface CognitiveCycleOperations {
                     evidenceResponseId, workspaceSnapshotId, intentionId, intentionVersion, plannerId,
                     plannerSessionId, candidateSetId, planningRound, selectedCandidateId, impasseCaseId,
                     impasseInvestigationReference, approvalId, approvalResponseId, approverId,
-                    humanControlResponseId, humanControlActorId, executionOperationId, observationId, lastReason, null);
+                    humanControlResponseId, humanControlActorId, executionOperationId, observationId, lastReason,
+                    null, "", "", 100, "", "");
         }
 
         public UncertaintyAssessment.Reference requireUncertaintyAssessmentReference() {
@@ -207,16 +279,33 @@ public interface CognitiveCycleOperations {
     }
 
     record ContextLoaded(String workingMemoryId, long workingMemoryVersion,
-                         String intentionId, long intentionVersion) {
+                         String intentionId, long intentionVersion,
+                         RecoveryMethodReference currentMethod, String intentionObjectiveFingerprint) {
         public ContextLoaded {
             workingMemoryId = required(workingMemoryId, "workingMemoryId");
             intentionId = optional(intentionId);
+            intentionObjectiveFingerprint = optional(intentionObjectiveFingerprint);
+            if (!intentionObjectiveFingerprint.isEmpty()
+                    && !intentionObjectiveFingerprint.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException("intention objective fingerprint must be lowercase SHA-256 hex");
+            }
             if (workingMemoryVersion < 0 || intentionVersion < 0) {
                 throw new IllegalArgumentException("memory versions must be nonnegative");
             }
-            if (intentionId.isEmpty() && intentionVersion != 0) {
-                throw new IllegalArgumentException("an absent intention must have version zero");
+            if (intentionId.isEmpty() && (intentionVersion != 0 || currentMethod != null
+                    || !intentionObjectiveFingerprint.isEmpty())) {
+                throw new IllegalArgumentException("an absent intention cannot carry a version, method or objective fingerprint");
             }
+        }
+
+        public ContextLoaded(String workingMemoryId, long workingMemoryVersion,
+                             String intentionId, long intentionVersion, RecoveryMethodReference currentMethod) {
+            this(workingMemoryId, workingMemoryVersion, intentionId, intentionVersion, currentMethod, "");
+        }
+
+        public ContextLoaded(String workingMemoryId, long workingMemoryVersion,
+                             String intentionId, long intentionVersion) {
+            this(workingMemoryId, workingMemoryVersion, intentionId, intentionVersion, null, "");
         }
     }
 
@@ -332,12 +421,28 @@ public interface CognitiveCycleOperations {
     }
 
     enum IntentionAction { CONTINUE, RECONSIDER, CHANGE_METHOD, SUSPEND, ESCALATE, TERMINATE }
-    record IntentionGovernance(IntentionAction action, String intentionId, long intentionVersion, String reason) {
+    record IntentionGovernance(IntentionAction action, String intentionId, long intentionVersion,
+                               String reason, RecoveryMethodReference currentMethod,
+                               String intentionObjectiveFingerprint) {
         public IntentionGovernance {
             action = Objects.requireNonNull(action, "action");
             intentionId = required(intentionId, "intentionId");
             reason = required(reason, "reason");
+            intentionObjectiveFingerprint = optional(intentionObjectiveFingerprint);
+            if (!intentionObjectiveFingerprint.isEmpty()
+                    && !intentionObjectiveFingerprint.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException("intention objective fingerprint must be lowercase SHA-256 hex");
+            }
             if (intentionVersion < 0) throw new IllegalArgumentException("intentionVersion cannot be negative");
+        }
+
+        public IntentionGovernance(IntentionAction action, String intentionId, long intentionVersion,
+                                   String reason, RecoveryMethodReference currentMethod) {
+            this(action, intentionId, intentionVersion, reason, currentMethod, "");
+        }
+
+        public IntentionGovernance(IntentionAction action, String intentionId, long intentionVersion, String reason) {
+            this(action, intentionId, intentionVersion, reason, null, "");
         }
     }
 

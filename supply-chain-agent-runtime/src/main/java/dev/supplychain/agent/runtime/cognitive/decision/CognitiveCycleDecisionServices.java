@@ -2,6 +2,8 @@ package dev.supplychain.agent.runtime.cognitive.decision;
 
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalService;
 import dev.supplychain.agent.memory.common.EvidenceReference;
+import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
+import dev.supplychain.agent.mechanisms.b4.RecoveryMethodReference;
 import dev.supplychain.agent.memory.common.MemoryVersionConflictException;
 import dev.supplychain.agent.memory.working.MemoryValue;
 import dev.supplychain.agent.memory.working.WorkingMemoryId;
@@ -22,8 +24,11 @@ import dev.supplychain.agent.planning.api.PlanningResult;
 import dev.supplychain.agent.planning.api.PlanningState;
 import dev.supplychain.agent.planning.api.PlanningWorldModel;
 import dev.supplychain.agent.planning.api.PlannerTerminationReason;
+import dev.supplychain.agent.planning.api.PlannerId;
+import dev.supplychain.agent.planning.api.PlannerSelectionOverride;
 import dev.supplychain.agent.planning.api.WorldTransition;
 import dev.supplychain.agent.planning.routing.PlannerRouter;
+import dev.supplychain.agent.planning.routing.PlannerMethodResolver;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.mechanisms.b6.ResourceBudgetExceededException;
@@ -72,6 +77,7 @@ public final class CognitiveCycleDecisionServices {
     private final CognitiveCycleDecisionPort domainPort;
     private final Clock clock;
     private final ResourceBudgetExecutionGuard budgetGuard;
+    private final PlannerMethodResolver plannerMethodResolver;
 
     public CognitiveCycleDecisionServices(
             MemoryRetrievalService memoryRetrieval,
@@ -123,6 +129,27 @@ public final class CognitiveCycleDecisionServices {
             Clock clock,
             ResourceBudgetExecutionGuard budgetGuard,
             WorkingMemoryService workingMemory) {
+        this(memoryRetrieval, b1CandidateFactory, b1Selector, workspaceAdmission, workspaceBroadcast,
+                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort,
+                clock, budgetGuard, workingMemory, PlannerMethodResolver.canonical());
+    }
+
+    /** Full host composition with an explicit mapping from B4 method IDs to registered M5 planners. */
+    public CognitiveCycleDecisionServices(
+            MemoryRetrievalService memoryRetrieval,
+            B1MemoryCandidateFactory b1CandidateFactory,
+            B1RetrievalSelector b1Selector,
+            WorkspaceAdmissionService workspaceAdmission,
+            WorkspaceBroadcastService workspaceBroadcast,
+            PlannerRouter plannerRouter,
+            PlanningWorldModel planningWorldModel,
+            CandidateEvaluator candidateEvaluator,
+            PlanningArtifactStore planningArtifacts,
+            CognitiveCycleDecisionPort domainPort,
+            Clock clock,
+            ResourceBudgetExecutionGuard budgetGuard,
+            WorkingMemoryService workingMemory,
+            PlannerMethodResolver plannerMethodResolver) {
         this.memoryRetrieval = Objects.requireNonNull(memoryRetrieval, "memoryRetrieval");
         this.workingMemory = workingMemory;
         this.b1CandidateFactory = Objects.requireNonNull(b1CandidateFactory, "b1CandidateFactory");
@@ -136,6 +163,7 @@ public final class CognitiveCycleDecisionServices {
         this.domainPort = Objects.requireNonNull(domainPort, "domainPort");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.budgetGuard = budgetGuard;
+        this.plannerMethodResolver = Objects.requireNonNull(plannerMethodResolver, "plannerMethodResolver");
     }
 
     public ResourceBudgetExecutionGuard resourceBudgetGuard() { return budgetGuard; }
@@ -342,34 +370,101 @@ public final class CognitiveCycleDecisionServices {
         if (!request.initialWorld().recoveryObjectives().containsKey(request.objective().id())) {
             throw new SecurityException("planning objective is not present in the authoritative world snapshot");
         }
+
+        // B4 method authority is resolved from the current persisted intention, not from an
+        // LLM proposal or a candidate-plan reference. Unknown methods fail closed.
+        PlannerSelectionOverride methodOverride = null;
+        if (!context.intentionId().isBlank()) {
+            if (context.planningMethodId().isBlank() || context.planningCandidatePlanReference().isBlank()) {
+                throw new SecurityException("active B4 intention is missing its authoritative planning-method reference");
+            }
+            String requestObjectiveFingerprint = ObjectiveFingerprint.from(request.objective()).value();
+            if (context.intentionObjectiveFingerprint().isBlank()
+                    || !context.intentionObjectiveFingerprint().equals(requestObjectiveFingerprint)) {
+                throw new SecurityException("persisted B4 intention objective fingerprint does not match the planning request objective");
+            }
+            RecoveryMethodReference method = new RecoveryMethodReference(context.planningMethodId(),
+                    context.planningCandidatePlanReference());
+            PlannerId plannerId = Objects.requireNonNull(plannerMethodResolver.resolve(method),
+                    "B4 planner-method resolver returned null");
+            methodOverride = new PlannerSelectionOverride(plannerId, method.methodId(),
+                    method.candidatePlanReference(), context.intentionId(), context.intentionVersion(),
+                    context.intentionObjectiveFingerprint(),
+                    "Resolved from the current versioned B4 intention; the committed objective is unchanged");
+        } else if (!context.planningMethodId().isBlank()) {
+            throw new SecurityException("planning method reference cannot be used without its authoritative B4 intention");
+        }
+
+        var originalBudget = request.budget();
+        var effectiveBudget = originalBudget.scaleComputeResources(context.plannerBudgetScalePercent());
+        final PlanningRequest controlledRequest = request.withPlannerControl(effectiveBudget, methodOverride);
         PlanningResult result;
-        if (budgetGuard == null) {
-            result = plannerRouter.plan(request);
+        if (context.plannerBudgetScalePercent() < 100 && effectiveBudget.equals(originalBudget)) {
+            var selection = plannerRouter.select(controlledRequest);
+            result = new PlanningResult(selection.plannerId(), List.of(), PlannerTerminationReason.RESOURCE_BUDGET_EXHAUSTED,
+                    new dev.supplychain.agent.planning.api.PlanningStatistics(0, 0, 0, 0, 0, 0, Duration.ZERO),
+                    "b6-downshift-exhausted-" + controlledRequest.fingerprint().substring(0, 12),
+                    "B6 requested a smaller planner compute envelope, but every consumable limit is already at its minimum; planner invocation was refused",
+                    List.of());
+        } else if (budgetGuard == null) {
+            result = plannerRouter.plan(controlledRequest);
         } else {
-            var plannerBudget = request.budget();
+            var plannerBudget = controlledRequest.budget();
             ResourceUsage reserved = new ResourceUsage(Map.of(
                     ResourceUnit.SEARCH_EXPANSIONS, (long) plannerBudget.maxExpansions(),
                     ResourceUnit.REASONING_EVALUATIONS, (long) plannerBudget.maxEvaluations(),
                     ResourceUnit.MODEL_CALLS, (long) plannerBudget.maxModelCalls(),
                     ResourceUnit.MCTS_ROLLOUTS, (long) plannerBudget.maxRollouts()));
             try {
-                result = budgetGuard.execute(context.executionId(), "m5-planner:" + request.fingerprint(), reserved,
-                        () -> plannerRouter.plan(request), planned -> new ResourceUsage(Map.of(
+                // The planning-input fingerprint intentionally excludes consumable resource ceilings so a
+                // planner session can resume under a replenished or reduced budget. The reservation identity
+                // must therefore include the graph planning round and the applied per-call budget envelope:
+                // exact checkpoint retries remain idempotent, while a B6 downshift receives a fresh lease.
+                String plannerOperationId = plannerOperationId(context, controlledRequest);
+                result = budgetGuard.execute(context.executionId(), plannerOperationId, reserved,
+                        () -> plannerRouter.plan(controlledRequest), planned -> new ResourceUsage(Map.of(
                                 ResourceUnit.SEARCH_EXPANSIONS, planned.statistics().expansions(),
                                 ResourceUnit.REASONING_EVALUATIONS, planned.statistics().evaluations(),
                                 ResourceUnit.MODEL_CALLS, planned.statistics().modelCalls(),
                                 ResourceUnit.MCTS_ROLLOUTS, planned.statistics().rollouts())));
             } catch (ResourceBudgetExceededException exhausted) {
-                var selection = plannerRouter.select(request);
+                var selection = plannerRouter.select(controlledRequest);
                 result = new PlanningResult(selection.plannerId(), List.of(), PlannerTerminationReason.RESOURCE_BUDGET_EXHAUSTED,
                         new dev.supplychain.agent.planning.api.PlanningStatistics(0, 0, 0, 0, 0, 0, Duration.ZERO),
-                        "budget-blocked-" + request.fingerprint().substring(0, 12),
+                        "budget-blocked-" + controlledRequest.fingerprint().substring(0, 12),
                         selection.explanation() + "; durable B6 reservation refused: " + exhausted.getMessage(), List.of());
             }
         }
-        String candidateSetId = planningArtifacts.store(request, result, clock.instant());
+        String candidateSetId = planningArtifacts.store(controlledRequest, result, clock.instant());
         return new PlanningPrepared(result.plannerId(), result.sessionId(), candidateSetId,
                 result.candidates().size(), result.terminationReason());
+    }
+
+    private static String plannerOperationId(CognitiveCycleOperations.CycleContext context,
+                                             PlanningRequest request) {
+        return plannerOperationId(context.planningRound(), context.plannerBudgetScalePercent(),
+                request.budget(), request.fingerprint());
+    }
+
+    static String plannerOperationId(int planningRound, int budgetScalePercent,
+                                     dev.supplychain.agent.planning.api.PlannerBudget budget,
+                                     String requestFingerprint) {
+        if (planningRound < 0) throw new IllegalArgumentException("planningRound cannot be negative");
+        if (budgetScalePercent < 1 || budgetScalePercent > 100) {
+            throw new IllegalArgumentException("budgetScalePercent must be between 1 and 100");
+        }
+        Objects.requireNonNull(budget, "budget");
+        String fingerprint = Objects.requireNonNull(requestFingerprint, "requestFingerprint").trim();
+        if (!fingerprint.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("requestFingerprint must be lowercase SHA-256 hex");
+        }
+        // The planning fingerprint intentionally excludes consumable limits for session resume.
+        // Include the round, scale and complete effective budget here to distinguish a new planner
+        // invocation from a checkpoint retry and from a B6-downshifted invocation.
+        return "m5-planner:round=" + planningRound
+                + ":scale=" + budgetScalePercent
+                + ":budget=" + budget
+                + ":request=" + fingerprint;
     }
 
     public CandidateEvaluation evaluateCandidates(CognitiveCycleOperations.CycleContext context) {

@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.supplychain.agent.planning.PlanningTestFixtures;
 import dev.supplychain.agent.planning.api.PlannerId;
+import dev.supplychain.agent.planning.api.PlannerSelectionOverride;
+import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
+import dev.supplychain.agent.mechanisms.b4.RecoveryMethodReference;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.planning.api.PlanningResult;
 import dev.supplychain.agent.planning.api.PlanningStatistics;
@@ -59,6 +62,37 @@ final class PlannerRouterTest {
         assertEquals(PlannerId.COT_SEQUENTIAL, result.plannerId());
         assertEquals(List.of(PlannerId.COT_SEQUENTIAL), invoked);
         assertTrue(result.selectionExplanation().contains("Low branching"));
+    }
+
+    @Test
+    void persistedB4MethodBindingControlsTheSelectedPlannerAndIsVisibleInResult() {
+        PlanningRequest base = PlanningTestFixtures.request("router-b4-method",
+                PlanningTestFixtures.budget(20, 20, 0, 10, 4));
+        var override = new PlannerSelectionOverride(PlannerId.RAP_INSPIRED_MCTS, "mcts",
+                "candidate:verified-alternative", "intention:router-b4-method", 4L,
+                ObjectiveFingerprint.from(base.objective()).value(),
+                "versioned B4 intention changed the planning method without changing the objective");
+        PlanningRequest request = base.withPlannerControl(base.budget(), override);
+        var invoked = new ArrayList<PlannerId>();
+        var router = new PlannerRouter(fakeStrategies(invoked), new DefaultPlannerSelectionPolicy());
+
+        var result = router.plan(request);
+
+        assertEquals(PlannerId.RAP_INSPIRED_MCTS, result.plannerId());
+        assertEquals(List.of(PlannerId.RAP_INSPIRED_MCTS), invoked,
+                "the B4 method binding must override the generic complexity heuristic");
+        assertTrue(result.selectionExplanation().contains("B4 intention method mcts"));
+        assertEquals(ObjectiveFingerprint.from(base.objective()).value(),
+                request.plannerSelectionOverride().objectiveFingerprint());
+        assertNotEquals(base.fingerprint(), request.fingerprint(),
+                "a B4 method/version change must not resume a planner session created under another method");
+        assertEquals(PlannerId.TOT_BOUNDED_SEARCH,
+                PlannerMethodResolver.canonical().resolve(new RecoveryMethodReference("tot", "candidate:tot")));
+        assertThrows(IllegalArgumentException.class,
+                () -> PlannerMethodResolver.canonical().resolve(new RecoveryMethodReference("unmapped-method", "candidate:unknown")),
+                "an unmapped B4 method must fail closed instead of falling back to a generic planner");
+        assertEquals(base.objective(), request.objective(),
+                "method authority cannot replace or weaken the committed recovery objective");
     }
 
     @Test

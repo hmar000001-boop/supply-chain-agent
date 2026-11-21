@@ -20,7 +20,10 @@ public final class MetaControlGovernor{
         if(max>=policy.evidenceRequestUncertainty())return decision(MetaControlAction.REQUEST_EVIDENCE,MetaControlReason.UNCERTAINTY_REQUIRES_EVIDENCE,ResumeCondition.NEW_EVIDENCE,"additional evidence is required before continuing",max);
         boolean low=java.util.Arrays.stream(ResourceUnit.values()).filter(u->requiredForNextStep.amount(u)>0&&budget.budget().limit(u)!=Long.MAX_VALUE&&budget.budget().limit(u)>0)
                 .anyMatch(u->(double)budget.remaining(u)/budget.budget().limit(u)<=policy.lowResourceRemainingFraction());
-        if(low)return decision(MetaControlAction.REDUCE_COMPUTATION,MetaControlReason.RESOURCE_MARGIN_LOW,null,"resource margin for the next step is low; use a bounded lower-cost strategy",max);
+        if(low) return new MetaControlDecision(MetaControlAction.REDUCE_COMPUTATION,
+                MetaControlReason.RESOURCE_MARGIN_LOW, null,
+                "resource margin for the next step is low; reduce the next planner call's consumable compute limits",
+                max, new PlannerBudgetDownshift(policy.plannerBudgetReductionPercent(), "b6-resource-margin-downshift-v1"));
         return decision(MetaControlAction.CONTINUE,MetaControlReason.WITHIN_BUDGET_AND_UNCERTAINTY,null,"uncertainty and declared next-step resource requirements are within policy",max);
     }
     private static MetaControlDecision decision(MetaControlAction a,MetaControlReason r,ResumeCondition c,String m,double u){return new MetaControlDecision(a,r,c,m,u);}

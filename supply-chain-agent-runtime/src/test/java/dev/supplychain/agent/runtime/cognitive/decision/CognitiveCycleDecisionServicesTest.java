@@ -2,6 +2,7 @@ package dev.supplychain.agent.runtime.cognitive.decision;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -115,6 +116,28 @@ import java.util.Set;
 final class CognitiveCycleDecisionServicesTest {
     private static final Instant NOW = Instant.parse("2026-11-17T20:00:00Z");
     private static final MemoryScopeId SCOPE = new MemoryScopeId("tenant:test");
+
+    @Test
+    void plannerReservationIdentityIsStableForCheckpointRetryAndUniqueForNewRoundOrBudgetEnvelope() {
+        var full = new PlannerBudget(4, 100, 80, 40, 20, 8,
+                Duration.ofSeconds(10), NOW.plusSeconds(60));
+        var reduced = full.scaleComputeResources(50);
+        String fingerprint = "a".repeat(64);
+
+        String firstAttempt = CognitiveCycleDecisionServices.plannerOperationId(0, 100, full, fingerprint);
+        assertEquals(firstAttempt,
+                CognitiveCycleDecisionServices.plannerOperationId(0, 100, full, fingerprint),
+                "a checkpoint retry of the same planning attempt must retain the same idempotency key");
+        assertNotEquals(firstAttempt,
+                CognitiveCycleDecisionServices.plannerOperationId(1, 50, reduced, fingerprint),
+                "a B6-downshifted next planning round must obtain a fresh resource reservation");
+        assertNotEquals(firstAttempt,
+                CognitiveCycleDecisionServices.plannerOperationId(0, 100, reduced, fingerprint),
+                "a changed effective resource envelope must not reuse the prior reservation");
+        assertNotEquals(firstAttempt,
+                CognitiveCycleDecisionServices.plannerOperationId(1, 100, full, fingerprint),
+                "a distinct planner round must not reuse the prior committed reservation");
+    }
 
     @Test
     void retrievalUsesM2BeforeB1AndPersistsTheSelectedEvidenceSet() {

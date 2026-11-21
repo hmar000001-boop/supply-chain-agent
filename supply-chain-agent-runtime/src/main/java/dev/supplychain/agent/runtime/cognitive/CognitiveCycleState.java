@@ -31,6 +31,11 @@ public final class CognitiveCycleState extends AgentState {
     public static final String WORKSPACE_SNAPSHOT_ID = "workspaceSnapshotId";
     public static final String INTENTION_ID = "intentionId";
     public static final String INTENTION_VERSION = "intentionVersion";
+    public static final String PLANNING_METHOD_ID = "planningMethodId";
+    public static final String PLANNING_CANDIDATE_PLAN_REFERENCE = "planningCandidatePlanReference";
+    public static final String INTENTION_OBJECTIVE_FINGERPRINT = "intentionObjectiveFingerprint";
+    public static final String PLANNER_BUDGET_SCALE_PERCENT = "plannerBudgetScalePercent";
+    public static final String PLANNER_BUDGET_DOWNSHIFT_REASON = "plannerBudgetDownshiftReason";
     public static final String PLANNER_ID = "plannerId";
     public static final String PLANNER_SESSION_ID = "plannerSessionId";
     public static final String CANDIDATE_SET_ID = "candidateSetId";
@@ -83,6 +88,11 @@ public final class CognitiveCycleState extends AgentState {
             Map.entry(WORKSPACE_SNAPSHOT_ID, Channels.base(() -> "")),
             Map.entry(INTENTION_ID, Channels.base(() -> "")),
             Map.entry(INTENTION_VERSION, Channels.base(() -> 0L)),
+            Map.entry(PLANNING_METHOD_ID, Channels.base(() -> "")),
+            Map.entry(PLANNING_CANDIDATE_PLAN_REFERENCE, Channels.base(() -> "")),
+            Map.entry(INTENTION_OBJECTIVE_FINGERPRINT, Channels.base(() -> "")),
+            Map.entry(PLANNER_BUDGET_SCALE_PERCENT, Channels.base(() -> 100)),
+            Map.entry(PLANNER_BUDGET_DOWNSHIFT_REASON, Channels.base(() -> "")),
             Map.entry(PLANNER_ID, Channels.base(() -> "")),
             Map.entry(PLANNER_SESSION_ID, Channels.base(() -> "")),
             Map.entry(CANDIDATE_SET_ID, Channels.base(() -> "")),
@@ -146,6 +156,8 @@ public final class CognitiveCycleState extends AgentState {
                 text(IMPASSE_CASE_ID), text(IMPASSE_INVESTIGATION_REFERENCE), text(APPROVAL_ID),
                 text(APPROVAL_RESPONSE_ID), text(APPROVER_ID), text(HUMAN_CONTROL_RESPONSE_ID),
                 text(HUMAN_CONTROL_ACTOR_ID), text(EXECUTION_OPERATION_ID), text(OBSERVATION_ID), text(LAST_REASON),
-                uncertaintyAssessmentReference());
+                uncertaintyAssessmentReference(), text(PLANNING_METHOD_ID),
+                text(PLANNING_CANDIDATE_PLAN_REFERENCE), integer(PLANNER_BUDGET_SCALE_PERCENT),
+                text(PLANNER_BUDGET_DOWNSHIFT_REASON), text(INTENTION_OBJECTIVE_FINGERPRINT));
     }
 }

@@ -46,6 +46,9 @@ final class PlanningRequestFingerprint {
         values.add(request.budget().maxCandidates());
         values.add(request.requestedAt());
         values.add(request.uncertaintyAssessmentReference());
+        // A B4 method binding changes which strategy is authoritative, so it must not reuse
+        // a planner session created under a different intention method/version.
+        values.add(request.plannerSelectionOverride());
         return encode(values);
     }
 

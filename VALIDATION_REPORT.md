@@ -1,32 +1,47 @@
-# Validation report — R2-02 CI Fix 3
+# Validation report — F-01 / F-02
 
-## Root cause confirmed from source and the supplied CI log
+## Source baseline
 
-The reported failure was in `M8B4FullGraphWorkflowTest.fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference`. The failing assertion checked that the parent graph state contained the recovery-procedure draft ID after a resolved B2 return.
+- Uploaded base archive: `supply-chain-agent-main (6).zip`
+- SHA-256: `ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6`
+- Target: Java 21; 11 Maven modules.
 
-The evaluation service can return `NO_FEASIBLE_CANDIDATE`; the graph's evaluation route previously sent only `IMPASSE` to B2 and sent `NO_FEASIBLE_CANDIDATE` to its default escalation edge. The child therefore never created or returned the draft for this scenario.
+## Checks performed locally
 
-A second integration defect was identified in the child-context adapter: it reconstructed `CycleContext` with blank working-memory and intention identities (and omitted the active planning/evidence references). B2 lifecycle operations need these identities to load the active parent records, validate the delegated intention, and verify the return against the current working-memory/objective version.
+| Check | Result | Notes |
+|---|---|---|
+| Java syntax parse | PASS | 523 Java files parsed; zero syntax errors. |
+| Framework-neutral production compile | PASS | 349 Java source files across domain, memory, actions, mechanisms, planning, core and simulator; `javac --release 21 -Xlint:all`. |
+| Changed runtime service compile | PASS | `CognitiveCycleOperations`, `ResourceBudgetExecutionGuard`, `CognitiveCycleDecisionServices`, `CognitiveCycleLifecycleServices`; compiled against compiled project modules and minimal B2/LangGraph interfaces where required. |
+| Changed runtime graph/state compile | PASS WITH STUBS | `CognitiveCycleGraph` and `CognitiveCycleState` compiled against narrow LangGraph4j/B2 API stubs. This does not prove compatibility against the real LangGraph4j artifact. |
+| Selected test source compile | PASS WITH JUNIT SHIM | Five selected test classes compiled against local JUnit-compatible stubs. |
+| Selected test execution | PASS WITH JUNIT SHIM | 66 selected test methods passed under a lightweight local reflection runner; not Maven Surefire or the real JUnit runtime. |
+| Full evaluation test syntax | PASS | All 523 Java files, including `M8B4FullGraphWorkflowTest`, parsed successfully. |
+| Full evaluation graph test compile/execution | NOT RUN | Real LangGraph4j/JUnit/PostgreSQL dependency jars were unavailable locally. |
+| Full Maven reactor | NOT RUN | Maven executable/dependency cache and wrapper distribution were unavailable in the environment. |
+| PostgreSQL migrations/integration tests | NOT RUN | Must be confirmed in hosted CI. |
 
-## Changes made
+## Selected tests executed (66)
 
-- Routed `NO_FEASIBLE_CANDIDATE` through the pre-impasse uncertainty refresh and B2 resolution path.
-- Preserved active working-memory and intention IDs/versions and the active evidence, workspace, planner/session, candidate-set, selected-candidate and uncertainty references across the child boundary.
-- Preserved the original impasse reason for opening the B2 case.
-- Kept parent request/summary/clarification content, memory contents, candidate objects and capability grants out of child graph state. The authoritative content and permissions remain in the parent-owned stores and B2 case.
-- Used the existing parent `IMPASSE_CASE_ID` to prevent a second B2 attempt under the same execution-scoped terminal case identity. A resolved child return causes a parent context reload/re-evaluation; any subsequent impasse escalates. This loop bound is an engineering policy, not a paper-specific claim.
-- Left the existing integration and fail-closed tests unchanged.
+- `PlannerRouterTest`: 8
+- `PlannerBudgetTest`: 3
+- `MetaControlGovernorTest`: 18
+- `CognitiveCycleDecisionServicesTest`: 13
+- `CognitiveCycleLifecycleServicesTest`: 24
 
-## Local checks actually performed
+## Important limitations
 
-- JDK 21 `javac --release 21` compiled `B2ResolutionGraphState` and `B2ResolutionSubgraph` against small API-compatible LangGraph4j / application-contract stubs: **passed**.
-- A reflection-based mapping check invoked the child-context adapter and verified preservation of working-memory ID/version, intention ID/version, candidate-set ID, impasse reason, and uncertainty version; it also verified that the parent's request and summary text are not copied into child context: **passed**.
-- JDK 21 parser check (`JavacTask.parse`, `--release 21`, `-proc:none`) over all three changed Java source files: **passed**.
-- Source-level inspection verified the graph route targets the existing `b2-resolution` edge and that the parent result node copies the child's disposition, case ID, investigation reference, uncertainty revision, and recovery draft ID into parent state: **passed**.
-- ZIP structure and SHA-256 verification: **passed**.
+- The full-graph B4/B6 tests are included in source, but their actual execution depends on hosted CI with the project's pinned dependencies.
+- The local LangGraph4j stubs validate Java type use against the shapes represented by those stubs; they are not a substitute for compilation against the real library.
+- No empirical improvement claim is made for B4/B6. The change demonstrates control propagation and bounded behavior in deterministic tests.
+- F-03 and F-04 are intentionally outside this changeset.
 
-## Not performed / remaining authority
+## Required hosted validation
 
-The complete Maven reactor was **not** run locally. The Maven Wrapper could not download Maven in this environment because DNS/network access to the Maven distribution host was unavailable; no local `mvn` executable was installed. Stub compilation and parser checks do not replace compilation against the project's actual dependency graph or execution of its full tests.
+Run:
 
-Therefore this package is **not declared CI-green**. Run the full command above in the repository. The most direct acceptance check is the existing test `M8B4FullGraphWorkflowTest.fullGraphResolvedB2ReturnCreatesTypedRecoveryDraftAndCarriesReference`; the existing `readOnlyAndInfeasibleFixturesFailClosedWithoutAWrite` test should also continue to pass, along with all other modules and PostgreSQL tests.
+```bash
+./mvnw -B -ntp -Dphase0.postgres=true clean install
+```
+
+Only report the change as CI-green after this command and the related GitHub Actions jobs pass on the commit containing this changeset.
