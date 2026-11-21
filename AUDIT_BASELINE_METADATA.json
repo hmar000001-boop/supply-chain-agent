@@ -1,0 +1,15 @@
+{
+  "source_archive": "supply-chain-agent-main (6).zip",
+  "source_sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6",
+  "audit_date": "2026-11-21",
+  "parsed_java_files": 519,
+  "ast_declarations": 739,
+  "top_level_production_types": 449,
+  "top_level_test_types": 70,
+  "class_inventory_rows": 739,
+  "java_source_manifest_rows": 519,
+  "architecture_guard": "PASS",
+  "r2_evidence_guard": "PASS",
+  "full_maven_ci": "User-reported green; not re-executed by this audit",
+  "audit_phase": "Phase 1 - baseline, architecture, critical path/source review; remaining classes marked explicitly in register"
+}
