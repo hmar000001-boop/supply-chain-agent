@@ -429,17 +429,17 @@ public final class CognitiveCycleGraph {
             case "READY" -> "workspace";
             case "NEEDS_EXTERNAL_EVIDENCE" -> state.integer(CognitiveCycleState.EVIDENCE_REQUEST_COUNT) < MAX_EVIDENCE_REQUESTS
                     ? "await-evidence" : "escalate";
-            case "IMPASSE" -> "b2-resolution";
+            case "IMPASSE" -> routeToB2OrEscalate(state);
             default -> "escalate";
         };
         EdgeAction<CognitiveCycleState> acceptedEvidenceRoute = state -> switch (state.text(CognitiveCycleState.DECISION_STATUS)) {
             case "ACCEPTED" -> "load-context";
-            case "IMPASSE" -> "b2-resolution";
+            case "IMPASSE" -> routeToB2OrEscalate(state);
             default -> "escalate";
         };
         EdgeAction<CognitiveCycleState> workspaceRoute = state -> switch (state.text(CognitiveCycleState.DECISION_STATUS)) {
             case "ADMITTED" -> "propose";
-            case "INCOMPLETE", "INSUFFICIENT_CAPACITY" -> "b2-resolution";
+            case "INCOMPLETE", "INSUFFICIENT_CAPACITY" -> routeToB2OrEscalate(state);
             default -> "escalate";
         };
         EdgeAction<CognitiveCycleState> evaluationRoute = state -> switch (state.text(CognitiveCycleState.DECISION_STATUS)) {
@@ -448,7 +448,7 @@ public final class CognitiveCycleGraph {
                     ? "propose" : "escalate";
             case "NEEDS_EVIDENCE" -> state.integer(CognitiveCycleState.EVIDENCE_REQUEST_COUNT) < MAX_EVIDENCE_REQUESTS
                     ? "await-evidence" : "escalate";
-            case "IMPASSE" -> "b2-resolution";
+            case "IMPASSE", "NO_FEASIBLE_CANDIDATE" -> routeToB2OrEscalate(state);
             default -> "escalate";
         };
         EdgeAction<CognitiveCycleState> b2Route = state -> "RESOLVED".equals(state.text(CognitiveCycleState.DECISION_STATUS))
@@ -674,6 +674,11 @@ public final class CognitiveCycleGraph {
             result.put((String) pairs[index], pairs[index + 1]);
         }
         return Map.copyOf(result);
+    }
+
+    /** A terminal B2 case cannot be reopened under the same execution-scoped identity. */
+    private static String routeToB2OrEscalate(CognitiveCycleState state) {
+        return state.text(CognitiveCycleState.IMPASSE_CASE_ID).isBlank() ? "b2-resolution" : "escalate";
     }
 
     private static String require(String value, String name) {

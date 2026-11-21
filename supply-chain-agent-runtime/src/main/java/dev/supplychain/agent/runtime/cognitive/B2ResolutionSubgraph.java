@@ -17,8 +17,9 @@ import static org.bsc.langgraph4j.StateGraph.START;
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 
 /**
- * Bounded B2 child-resolution graph. The child can investigate and return evidence-backed findings,
- * but the parent objective and capability set remain protected in the B2 case record.
+ * Bounded B2 child-resolution graph. It receives only scalar parent-context references and
+ * versioned identities; the authoritative objective, memory contents and capabilities remain in
+ * their owning services and the B2 case record.
  */
 public final class B2ResolutionSubgraph {
     private B2ResolutionSubgraph() { }
@@ -83,32 +84,43 @@ public final class B2ResolutionSubgraph {
                                                 CycleContext context) throws Exception {
         Objects.requireNonNull(graph, "graph");
         Objects.requireNonNull(context, "context");
-        var input = Map.<String, Object>of(
-                B2ResolutionGraphState.REQUEST_ID, context.requestId(),
-                B2ResolutionGraphState.EXECUTION_ID, context.executionId(),
-                B2ResolutionGraphState.MEMORY_SCOPE_ID, context.memoryScopeId(),
-                B2ResolutionGraphState.PARENT_WORKING_MEMORY_VERSION, context.workingMemoryVersion(),
-                B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID,
-                        context.requireUncertaintyAssessmentReference().assessmentId(),
-                B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_VERSION,
-                        context.requireUncertaintyAssessmentReference().version(),
-                B2ResolutionGraphState.IMPASSE_CASE_ID, context.impasseCaseId(),
-                B2ResolutionGraphState.IMPASSE_REASON, context.lastReason());
+        if (context.workingMemoryId().isBlank() || context.intentionId().isBlank()) {
+            throw new IllegalStateException("B2 resolution requires the active parent working-memory and intention references");
+        }
+        var uncertainty = context.requireUncertaintyAssessmentReference();
+        var input = Map.<String, Object>ofEntries(
+                Map.entry(B2ResolutionGraphState.REQUEST_ID, context.requestId()),
+                Map.entry(B2ResolutionGraphState.EXECUTION_ID, context.executionId()),
+                Map.entry(B2ResolutionGraphState.MEMORY_SCOPE_ID, context.memoryScopeId()),
+                Map.entry(B2ResolutionGraphState.WORKING_MEMORY_ID, context.workingMemoryId()),
+                Map.entry(B2ResolutionGraphState.PARENT_WORKING_MEMORY_VERSION, context.workingMemoryVersion()),
+                Map.entry(B2ResolutionGraphState.EVIDENCE_SET_ID, context.evidenceSetId()),
+                Map.entry(B2ResolutionGraphState.EVIDENCE_REQUEST_COUNT, context.evidenceRequestCount()),
+                Map.entry(B2ResolutionGraphState.EVIDENCE_RESPONSE_ID, context.evidenceResponseId()),
+                Map.entry(B2ResolutionGraphState.WORKSPACE_SNAPSHOT_ID, context.workspaceSnapshotId()),
+                Map.entry(B2ResolutionGraphState.INTENTION_ID, context.intentionId()),
+                Map.entry(B2ResolutionGraphState.INTENTION_VERSION, context.intentionVersion()),
+                Map.entry(B2ResolutionGraphState.PLANNER_ID, context.plannerId()),
+                Map.entry(B2ResolutionGraphState.PLANNER_SESSION_ID, context.plannerSessionId()),
+                Map.entry(B2ResolutionGraphState.CANDIDATE_SET_ID, context.candidateSetId()),
+                Map.entry(B2ResolutionGraphState.PLANNING_ROUND, context.planningRound()),
+                Map.entry(B2ResolutionGraphState.SELECTED_CANDIDATE_ID, context.selectedCandidateId()),
+                Map.entry(B2ResolutionGraphState.IMPASSE_CASE_ID, context.impasseCaseId()),
+                Map.entry(B2ResolutionGraphState.IMPASSE_REASON, context.lastReason()),
+                Map.entry(B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_ID, uncertainty.assessmentId()),
+                Map.entry(B2ResolutionGraphState.UNCERTAINTY_ASSESSMENT_VERSION, uncertainty.version()),
+                Map.entry(B2ResolutionGraphState.INVESTIGATION_REFERENCE, context.impasseInvestigationReference())
+        );
         var config = org.bsc.langgraph4j.RunnableConfig.builder()
                 .threadId("b2-child-" + context.executionId() + "-" + java.util.UUID.randomUUID())
                 .build();
-        var result = graph.invoke(GraphInput.args(input), config)
+        return graph.invoke(GraphInput.args(input), config)
                 .orElseThrow(() -> new IllegalStateException("B2 resolution subgraph produced no terminal state"));
-        if (!"RESOLVED".equals(result.text(B2ResolutionGraphState.DISPOSITION))) {
-            return result;
-        }
-        return result;
     }
 
     private static CycleContext childContext(B2ResolutionGraphState state) {
-        // Keep the impasse cause in CycleContext.lastReason. The initial child state has no
-        // child-specific REASON yet, so fall back to the parent-provided IMPASSE_REASON. Once
-        // open/investigate nodes run, their REASON becomes the latest child lifecycle reason.
+        // Preserve the authoritative parent references needed for case opening, execution
+        // fencing and return validation. The child never receives an objective or capability set.
         String childReason = state.text(B2ResolutionGraphState.REASON).isBlank()
                 ? state.text(B2ResolutionGraphState.IMPASSE_REASON)
                 : state.text(B2ResolutionGraphState.REASON);
@@ -117,8 +129,19 @@ public final class B2ResolutionSubgraph {
                 state.text(B2ResolutionGraphState.EXECUTION_ID),
                 state.text(B2ResolutionGraphState.MEMORY_SCOPE_ID),
                 "", "", "", "", 0,
-                "", state.parentWorkingMemoryVersion(), "", 0, "", "", "", 0,
-                "", "", "", 0, "",
+                state.text(B2ResolutionGraphState.WORKING_MEMORY_ID),
+                state.parentWorkingMemoryVersion(),
+                state.text(B2ResolutionGraphState.EVIDENCE_SET_ID),
+                state.integer(B2ResolutionGraphState.EVIDENCE_REQUEST_COUNT),
+                state.text(B2ResolutionGraphState.EVIDENCE_RESPONSE_ID),
+                state.text(B2ResolutionGraphState.WORKSPACE_SNAPSHOT_ID),
+                state.text(B2ResolutionGraphState.INTENTION_ID),
+                state.intentionVersion(),
+                state.text(B2ResolutionGraphState.PLANNER_ID),
+                state.text(B2ResolutionGraphState.PLANNER_SESSION_ID),
+                state.text(B2ResolutionGraphState.CANDIDATE_SET_ID),
+                state.integer(B2ResolutionGraphState.PLANNING_ROUND),
+                state.text(B2ResolutionGraphState.SELECTED_CANDIDATE_ID),
                 state.text(B2ResolutionGraphState.IMPASSE_CASE_ID),
                 state.text(B2ResolutionGraphState.INVESTIGATION_REFERENCE),
                 "", "", "", "", "", "", "",

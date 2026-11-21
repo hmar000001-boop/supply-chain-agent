@@ -1,2 +1,4 @@
-operation,path,change
-replace,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,"Add missing JUnit 5 static imports for assertNotNull and assertInstanceOf; no behavior change"
+path,change_type,reason
+supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,complete-source-replacement,Route NO_FEASIBLE_CANDIDATE through B2 and bound repeated B2 attempts within one execution
+supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionGraphState.java,complete-source-replacement,Carry scalar parent identities and versioned evidence/planning references without copying parent objective content or capabilities
+supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/B2ResolutionSubgraph.java,complete-source-replacement,Propagate parent references into B2 lifecycle operations and reconstruct a context that resolves authoritative parent records
