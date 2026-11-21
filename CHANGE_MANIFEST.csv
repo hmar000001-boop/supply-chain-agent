@@ -1,14 +1,2 @@
-operation,path,bytes,sha256
-replace,README.md,2715,3b8441a29f2b33a4d6caaffd33abeaefc72fb9cf64bbf564253a93aa275e0444
-replace,VALIDATION_REPORT.md,2222,bcf9fca38742e9c67aa7663f3a4c07b5feda4490434a9f89f0ffadd0ef009e80
-replace,docs/phase8/M8-TEST-INVENTORY.csv,3958,1e9eb2e03d123e3869723211ddb2762ad49f8f719a088fc62f414ae50f63567c
-replace,docs/pre-b7/M8-PREB7-ACCEPTANCE-REGISTER.csv,6203,59665ac9d36bdeffa19405ed6ce2e7a6efda67885c46c7b10582a682341ce011
-replace,docs/pre-b7/M8-PREB7-R2-OUTCOME-FEEDBACK-AND-FINAL-EVIDENCE.md,16156,e4c8be69cdd5812f4b370fc13ec49a5f02b2515c573ac97e933ff45ab942e31f
-replace,scripts/verify-m8-b5-architecture.py,9421,3077b4468295b0089b38e9fdd6e355934158f629a1b32b0a16849a5eb2c27caf
-replace,scripts/verify-m8-r2-evidence.py,16514,90bdb6aa229975a3c49ecba478660232524a4f0143a7472855d8f991f46fdf07
-replace,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/app/M8R2OutcomeFeedbackEvidenceCli.java,6770,7105987b6d718eca17013682438a8a509ff910b071008874e7156096bd135165
-replace,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java,21826,13e02dd7edc58b6f5031aeabdaa9b5af8414c312d26acb1598e2c1c9e94b944d
-replace,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,104121,c4ad693689220ac58500bf5b817640ec77dbc1803ad0cf0df3a213b44ed8fe23
-replace,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/FeedbackPolicyActivationService.java,2426,ceec1446a0d13dddbd5323607a8ad2f555b6d5ce147274c9ebb2341c912fc206
-replace,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTrainer.java,6403,a6a1389db0a2b86d476428de33bda4de1a70064ce894513be51f3fc682710f55
-replace,supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/feedback/OutcomeFeedbackPolicyTest.java,18148,4af1edb58849c6f82f3e21fef2141d6514981147cc08854e373914fe35d8bab1
+operation,path,change
+replace,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,"Add missing JUnit 5 static imports for assertNotNull and assertInstanceOf; no behavior change"

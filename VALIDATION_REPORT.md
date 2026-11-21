@@ -1,38 +1,22 @@
-# Validation Report — R2-02 CI Fix 1
+# Validation report — R2-02 CI Fix 2
 
-## CI failure diagnosis
+## CI diagnosis
+The provided GitHub Actions log shows the first 11 Maven modules succeed. Evaluation production/test source compilation begins, but `M8B4FullGraphWorkflowTest` fails at lines 836, 845 and 846 because the test file calls `assertNotNull` and `assertInstanceOf` without importing those JUnit methods.
 
-The supplied hosted CI log shows:
-- Modules 1–11 succeeded.
-- Runtime: 84 tests, 0 failures/errors.
-- Mechanisms: 94 tests, 0 failures/errors before this fix.
-- PostgreSQL infrastructure: 54 tests, 0 failures/errors.
-- Evaluation: 31 tests, 0 assertion failures, 4 errors.
+## Correction
+The complete test source replacement adds:
 
-The four errors were:
-- Three `M8B4FullGraphWorkflowTest` scenarios: `planning request was built from a stale working-memory version`.
-- `M8R2OutcomeFeedbackEvidenceCliTest`: normal adaptive trainer rejected the empty corpus because it requires at least two distinct verified experimental units.
+```java
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+```
 
-## Validation performed after corrections
+The methods are used by assertions that inspect the active working-memory snapshot in the nested `ScenarioRuntime` helper. The correction does not change application behavior or relax any assertion.
 
-| Check | Result |
-|---|---|
-| Java 21 `javac --release 21 -Xlint:all` compilation of 346 production sources across domain, memory, core, simulator, actions, mechanisms and planning | PASS |
-| All 9 mechanism test classes using the local assertion-capable JUnit-compatible runner | 95 passed, 0 failed |
-| `M8R2OutcomeFeedbackEvidenceCliTest` using the same local JUnit-compatible runner | 1 passed, 0 failed |
-| Java syntax parse of all 6 changed Java files with Java 21 compiler parser | PASS |
-| `scripts/verify-m8-b5-architecture.py` | PASS |
-| `scripts/verify-m8-r2-evidence.py` | PASS |
-| ZIP integrity | PASS |
-| SHA-256 checksums for packaged files | PASS |
+## Checks performed
+- Source inspection confirms both imports and the three call sites.
+- A Java 21 compile fixture reproducing the nested helper and exact static-import pattern compiled successfully against API-compatible JUnit assertion stubs.
+- ZIP integrity and SHA-256 manifest were verified after packaging.
 
-## Validation limitations
-
-- Maven is not installed locally. The Maven wrapper attempted to retrieve Maven 3.9.16, but DNS resolution for `archive.apache.org` and `downloads.apache.org` failed.
-- Therefore the full Maven reactor was not rerun locally.
-- The changed full-graph host and integration test were syntax-parsed and checked against the repository contracts. Their complete type-check and execution with real LangGraph4j dependencies, and the PostgreSQL suite after these changes, remain for hosted CI.
-- The local JUnit-compatible runner is not Maven Surefire and does not replace the hosted Maven acceptance cycle.
-
-## Acceptance status
-
-`R2-02` remains `IMPLEMENTED_PENDING_CI`. This package is intended to resolve the four evaluation errors in the supplied CI run. Do not mark R2-02 or pre-M8-B7 closed until a new full Java 21/PostgreSQL reactor run succeeds.
+## Not claimed
+The full evaluation module was not compiled with the real Maven dependency graph in this environment, and the full Maven/PostgreSQL reactor was not run here. A green hosted CI run is still required to accept R2-02.
