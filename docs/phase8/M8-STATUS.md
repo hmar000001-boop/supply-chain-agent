@@ -21,7 +21,7 @@
 | M8-B3 | Run B1/B2/B3/B4/B6 ablations and selected interaction experiments; clarify descriptive results and non-evaluable edges | **Accepted — user confirmed CI green** |
 | M8-B4 | End-to-end safety, failure, concurrency, restart and multi-request evaluation | **Accepted — B4-A/B/C/D; user confirmed complete B4-D CI green on 2026-11-20** |
 | M8-B5 | Final quality, security and architecture review; reproducible experiment evidence | **CI accepted — user confirmed the complete workflow is green on 2026-11-20; B2 artifact-content review remains open** |
-| M8-B6 | Freeze application source, evidence and full repository checkpoint | **Source checkpoint packaged on 2026-11-20; final evidence freeze awaits review of hosted B2/B3/R2 artifacts and source checkpoint refresh** |
+| M8-B6 | Freeze application source, evidence and full repository checkpoint | **R1/R2 and F-01–F-04 code stack passed owner-confirmed hosted CI on 2026-11-21; final evidence/source checkpoint still requires archival of exact commit, workflow run and final full source snapshot** |
 | M8-B7 | Approve Chapter 19/20 outlines and write chapters | **Not started — gated on B6 freeze and outline approval** |
 
 ## M8-B1 implementation delivered and accepted — CI green
@@ -116,24 +116,39 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 - R0 is accepted.
 - R1-A, R1-B and R1-C are accepted on project-owner-confirmed green CI.
 - R1-DEF is accepted: the project owner confirmed the complete 12-module Java 21/PostgreSQL CI green on 2026-11-20 after cumulative CI Fixes 1–5. The acceptance is limited to the tests and adapters exercised by that workflow; deployment-owned production controls remain open.
-- The grouped R2 delivery is implemented in one cumulative change-only package and is pending its single hosted CI acceptance cycle.
+- The grouped R2 delivery and subsequent R2-02 full-graph integration are accepted on project-owner-confirmed green hosted CI (2026-11-21). No verified downstream-outcome corpus or independent holdout dataset is present; R2 remains SHADOW/DISABLED.
 - B2 now creates typed, scope/objective/version/evidence-bound procedure drafts from resolved child cases and registered action descriptors. Draft approval is a separate review-state transition, not an executable action plan or dispatch authorization.
 - B3 persists accepted consumer receipts and separately verified downstream outcomes through PostgreSQL V011. The live B3 workspace remains cycle-bounded and is not persisted. Repository replacement integration tests cover receipt/outcome reload, scope isolation and idempotent replay.
 - B1/B3 feedback is opt-in and defaults to neutral scoring. Training accepts only B3-minted verified-evidence capabilities, candidates are SHADOW-only, holdout scenarios must be disjoint from training cycles, and activation requires an exact report fingerprint plus separate host authorization. An active overlay is scope-bound.
 - The accepted inputs do not include a verified downstream-outcome corpus or an independent holdout dataset. The R2 evidence CLI deliberately records `NO_VERIFIED_OUTCOME_CORPUS`, zero holdout scenarios, `SHADOW`, `DISABLED`, and `baselinePreserved=true`. Unit-test observations verify control logic only; they are not empirical evidence. No adaptive advantage is claimed and the previous B1/top-k baseline remains unchanged.
-- Hosted CI now regenerates the existing M8-B3 mechanism ablation JSONL artifacts, emits the R2 evidence-status artifact with run/source provenance and checksums, and produces CodeQL and Trivy SARIF plus tool-version evidence. Findings must be reviewed and triaged before R2 acceptance.
-- Current static inventory: 444 production Java files, 69 test Java sources, 402 test annotation/factory occurrences, 63 annotated test sources and 6 helper sources. These are repository source counts, not executed test totals.
+- Hosted CI generates the M8-B3 ablation and R2 evidence-status artifacts, with provenance/checksum outputs and CodeQL/Trivy evidence. The owner confirmed the combined workflow is green. Security findings and artifact content still require interpretation; green CI is not empirical evidence of adaptive benefit or a security certification.
+- Historical static inventory for the original R2 package: 444 production Java files and 69 test Java sources. This count is superseded by the final F-01–F-04 reconstructed stack: 462 production Java files, 72 test Java files, zero root-level Java files. Counts are not executed-test totals.
 - R1-DEF's full-graph restart proof remains bounded to a safe pre-effect clarification boundary with deterministic test adapters. It does not certify durability of all live business/authority adapters or post-effect full-graph restart.
 
 
-## M8-PreB7 — F-03/F-04 candidate implementation (hosted CI pending)
+### F-01/F-02 — B4 method authority and B6 planner downshift (owner-confirmed CI green)
 
-- Current static inventory for this candidate: **461 production Java files, 71 test Java sources, 429 test/factory annotations, 65 annotated test sources and 6 support/helper sources**. The architecture guard and `M8-TEST-INVENTORY.csv` were synchronized to these counts; they are not test execution totals.
+- F-01 binds the persisted B4 method decision to the protected objective fingerprint and uses it to select the next registered planner. Unknown/stale overrides fail closed; the objective remains immutable.
+- F-02 carries a typed B6 planner-budget downshift into the next `PlanningRequest`; the per-call planning envelope is reduced while the shared execution-wide resource ceiling remains unchanged.
+- The user confirmed the combined F-01/F-02 hosted CI was green before F-03/F-04 were applied.
+
+## M8-PreB7 — F-01–F-04 implementation increments (hosted CI accepted by owner)
+
+- Current static inventory for this candidate: **462 production Java files, 72 test Java sources; zero Java files outside module source roots**. The architecture guard and `M8-TEST-INVENTORY.csv` were synchronized to these counts; they are not test execution totals.
 
 
 - F-03 bridges an approved, evidence-bound B2 recovery draft into CoALA procedural memory as a `DRAFT`; the B2 approver cannot also perform procedural validation or activation. The immutable artifact contains registered action references, opaque condition keys and evidence, not executable commands or generated free-form steps.
-- Active recovery procedures return through the shared CoALA `MemoryRetrievalService` and B1 candidate factory. Exact artifact dereference revalidates scope, evidence and current action-descriptor fingerprints. No automatic activation or dispatcher execution is added.
+- Active procedural-memory records can appear through shared CoALA M2 retrieval and B1 candidate construction. The F-03 `retrieveActive` API revalidates scope, evidence and current action-descriptor fingerprints, but no normal full-graph production call invokes it to hydrate condition-matched procedure content. No automatic activation or dispatcher execution is added.
 - PostgreSQL V012 adds content-addressed immutable recovery-artifact payload storage; migrations V001-V011 remain unchanged. The PG adapter and repository-replacement test are present; the full evaluation host still uses in-memory procedural/artifact stores.
 - F-04 changes B3 optional admission from post-hoc aggregation to bounded comparison of singleton options and pair/triple content coalitions. Proposal traces record membership, joint coverage, score and winner. Mandatory content remains protected; conflicts are excluded; a truncated search cannot win from incomplete alternatives and falls back to singleton admission.
 - B3 workspace snapshots remain ephemeral. Receipt/outcome evidence and R2 shadow/disabled feedback gates are unchanged. Coalition competition is an engineering extension, not a claim of full LIDA reproduction.
-- Added `scripts/verify-m8-preb7-f03-f04.py` to both identical CI workflow copies. The new increment depends on F-01/F-02 being accepted first. Focused Java 21 compilation and 35 targeted tests passed locally; the Maven wrapper could not download Maven in this environment, so hosted Java 21/PostgreSQL CI remains the acceptance gate.
+- Added `scripts/verify-m8-preb7-f03-f04.py` to both identical CI workflow copies. F-01/F-02 were applied before F-03/F-04. The project owner confirmed the cumulative Java 21/PostgreSQL hosted CI is green on 2026-11-21. This status closes the code-change/test gate but does not prove outcome-learning effectiveness, calibration, coalition-level learning, procedure transfer, GraSP migration or production deployment.
+
+
+## Post-F-01–F-04 evidence/status note
+
+- **Project-owner-confirmed hosted CI:** the cumulative R1/R2 + F-01/F-02 + F-03/F-04 source stack is green (2026-11-21). The GitHub Actions run URL, run ID and commit SHA were not supplied to this workspace; archive them with the next frozen source checkpoint.
+- **Final source inventory reconstructed for the conformance matrix:** 11 Maven modules, 12 POM files, 462 production Java files, 72 test Java files, 534 Java files total, zero Java files outside module source roots, PostgreSQL migrations V001–V012.
+- **Static guards independently rerun on the reconstructed tree:** M8-B5 architecture guard, R2 evidence guard and F-03/F-04 guard all PASS. This does not represent a local Maven reactor rerun.
+- **Empirical evidence remains limited:** R2 reports no verified outcome corpus and no independent holdout scenarios; the candidate is SHADOW, activation DISABLED and baseline preserved. B6 calibration remains NOT_CALIBRATED. No adaptive or cross-bundle performance improvement is claimed.
+- **Conformance remains open:** the updated `docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md` and `FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md` are the authoritative as-built assessment and acceptance backlog. M8-B7/book drafting remains gated on author approval of conformance and any remaining implementation work.

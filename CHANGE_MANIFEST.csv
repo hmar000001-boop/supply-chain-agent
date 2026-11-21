@@ -1,36 +1,7 @@
-status,repository_path,purpose
-ADDED,docs/pre-b7/M8-PREB7-F03-F04-PROCEDURAL-LEARNING-AND-COALITION-COMPETITION.md,"Documents F03/F04 semantics, lifecycle, limits and integration boundaries."
-ADDED,scripts/verify-m8-preb7-f03-f04.py,Adds static CI guardrails for governed F03 promotion/retrieval and bounded F04 competition.
-ADDED,supply-chain-agent-infrastructure-postgres/src/main/java/dev/supplychain/agent/infrastructure/postgres/memory/PostgresRecoveryProcedureArtifactStore.java,Adds immutable content-addressed PostgreSQL storage with expected-scope checks.
-ADDED,supply-chain-agent-infrastructure-postgres/src/main/resources/db/migration/V012__b2_immutable_recovery_procedure_artifacts.sql,Adds V012 schema for immutable B2 procedure artifacts.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/InMemoryRecoveryProcedureArtifactStore.java,Adds in-memory content-addressed test/evaluation artifact store.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureActionReferences.java,Centralizes canonical action-descriptor fingerprint calculation.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureArtifact.java,"Defines typed, non-executable reusable recovery artifact."
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureArtifactCodec.java,Adds deterministic bounded versioned artifact encoding/decoding.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureArtifactStore.java,Defines immutable artifact publication and scope-bound retrieval port.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedurePromotionService.java,Stages approved B2 drafts as procedural DRAFTs and governs review/activation/retrieval.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/ReusableRecoveryProcedure.java,Represents active validated procedure and typed artifact as planning knowledge.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceCoalitionCompetitionPolicy.java,Defines deterministic bounded coalition-search limits.
-ADDED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceCoalitionProposal.java,Defines first-class coalition alternatives and scoring trace.
-ADDED,supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedurePromotionServiceTest.java,"Tests promotion, independent governance, scope, stale evidence and future retrieval."
-MODIFIED,.github/workflows/ci.yml,Runs the new F03/F04 static conformance guard in CI.
-MODIFIED,docs/phase8/M8-ARCHITECTURE-TRACEABILITY.csv,Updates architecture traceability for B2 procedure learning and B3 coalition competition.
-MODIFIED,docs/phase8/M8-B6-RELEASE-READINESS.csv,Updates schema and roadmap release-readiness traceability.
-MODIFIED,docs/phase8/M8-STATUS.md,Records F03/F04 implementation status and constraints.
-MODIFIED,docs/phase8/M8-TEST-INVENTORY.csv,Synchronizes current test inventory.
-MODIFIED,scripts/verify-m8-b5-architecture.py,Synchronizes architecture guard source/test inventories.
-MODIFIED,scripts/verify-m8-r2-evidence.py,Updates B2 action fingerprint check to shared action descriptor resolver.
-MODIFIED,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphEvaluationHost.java,Composes shared procedural memory and F03 promotion service in evaluation host.
-MODIFIED,supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/host/FullGraphRuntime.java,Exposes the F03 promotion service from the full-graph evaluation runtime.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/main/java/dev/supplychain/agent/infrastructure/postgres/migration/PostgresMigrationRunner.java,Registers schema migration V012 and current schema version.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/migration/PostgresMigrationRunnerParsingTest.java,Verifies contiguous migrations through V012 and new migration resource.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/M8B4ReliabilityIntegrationTest.java,Updates expected schema migration version to V012.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/PostgresM7B2CoreIntegrationTest.java,Updates expected schema version to 12.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/R1DefBudgetLeaseRecoveryIntegrationTest.java,Updates schema-version expectations for V012.
-MODIFIED,supply-chain-agent-infrastructure-postgres/src/test/java/dev/supplychain/agent/infrastructure/postgres/runtime/R2OutcomeEvidencePostgresIntegrationTest.java,"Tests content-addressed immutable artifact persistence, idempotency and scope isolation."
-MODIFIED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b2/RecoveryProcedureDraftService.java,Uses shared registered action descriptor fingerprinting for B2 drafts.
-MODIFIED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceAdmissionService.java,Implements bounded first-class singleton/pair/triple coalition competition and safe truncation fallback.
-MODIFIED,supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b3/WorkspaceSnapshot.java,Persists coalition competition trace and enforces selection/coalition invariants.
-MODIFIED,supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b3/WorkspaceAdmissionServiceTest.java,"Tests coalition competition, bounded fallback, determinism and snapshot trace invariants."
-MODIFIED,supply-chain-agent-memory/src/main/java/dev/supplychain/agent/memory/procedural/ProceduralMemoryService.java,Adds governed staging of a new procedural DRAFT.
-MODIFIED,workflows/ci.yml,Runs the new F03/F04 static conformance guard in CI.
+action,repository_relative_path,description,scope
+replace,docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md,"Final detailed as-built mapping of CoALA and Fan & Lan concepts/mechanisms to current source, controls, persistence, failure, learning, governance and evidence.",Documentation only
+replace,docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.csv,Machine-readable 30-row paper-to-code matrix with S/C/T/P/F/L/R and provisional E/D mapping.,Documentation only
+add,docs/research/FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md,Prioritized remaining implementation/evaluation gaps and acceptance evidence.,Documentation only
+add,docs/research/CONFORMANCE_SOURCE_BASELINE_MANIFEST.csv,SHA-256 manifest of 757 files in reconstructed source baseline.,Evidence/provenance
+add,docs/research/CONFORMANCE_ASSESSMENT_METADATA.json,"Source reconstruction, inventory, validation and conformance verdict metadata.",Evidence/provenance
+replace,docs/phase8/M8-STATUS.md,Corrects stale M8 R2/F-01–F-04 status and final inventory.,Documentation only

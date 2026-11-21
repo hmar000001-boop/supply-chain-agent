@@ -1,0 +1,83 @@
+{
+  "project": "Supply-Chain Disruption Management Agent",
+  "assessment": "As-built paper-to-code conformance matrix after R1/R2 and F-01 through F-04",
+  "assessment_date": "2026-11-21",
+  "source_reconstruction": {
+    "base_archive": {
+      "name": "supply-chain-agent-main (6).zip",
+      "sha256": "ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6"
+    },
+    "overlays_in_order": [
+      {
+        "name": "M8_PREB7_F01_F02_B4_METHOD_AUTHORITY_AND_B6_PLANNER_DOWNSHIFT_CHANGESET_ONLY_2026-11-21.zip",
+        "sha256": "a05ed45d02d9a3c141f4f21d2b1924ddcc57c1f13779032b28a5f7146a08593a",
+        "scope": "F-01 B4 method authority; F-02 B6 planner budget downshift"
+      },
+      {
+        "name": "M8_PREB7_F03_F04_GOVERNED_RECOVERY_MEMORY_AND_B3_COALITION_COMPETITION_CHANGESET_ONLY_2026-11-21.zip",
+        "sha256": "27a16c8869f2e4eb54cbb00007a405e84caff6799bc6af04abee1ce3a5fe5d01",
+        "scope": "F-03 governed B2 recovery procedure staging; F-04 B3 coalition competition"
+      }
+    ],
+    "reconstructed_tree_sha256": "b13a09eb307a4c6237d2fc7361810a93636a350b13c06df34b595abe9ac727df",
+    "manifest_file_count": 757,
+    "git_commit_sha": "not supplied",
+    "hosted_ci_run_id_or_url": "not supplied"
+  },
+  "inventory": {
+    "maven_modules": 11,
+    "module_names": [
+      "supply-chain-agent-actions",
+      "supply-chain-agent-app",
+      "supply-chain-agent-core",
+      "supply-chain-agent-domain",
+      "supply-chain-agent-evaluation",
+      "supply-chain-agent-infrastructure-postgres",
+      "supply-chain-agent-mechanisms",
+      "supply-chain-agent-memory",
+      "supply-chain-agent-planning",
+      "supply-chain-agent-runtime",
+      "supply-chain-agent-simulator"
+    ],
+    "pom_files": 12,
+    "production_java_files_under_module_source_roots": 462,
+    "test_java_files_under_module_source_roots": 72,
+    "additional_root_src_java_files": 0,
+    "other_java_files": 0,
+    "total_java_files": 534,
+    "postgresql_migration_files": 12,
+    "migration_versions": [
+      "001",
+      "002",
+      "003",
+      "004",
+      "005",
+      "006",
+      "007",
+      "008",
+      "009",
+      "010",
+      "011",
+      "012"
+    ]
+  },
+  "validation": {
+    "hosted_ci": "project-owner-confirmed green after combined F-01/F-02/F-03/F-04 stack; detailed run log/URL and commit SHA not supplied in this assessment workspace",
+    "maven_reactor_rerun_by_assessor": false,
+    "static_guards": {
+      "scripts/verify-m8-b5-architecture.py": "PASS, independently rerun on reconstructed tree",
+      "scripts/verify-m8-r2-evidence.py": "PASS, independently rerun on reconstructed tree",
+      "scripts/verify-m8-preb7-f03-f04.py": "PASS, independently rerun on reconstructed tree"
+    },
+    "experimental_evidence": "R2 reports NO_VERIFIED_OUTCOME_CORPUS, zero verified outcomes, zero independent holdout scenarios, SHADOW candidate, DISABLED activation, baseline preserved",
+    "uncertainty_calibration": "NOT_CALIBRATED",
+    "limitations": "CI verifies configured tests/build; it does not demonstrate empirical advantage, calibration, transfer, full historical migration, or live external integration"
+  },
+  "conformance_verdict": {
+    "coala": "strong core architectural correspondence; not total application-scope implementation because learning-action breadth, procedural reuse in normal graph, full durable app composition and outer-cycle host remain incomplete",
+    "fan_lan": "substantial partial realizations of B1/B2/B3/B4/B6; B5 correctly closed as residual by GraSP but its governor remains a §VI-E dependency; cross-bundle and empirical evidence incomplete",
+    "book_writing_authorized": false,
+    "reason": "Owner requires conformance/implementation acceptance before writing; this matrix documents remaining blocking gaps and acceptance evidence"
+  },
+  "conformance_matrix_rows": 30
+}
