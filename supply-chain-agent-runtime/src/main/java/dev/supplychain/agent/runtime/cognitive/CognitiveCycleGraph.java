@@ -276,17 +276,25 @@ public final class CognitiveCycleGraph {
             if (result.action() == IntentionAction.RECONSIDER || result.action() == IntentionAction.CHANGE_METHOD) {
                 reconsiderations++;
             }
-            boolean plannerBindingChanged = !result.intentionId().equals(state.text(CognitiveCycleState.INTENTION_ID))
-                    || result.intentionVersion() != state.number(CognitiveCycleState.INTENTION_VERSION)
+            // Binding the selected plan to an otherwise unchanged ACTIVE intention is itself
+            // a versioned B4 transition. It must not invalidate the M5 session that produced
+            // that exact candidate: authorization still needs to resolve the candidate set
+            // against the planner/session pair recorded when the proposal was created.
+            // Actual reconsideration and method changes do invalidate the session, even when
+            // the selected method happens to remain textually identical after reconsideration.
+            boolean plannerAuthorityChanged = !result.intentionId().equals(state.text(CognitiveCycleState.INTENTION_ID))
                     || !Objects.equals(result.currentMethod() == null ? "" : result.currentMethod().methodId(),
                             state.text(CognitiveCycleState.PLANNING_METHOD_ID))
                     || !Objects.equals(result.currentMethod() == null ? "" : result.currentMethod().candidatePlanReference(),
                             state.text(CognitiveCycleState.PLANNING_CANDIDATE_PLAN_REFERENCE))
                     || !Objects.equals(result.intentionObjectiveFingerprint(),
                             state.text(CognitiveCycleState.INTENTION_OBJECTIVE_FINGERPRINT));
+            boolean discardPlannerSession = plannerAuthorityChanged
+                    || result.action() == IntentionAction.RECONSIDER
+                    || result.action() == IntentionAction.CHANGE_METHOD;
             return update("b4-intention:" + result.action().name(),
                     CognitiveCycleState.RECONSIDERATION_COUNT, reconsiderations,
-                    CognitiveCycleState.PLANNER_SESSION_ID, plannerBindingChanged ? "" : state.text(CognitiveCycleState.PLANNER_SESSION_ID),
+                    CognitiveCycleState.PLANNER_SESSION_ID, discardPlannerSession ? "" : state.text(CognitiveCycleState.PLANNER_SESSION_ID),
                     CognitiveCycleState.INTENTION_ID, result.intentionId(),
                     CognitiveCycleState.INTENTION_VERSION, result.intentionVersion(),
                     // Governance results replace the active B4 binding atomically. A missing

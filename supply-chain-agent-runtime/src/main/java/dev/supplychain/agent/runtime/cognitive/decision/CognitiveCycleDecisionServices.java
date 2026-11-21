@@ -685,9 +685,11 @@ public final class CognitiveCycleDecisionServices {
         if (!artifacts.executionId().equals(context.executionId())) {
             throw new SecurityException("candidate set belongs to a different graph execution");
         }
-        if (!artifacts.result().plannerId().name().equals(context.plannerId())
-                || !artifacts.result().sessionId().equals(context.plannerSessionId())) {
-            throw new SecurityException("candidate set planner identity/session does not match the active graph state");
+        if (!artifacts.result().plannerId().name().equals(context.plannerId())) {
+            throw new SecurityException("candidate set planner identity does not match the active graph state");
+        }
+        if (!artifacts.result().sessionId().equals(context.plannerSessionId())) {
+            throw new SecurityException("candidate set planner session does not match the active graph state");
         }
         PlanCandidate candidate = artifacts.result().candidates().stream()
                 .filter(value -> value.candidateId().equals(context.selectedCandidateId()))

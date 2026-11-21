@@ -1,4 +1,5 @@
 operation,repository_relative_path,description
-replace,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,"Add an initial versioned B6 uncertainty assessment between context loading and B1 retrieval; preserve post-retrieval and impasse refresh nodes."
-replace,supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraphTest.java,"Add a regression assertion for assessment-before-retrieval and update expected B2/human-control assessment revisions."
-replace,docs/research/GAP01-GAP05-IMPLEMENTATION-AND-VALIDATION.md,"Align the earlier summary targeted mechanism/planning and total counts with the final validation report (83 and 140 respectively)."
+modified,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,"Preserve planner session when B4 only records the active-plan binding; invalidate on authority change, reconsideration or method change."
+modified,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServices.java,Split fail-closed planner identity and planner session provenance errors for exact diagnostics.
+modified,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,Assert that the planner session remains present at the approval breakpoint after B4 active-plan binding.
+added,docs/research/GAP01-GAP05-CI-FIX2-B4-PLANNER-SESSION-PRESERVATION.md,"Document root cause, corrected lifecycle semantics, regression coverage and validation boundary."

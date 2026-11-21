@@ -1,43 +1,30 @@
-# GAP-01–GAP-05 CI Fix 1 — Initial B6 assessment ordering
+# GAP-01–GAP-05 CI Fix 2 — B4 planner-session preservation
 
-**Apply this changeset at the repository root, over the GAP-01–GAP-05 candidate already applied to the F-01–F-04 accepted stack.** It contains complete replacements for two Java files and one validation-document correction.
+Apply this repository-root-relative changeset **after** the GAP-01–GAP-05 implementation ZIP and CI Fix 1 (initial B6 assessment ordering). Extract at the repository root, replacing the listed files.
 
 ## Root cause
+The B4 lifecycle increments the intention version when it binds the selected active plan. The graph previously treated that version-only transition as a planner-authority change and cleared the planner session before authorization resolved the candidate set.
 
-The GAP-01–GAP-05 implementation correctly made B1 retrieval require the exact current, versioned B6 uncertainty assessment. `CognitiveCycleDecisionServices.retrieveEvidence(...)` uses that assessment to create the B6 governance directive for the B1 selection request.
+## Correction
+A version-only active-plan binding preserves the current planner session. A changed intention identity, method ID, method candidate reference, objective fingerprint, explicit reconsideration, or explicit method change still invalidates it. The candidate-set identity/session validation remains fail-closed.
 
-The graph's initial control order did not satisfy that contract: `load-context -> retrieve-evidence -> assess-uncertainty-after-retrieval`. Therefore the first retrieval failed before the graph could create the first assessment. The evaluation failures all surfaced the same missing-reference exception; the forked-JVM resume failure was the same defect on the resumed graph path.
+## Included paths
+- `supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java`
+- `supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServices.java`
+- `supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java`
+- `docs/research/GAP01-GAP05-CI-FIX2-B4-PLANNER-SESSION-PRESERVATION.md`
 
-## Fix
+No files are deleted. No POMs, dependency versions, schema migrations, or CI workflows are changed.
 
-The graph now runs:
+## Validation
+- Architecture guard: PASS
+- R2 evidence guard: PASS
+- F-03/F-04 guard: PASS
+- Targeted source invariant checks: PASS
+- ZIP integrity and SHA-256: verified
+- Full Maven/Surefire and live PostgreSQL: not run locally; hosted CI is the acceptance check.
 
-`load-context -> assess-uncertainty-before-retrieval -> retrieve-evidence -> assess-uncertainty-after-retrieval`
-
-The new pre-retrieval assessment is execution/scope-bound and uses a deterministic trigger containing working-memory identity/version, intention identity/version, selected method, retrieval/planning/clarification counters and the predecessor assessment revision. The existing lifecycle service's idempotency key also binds the trigger to the exact predecessor. The graph still fails closed if the reference is absent.
-
-The existing post-retrieval assessment remains in place so it can refresh uncertainty using the newly selected evidence. Impasse handling still performs its additional pre-child assessment, and the B2 subgraph still refreshes after child investigation.
-
-## Regression coverage
-
-`CognitiveCycleGraphTest` now asserts that the first retrieval receives uncertainty revision 1, that B2 opens under revision 2 and validates under revision 3, and that the resumed B6 human-control path consumes revision 4 after the added initial assessment.
-
-## Scope
-
-- Project source files modified: 2
-- Project documentation files modified: 1
-- Project files added: 0
-- Project files deleted: 0
-- Database migrations: unchanged
-- POM/dependency changes: none
-- B1/B2/B3/B4/B6 policies: no weakening or fail-open behavior introduced
-
-## Apply and validate
-
-Extract at the repository root, then run:
-
+## Next command
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
-
-Send the complete CI result if any failure remains.

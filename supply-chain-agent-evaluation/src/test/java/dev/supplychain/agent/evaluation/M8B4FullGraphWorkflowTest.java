@@ -359,6 +359,8 @@ class M8B4FullGraphWorkflowTest {
         var paused = scenario.graph.getState(scenario.config).state();
         assertFalse(paused.text(CognitiveCycleState.CANDIDATE_SET_ID).isBlank());
         assertFalse(paused.text(CognitiveCycleState.SELECTED_CANDIDATE_ID).isBlank());
+        assertFalse(paused.text(CognitiveCycleState.PLANNER_SESSION_ID).isBlank(),
+                "B4 active-plan binding increments intention version but must preserve the proposal session until authorization resolves its candidate set");
         ApprovalBinding issuedBinding = scenario.authority.currentBinding;
         assertEquals(paused.text(CognitiveCycleState.REQUEST_ID), issuedBinding.requestId());
         assertEquals(paused.text(CognitiveCycleState.EXECUTION_ID), issuedBinding.executionId());
