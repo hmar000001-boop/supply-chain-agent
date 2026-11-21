@@ -58,7 +58,11 @@ public final class SequentialReasoningPlanner implements PlanningStrategy {
         PlannerTerminationReason reason = PlannerTerminationReason.COMPLETED;
         String parentId = null;
         for (int step = 0; step < request.budget().maxDepth(); step++) {
-            List<dev.supplychain.agent.planning.api.PlanningAction> available = worldModel.availableActions(request, state);
+            List<dev.supplychain.agent.planning.api.PlanningAction> available = worldModel.availableActions(request, state).stream()
+                    .sorted(java.util.Comparator
+                            .comparing((dev.supplychain.agent.planning.api.PlanningAction action) -> request.isReusableRecoveryAction(action)).reversed()
+                            .thenComparing(dev.supplychain.agent.planning.api.PlanningAction::planningActionId))
+                    .toList();
             if (available.isEmpty()) {
                 reason = finalCandidate == null ? PlannerTerminationReason.NO_AVAILABLE_ACTIONS : PlannerTerminationReason.COMPLETED;
                 break;

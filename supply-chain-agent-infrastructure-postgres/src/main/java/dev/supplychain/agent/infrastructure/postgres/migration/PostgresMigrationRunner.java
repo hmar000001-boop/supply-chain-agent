@@ -39,7 +39,10 @@ public final class PostgresMigrationRunner {
             new Migration(9, "durable_b6_resource_budget_ledger", "db/migration/V009__durable_b6_resource_budget_ledger.sql"),
             new Migration(10, "fenced_b6_reservation_leases", "db/migration/V010__fenced_b6_reservation_leases.sql"),
             new Migration(11, "b2_procedure_drafts_and_b3_outcome_evidence", "db/migration/V011__b2_procedure_drafts_and_b3_outcome_evidence.sql"),
-            new Migration(12, "b2_immutable_recovery_procedure_artifacts", "db/migration/V012__b2_immutable_recovery_procedure_artifacts.sql"));
+            new Migration(12, "b2_immutable_recovery_procedure_artifacts", "db/migration/V012__b2_immutable_recovery_procedure_artifacts.sql"),
+            new Migration(13, "b6_uncertainty_calibration_profiles", "db/migration/V013__b6_uncertainty_calibration_profiles.sql"),
+            new Migration(14, "b1_memory_feature_learning", "db/migration/V014__b1_memory_feature_learning.sql"),
+            new Migration(15, "b3_coalition_downstream_outcomes", "db/migration/V015__b3_coalition_downstream_outcomes.sql"));
 
     private final DataSource dataSource;
 

@@ -30,6 +30,7 @@ import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionId;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlGovernor;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyCalibrationService;
 import dev.supplychain.agent.planning.api.PlanningRequest;
 import dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations;
 import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
@@ -78,6 +79,7 @@ public final class CognitiveCycleLifecycleServices {
     private final ResourceBudgetExecutionGuard resourceBudgetGuard;
     private final RecoveryProcedureDraftService recoveryProcedureDrafts;
     private final RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory;
+    private final UncertaintyCalibrationService uncertaintyCalibration;
 
     public CognitiveCycleLifecycleServices(
             WorkingMemoryService workingMemory,
@@ -162,6 +164,25 @@ public final class CognitiveCycleLifecycleServices {
             ResourceBudgetExecutionGuard resourceBudgetGuard, Clock clock,
             RecoveryProcedureDraftService recoveryProcedureDrafts,
             RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory) {
+        this(workingMemory, episodicMemory, impasses, intentions, metaControl, actionDispatcher, actionRegistry,
+                interpreter, decisionServices, domain, authority, actionPlans, childArtifacts, actionBatches,
+                observations, childSteps, resourceBudgetGuard, clock, recoveryProcedureDrafts,
+                recoveryDraftRequestFactory, null);
+    }
+
+    /** Full composition with governed B6 calibration bound to the persisted assessment lifecycle. */
+    public CognitiveCycleLifecycleServices(
+            WorkingMemoryService workingMemory, EpisodicMemoryService episodicMemory,
+            ImpasseResolutionService impasses, RecoveryIntentionService intentions, MetaControlGovernor metaControl,
+            ActionDispatcher actionDispatcher, ActionRegistry actionRegistry, RequestInterpreter interpreter,
+            CognitiveCycleDecisionServices decisionServices, CognitiveCycleLifecyclePort domain,
+            CognitiveCycleAuthorityPort authority, AuthorizedActionPlanStore actionPlans,
+            ImpasseChildArtifactStore childArtifacts, ActionExecutionBatchStore actionBatches,
+            ObservationStore observations, ChildInvestigationStepStore childSteps,
+            ResourceBudgetExecutionGuard resourceBudgetGuard, Clock clock,
+            RecoveryProcedureDraftService recoveryProcedureDrafts,
+            RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory,
+            UncertaintyCalibrationService uncertaintyCalibration) {
         this.workingMemory = Objects.requireNonNull(workingMemory, "workingMemory");
         this.episodicMemory = Objects.requireNonNull(episodicMemory, "episodicMemory");
         this.impasses = Objects.requireNonNull(impasses, "impasses");
@@ -185,6 +206,7 @@ public final class CognitiveCycleLifecycleServices {
         }
         this.recoveryProcedureDrafts = recoveryProcedureDrafts;
         this.recoveryDraftRequestFactory = recoveryDraftRequestFactory;
+        this.uncertaintyCalibration = uncertaintyCalibration;
         validateBudgetedActionBindings();
     }
 
@@ -427,24 +449,46 @@ public final class CognitiveCycleLifecycleServices {
         Instant now = clock.instant();
         requireCurrentUncertainty(context, now);
         RecoveryIntention intention = currentIntention(context);
+        String selectedPlanReference = selectedPlanReference(context);
         if (intention.version() != context.intentionVersion()) {
-            throw new IllegalStateException("B4 intention version changed; reload the active context before governance");
+            // A checkpoint may be replayed after the active-plan CAS but before its graph-state
+            // update. Accept only that exact one-step replay; unrelated concurrent B4 changes fail.
+            boolean exactPlanBindingReplay = intention.version() == context.intentionVersion() + 1L
+                    && selectedPlanReference != null
+                    && intention.activePlanReference().equals(selectedPlanReference)
+                    && intention.reason().equals("active plan bound by " + intention.authorityPolicy().decisionGovernor());
+            if (!exactPlanBindingReplay) {
+                throw new IllegalStateException("B4 intention version changed outside the exact active-plan checkpoint replay; reload the active context");
+            }
+        } else if (selectedPlanReference != null && intention.status() == IntentionStatus.ACTIVE
+                && !intention.activePlanReference().equals(selectedPlanReference)) {
+            intention = intentions.bindActivePlan(intention.id(), intention.version(), selectedPlanReference,
+                    intention.authorityPolicy().decisionGovernor(), now);
         }
         IntentionDirective directive = Objects.requireNonNull(domain.intentionDirective(context, intention, now), "B4 intention directive");
+        boolean continuationExpired = intention.continuationExpired(now,
+                directive.objectiveVerified(), directive.authorityReleased());
+        if (continuationExpired && directive.action() == CognitiveCycleOperations.IntentionAction.CONTINUE) {
+            throw new SecurityException("B4 continuation condition has expired; the committed intention cannot continue without explicit reconsideration or termination");
+        }
         RecoveryIntention updated = intention;
+        String decisionActor = directive.actorId().isBlank()
+                ? intention.authorityPolicy().decisionGovernor() : directive.actorId();
         switch (directive.action()) {
             case CONTINUE -> {
                 if (intention.status() != IntentionStatus.ACTIVE) throw new IllegalStateException("B4 cannot continue a non-active intention");
             }
-            case RECONSIDER -> updated = intentions.requestReconsideration(intention.id(), intention.version(), directive.reason(), now);
+            case RECONSIDER -> updated = intentions.requestReconsideration(intention.id(), intention.version(),
+                    directive.reconsiderationTrigger(), decisionActor, directive.reason(), now);
             case CHANGE_METHOD -> updated = intentions.changeMethod(intention.id(), intention.version(),
-                    directive.replacementMethod(), directive.assertedObjectiveFingerprint(), now);
-            case SUSPEND -> updated = intentions.suspend(intention.id(), intention.version(), directive.reason(), now);
+                    directive.replacementMethod(), directive.assertedObjectiveFingerprint(), decisionActor, now);
+            case SUSPEND -> updated = intentions.suspend(intention.id(), intention.version(), decisionActor, directive.reason(), now);
             case TERMINATE -> {
                 if (!authority.isTerminationAuthorized(context, directive.actorId(), now)) {
                     throw new SecurityException("B4 termination requires an authenticated and authorized operator");
                 }
-                updated = intentions.terminate(intention.id(), intention.version(), directive.actorId(), directive.reason(), now);
+                updated = intentions.terminateAfterHostAuthorization(intention.id(), intention.version(), directive.actorId(), directive.reason(),
+                        directive.terminationReason(), now);
             }
             case ESCALATE -> { /* Escalation is recorded by the graph's terminal path; objective remains protected. */ }
         }
@@ -462,6 +506,28 @@ public final class CognitiveCycleLifecycleServices {
         UncertaintyAssessment assessment = Objects.requireNonNull(
                 domain.assessUncertainty(context, requestIdempotencyKey, now),
                 "domain returned null uncertainty assessment");
+        if (assessment.calibration().status() == UncertaintyAssessment.CalibrationStatus.CALIBRATED) {
+            if (uncertaintyCalibration == null || !uncertaintyCalibration.isActiveVersion(
+                    assessment.calibration().profileId(), assessment.calibration().profileVersion(),
+                    new MemoryScopeId(context.memoryScopeId()), assessment.calibration().profileTargetId())
+                    || !assessment.calibration().profileTargetId().equals(domain.uncertaintyCalibrationTargetId(context))) {
+                throw new SecurityException("host uncertainty assessment claims a calibration profile/version that is not active for its exact target and scope");
+            }
+        } else if (uncertaintyCalibration != null) {
+            String targetId = required(domain.uncertaintyCalibrationTargetId(context), "uncertainty calibration target");
+            UncertaintyAssessment calibrated = uncertaintyCalibration.calibrate(assessment, targetId);
+            if (!calibrated.reference().equals(assessment.reference())) {
+                throw new SecurityException("B6 calibration changed the immutable uncertainty assessment reference");
+            }
+            if (calibrated.calibration().status() == UncertaintyAssessment.CalibrationStatus.CALIBRATED) {
+                if (!uncertaintyCalibration.isActiveVersion(calibrated.calibration().profileId(),
+                        calibrated.calibration().profileVersion(), new MemoryScopeId(context.memoryScopeId()), targetId)) {
+                    throw new SecurityException("B6 calibration profile changed before assessment persistence");
+                }
+                domain.persistCalibratedUncertaintyAssessment(context, calibrated, now);
+                assessment = calibrated;
+            }
+        }
         requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), now);
         if (previous == null) {
             if (assessment.reference().version() != 1L) {
@@ -485,6 +551,7 @@ public final class CognitiveCycleLifecycleServices {
             throw new SecurityException("B6 uncertainty assessment differs from the exact revision carried by graph state");
         }
         requireCurrentAssessment(inputs.uncertainty(), context.executionId(), context.memoryScopeId(), now);
+        verifyCalibrationBinding(context, inputs.uncertainty());
         if (resourceBudgetGuard != null) {
             var durable = resourceBudgetGuard.snapshot(context.executionId(), now);
             if (!durable.budget().equals(inputs.budget().budget())) {
@@ -506,7 +573,18 @@ public final class CognitiveCycleLifecycleServices {
             throw new SecurityException("host uncertainty store did not resolve the exact graph-referenced revision");
         }
         requireCurrentAssessment(assessment, context.executionId(), context.memoryScopeId(), at);
+        verifyCalibrationBinding(context, assessment);
         return assessment;
+    }
+
+    private void verifyCalibrationBinding(CycleContext context, UncertaintyAssessment assessment) {
+        if (assessment.calibration().status() != UncertaintyAssessment.CalibrationStatus.CALIBRATED) return;
+        if (uncertaintyCalibration == null || !uncertaintyCalibration.isActiveVersion(
+                assessment.calibration().profileId(), assessment.calibration().profileVersion(),
+                new MemoryScopeId(context.memoryScopeId()), assessment.calibration().profileTargetId())
+                || !assessment.calibration().profileTargetId().equals(domain.uncertaintyCalibrationTargetId(context))) {
+            throw new SecurityException("persisted B6 assessment calibration binding is no longer active or target-matched; reassessment is required");
+        }
     }
 
     private static void requireCurrentAssessment(UncertaintyAssessment assessment, String executionId,
@@ -532,7 +610,7 @@ public final class CognitiveCycleLifecycleServices {
                 if (resolution.action() == HumanControlAction.ABORT) {
                     intentions.terminate(intention.id(), intention.version(), resolution.actorId(), resolution.reason(), now);
                 } else {
-                    intentions.resume(intention.id(), intention.version(), now);
+                    intentions.resume(intention.id(), intention.version(), intention.authorityPolicy().decisionGovernor(), now);
                 }
             }
         }
@@ -890,6 +968,15 @@ public final class CognitiveCycleLifecycleServices {
         WorkingMemorySnapshot memory = workingMemory.load(new WorkingMemoryId(context.workingMemoryId()));
         if (!memory.scopeId().equals(requireScope(context))) throw new SecurityException("working memory scope differs from active cycle scope");
         return memory;
+    }
+
+    private String selectedPlanReference(CycleContext context) {
+        if (context.candidateSetId().isBlank() || context.selectedCandidateId().isBlank()) return null;
+        var selected = decisionServices.selectedCandidate(context);
+        return "m5-selected-plan:v1|candidateSet=" + selected.candidateSetId()
+                + "|candidate=" + selected.candidate().candidateId()
+                + "|request=" + selected.request().fingerprint()
+                + "|objective=" + selected.request().objective().id().value();
     }
 
     private RecoveryIntention currentIntention(CycleContext context) {

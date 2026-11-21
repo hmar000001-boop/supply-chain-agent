@@ -46,7 +46,7 @@ class R2OutcomeEvidencePostgresIntegrationTest {
 
     @BeforeAll static void initializeSchema() {
         dataSource = PostgresDataSourceFactory.create(PostgresDatabaseConfig.fromEnvironment(System.getenv()));
-        assertEquals(12, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
+        assertEquals(15, new PostgresMigrationRunner(dataSource).migrate().totalMigrations());
     }
 
     @Test void b2DraftAndAppendOnlyVersionHistorySurviveRepositoryReplacement() throws Exception {

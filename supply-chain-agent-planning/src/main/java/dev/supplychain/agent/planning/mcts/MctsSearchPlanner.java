@@ -220,10 +220,14 @@ public final class MctsSearchPlanner implements PlanningStrategy {
             List<PlanningAction> available = worldModel.availableActions(request, current.state);
             Node expanding = current;
             List<PlanningAction> untried = available.stream()
-                    .filter(action -> !expanding.attemptedActionIds.contains(action.planningActionId())).toList();
+                    .filter(action -> !expanding.attemptedActionIds.contains(action.planningActionId()))
+                    .sorted(Comparator.comparing((PlanningAction action) -> request.isReusableRecoveryAction(action)).reversed()
+                            .thenComparing(PlanningAction::planningActionId)).toList();
             if (!untried.isEmpty()) {
                 var random = new SplittableRandom(parameters.deterministicSeed() ^ iteration ^ current.id.hashCode());
-                PlanningAction action = untried.get(random.nextInt(untried.size()));
+                List<PlanningAction> reusable = untried.stream().filter(request::isReusableRecoveryAction).toList();
+                List<PlanningAction> expansionPool = reusable.isEmpty() ? untried : reusable;
+                PlanningAction action = expansionPool.get(random.nextInt(expansionPool.size()));
                 if (!context.consume(ResourceUsage.of(ResourceUnit.SEARCH_EXPANSIONS, 1))) return current;
                 current.attemptedActionIds.add(action.planningActionId());
                 WorldTransition transition = worldModel.apply(request, current.state, action);

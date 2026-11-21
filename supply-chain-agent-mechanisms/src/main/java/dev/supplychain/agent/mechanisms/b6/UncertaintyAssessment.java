@@ -48,6 +48,26 @@ public record UncertaintyAssessment(Reference reference, Instant assessedAt, Ins
         return signals.containsKey(dimension);
     }
 
+    /**
+     * Applies a target/scope-matched independently validated profile. The immutable assessment
+     * identity is retained: calibration changes the interpretation of its values, not the source
+     * assessment revision or its evidence provenance.
+     */
+    public UncertaintyAssessment calibratedBy(UncertaintyCalibrationProfile profile) {
+        Objects.requireNonNull(profile, "profile");
+        if (!profile.scopeId().value().equals(reference.memoryScopeId())
+                || profile.status() != UncertaintyCalibrationProfile.Status.ACTIVE) {
+            throw new SecurityException("calibration profile is inactive or belongs to a different memory scope");
+        }
+        var calibratedSignals = new EnumMap<UncertaintyDimension, UncertaintySignal>(UncertaintyDimension.class);
+        signals.forEach((dimension, signal) -> calibratedSignals.put(dimension,
+                new UncertaintySignal(dimension, profile.calibrate(dimension, signal.uncertainty()),
+                        signal.rationale() + " [calibrated-profile=" + profile.id() + "]", signal.evidenceCount())));
+        return new UncertaintyAssessment(reference, assessedAt, validUntil, provenanceReference,
+                new Calibration(CalibrationStatus.CALIBRATED, profile.id(), profile.targetId(), profile.version(),
+                        profile.validationDatasetFingerprint(), profile.validationSampleCount()), calibratedSignals);
+    }
+
     public boolean isCurrentFor(String executionId, String memoryScopeId, Instant now) {
         Objects.requireNonNull(now, "now");
         return reference.executionId().equals(executionId)
@@ -72,25 +92,40 @@ public record UncertaintyAssessment(Reference reference, Instant assessedAt, Ins
         }
     }
 
-    public record Calibration(CalibrationStatus status, String profileId,
+    public record Calibration(CalibrationStatus status, String profileId, String profileTargetId, long profileVersion,
                               String validationEvidenceReference, long validationSampleCount) {
         public Calibration {
             status = Objects.requireNonNull(status, "status");
             profileId = optional(profileId);
+            profileTargetId = optional(profileTargetId);
             validationEvidenceReference = optional(validationEvidenceReference);
+            if (profileVersion < 0) throw new IllegalArgumentException("profileVersion cannot be negative");
             if (validationSampleCount < 0) throw new IllegalArgumentException("validationSampleCount cannot be negative");
             if (status == CalibrationStatus.CALIBRATED
-                    && (profileId.isEmpty() || validationEvidenceReference.isEmpty() || validationSampleCount < 1)) {
+                    && (profileId.isEmpty() || profileTargetId.isEmpty() || profileVersion < 1 || validationEvidenceReference.isEmpty() || validationSampleCount < 1)) {
                 throw new IllegalArgumentException("calibrated uncertainty requires a profile, validation evidence and positive sample count");
             }
             if (status == CalibrationStatus.NOT_CALIBRATED
-                    && (!profileId.isEmpty() || !validationEvidenceReference.isEmpty() || validationSampleCount != 0)) {
+                    && (!profileId.isEmpty() || !profileTargetId.isEmpty() || profileVersion != 0 || !validationEvidenceReference.isEmpty() || validationSampleCount != 0)) {
                 throw new IllegalArgumentException("uncalibrated uncertainty cannot claim calibration evidence");
             }
         }
 
         public static Calibration notCalibrated() {
-            return new Calibration(CalibrationStatus.NOT_CALIBRATED, "", "", 0);
+            return new Calibration(CalibrationStatus.NOT_CALIBRATED, "", "", 0, "", 0);
+        }
+
+        /** Compatibility constructor for persisted calibration values written before profile versions were captured. */
+        public Calibration(CalibrationStatus status, String profileId,
+                           String validationEvidenceReference, long validationSampleCount) {
+            this(status, profileId, status == CalibrationStatus.CALIBRATED ? "legacy-target" : "",
+                    status == CalibrationStatus.CALIBRATED ? 1 : 0, validationEvidenceReference, validationSampleCount);
+        }
+
+        public Calibration(CalibrationStatus status, String profileId, long profileVersion,
+                           String validationEvidenceReference, long validationSampleCount) {
+            this(status, profileId, status == CalibrationStatus.CALIBRATED ? "legacy-target" : "",
+                    profileVersion, validationEvidenceReference, validationSampleCount);
         }
 
         private static String optional(String value) { return value == null ? "" : value.trim(); }

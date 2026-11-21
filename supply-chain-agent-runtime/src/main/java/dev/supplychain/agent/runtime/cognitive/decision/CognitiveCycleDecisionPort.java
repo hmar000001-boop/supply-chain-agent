@@ -6,6 +6,10 @@ import dev.supplychain.agent.memory.retrieval.MemoryRetrievalResult;
 import dev.supplychain.agent.mechanisms.b1.B1CandidateFeatureProvider;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionRequest;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionResult;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidate;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateReference;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateReference;
+import java.util.List;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionRequest;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastReport;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
@@ -85,4 +89,53 @@ public interface CognitiveCycleDecisionPort {
      * silently continue under a different uncertainty revision.
      */
     PlanningRequest planningRequest(CognitiveCycleOperations.CycleContext context, Instant at);
+
+
+    /**
+     * Obtain an independently performed review of competing registered hypotheses for this exact
+     * request. The host implementation must issue evidence only after a reviewer distinct from the
+     * proposing model/planner has examined at least two registered alternatives. Empty fails closed
+     * when the calibrated B6 directive requires review. Model-authored text is not reviewer evidence.
+     */
+    default java.util.Optional<dev.supplychain.agent.planning.api.IndependentAlternativeHypothesisReview>
+            independentlyReviewAlternativeHypotheses(
+                    CognitiveCycleOperations.CycleContext context, PlanningRequest request, Instant at) {
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Separate host-owned verifier for B6 high plan uncertainty. Empty fails closed when the
+     * exact planning request carries a directive requiring independent verification.
+     */
+    default java.util.Optional<IndependentPlanVerification> independentlyVerifySelectedPlan(
+            CognitiveCycleOperations.CycleContext context,
+            CognitiveCycleDecisionServices.SelectedPlanningCandidate selected,
+            PlanningRequest freshRequest, Instant at) {
+        return java.util.Optional.empty();
+    }
+
+
+    /**
+     * Exact per-workspace-candidate attribution to previously selected B1 memory revisions.
+     * Adapters return only references present in the persisted B1 evidence set. Empty is allowed
+     * for candidates with no memory-derived provenance; such candidates do not update B1 features.
+     */
+    default java.util.Map<String, List<B1MemoryCandidateReference>> workspaceCandidateMemoryAttributions(
+            CognitiveCycleOperations.CycleContext context, Instant at) {
+        return java.util.Map.of();
+    }
+
+    /** The exact B1 candidates recorded by the active persisted evidence set, for attribution validation. */
+    default List<B1MemoryCandidate> selectedB1MemoryCandidates(
+            CognitiveCycleOperations.CycleContext context, Instant at) {
+        return List.of();
+    }
+
+    /**
+     * Opaque, registered condition keys derived from trusted current domain/evidence state.
+     * Model-authored free-form text must never be used as a procedure lookup key.
+     */
+    default Set<String> recoveryProcedureConditionKeys(CognitiveCycleOperations.CycleContext context, Instant at) {
+        return Set.of();
+    }
 }

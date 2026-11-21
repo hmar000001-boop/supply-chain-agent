@@ -1,6 +1,6 @@
 {
   "project": "Supply-Chain Disruption Management Agent",
-  "assessment": "As-built paper-to-code conformance matrix after R1/R2 and F-01 through F-04",
+  "assessment": "As-built CoALA and Fan & Lan conformance candidate after GAP-01–GAP-05 implementation, layered over owner-confirmed F-01–F-04",
   "assessment_date": "2026-11-21",
   "source_reconstruction": {
     "base_archive": {
@@ -17,67 +17,76 @@
         "name": "M8_PREB7_F03_F04_GOVERNED_RECOVERY_MEMORY_AND_B3_COALITION_COMPETITION_CHANGESET_ONLY_2026-11-21.zip",
         "sha256": "27a16c8869f2e4eb54cbb00007a405e84caff6799bc6af04abee1ce3a5fe5d01",
         "scope": "F-03 governed B2 recovery procedure staging; F-04 B3 coalition competition"
+      },
+      {
+        "name": "GAP-01–GAP-05 implementation candidate",
+        "sha256": "see release changeset and full-source sidecars created with this delivery",
+        "scope": "B1 verified-use learning; B2 future-cycle reuse; B3 coalition outcome learning; B4 full intention contract; B6 calibration and directives"
       }
     ],
-    "reconstructed_tree_sha256": "b13a09eb307a4c6237d2fc7361810a93636a350b13c06df34b595abe9ac727df",
-    "manifest_file_count": 757,
+    "source_tree_sha256": "6624255344ba7fcf87e7d998a232d8a503f74738d1161ee9c11ca8d169b1a193",
+    "source_tree_hash_definition": "SHA-256 over sorted repository-relative paths and per-file SHA-256 digests, excluding generated delivery/assessment records (root README.md, CHANGE_MANIFEST.csv, SHA256SUMS.txt, VALIDATION_REPORT.md, CONFORMANCE_SOURCE_BASELINE_MANIFEST.csv and CONFORMANCE_ASSESSMENT_METADATA.json), .git and build output.",
+    "source_tree_file_count": 795,
     "git_commit_sha": "not supplied",
-    "hosted_ci_run_id_or_url": "not supplied"
+    "hosted_ci_run_id_or_url": "not supplied; owner-confirmed green applies to F-01–F-04 predecessor stack; first-five candidate CI pending",
+    "manifest_file_count": 800
   },
   "inventory": {
     "maven_modules": 11,
-    "module_names": [
-      "supply-chain-agent-actions",
-      "supply-chain-agent-app",
-      "supply-chain-agent-core",
-      "supply-chain-agent-domain",
-      "supply-chain-agent-evaluation",
-      "supply-chain-agent-infrastructure-postgres",
-      "supply-chain-agent-mechanisms",
-      "supply-chain-agent-memory",
-      "supply-chain-agent-planning",
-      "supply-chain-agent-runtime",
-      "supply-chain-agent-simulator"
-    ],
     "pom_files": 12,
-    "production_java_files_under_module_source_roots": 462,
-    "test_java_files_under_module_source_roots": 72,
-    "additional_root_src_java_files": 0,
-    "other_java_files": 0,
-    "total_java_files": 534,
-    "postgresql_migration_files": 12,
-    "migration_versions": [
-      "001",
-      "002",
-      "003",
-      "004",
-      "005",
-      "006",
-      "007",
-      "008",
-      "009",
-      "010",
-      "011",
-      "012"
-    ]
+    "production_java_files_under_module_source_roots": 495,
+    "test_java_files_under_module_source_roots": 74,
+    "additional_root_src_java_files": 2,
+    "additional_root_src_java_files_status": "uncompiled legacy shadow copies outside the 11 Maven modules; source-hygiene GAP-10",
+    "total_java_files": 571,
+    "postgresql_migration_head": "V015",
+    "postgresql_migration_count": 15,
+    "migration_locations": {
+      "V001": "supply-chain-agent-memory/src/main/resources/db/migration",
+      "V002-V015": "supply-chain-agent-infrastructure-postgres/src/main/resources/db/migration"
+    },
+    "repository_file_count": 801
   },
   "validation": {
-    "hosted_ci": "project-owner-confirmed green after combined F-01/F-02/F-03/F-04 stack; detailed run log/URL and commit SHA not supplied in this assessment workspace",
+    "previous_f01_f04_hosted_ci": "owner-confirmed green",
+    "gap01_gap05_hosted_ci": "pending; full Maven reactor must pass on this exact candidate",
     "maven_reactor_rerun_by_assessor": false,
-    "static_guards": {
-      "scripts/verify-m8-b5-architecture.py": "PASS, independently rerun on reconstructed tree",
-      "scripts/verify-m8-r2-evidence.py": "PASS, independently rerun on reconstructed tree",
-      "scripts/verify-m8-preb7-f03-f04.py": "PASS, independently rerun on reconstructed tree"
+    "java21_compilation": "PASS: eight framework-neutral production modules, including changed runtime decision/lifecycle sources",
+    "postgresql_java_compilation": "PASS: 37 sources; six classes requiring unavailable HikariCP/pgJDBC/LangGraph4j dependencies excluded",
+    "targeted_tests": {
+      "runtime": {
+        "passed": 48,
+        "failed": 0
+      },
+      "mechanism_planning": {
+        "passed": 83,
+        "failed": 0
+      },
+      "migration_parsing": {
+        "passed": 9,
+        "failed": 0
+      },
+      "total_passed": 140,
+      "total_failed": 0,
+      "runner": "lightweight JUnit-compatible runner; not Maven Surefire/JUnit"
     },
-    "experimental_evidence": "R2 reports NO_VERIFIED_OUTCOME_CORPUS, zero verified outcomes, zero independent holdout scenarios, SHADOW candidate, DISABLED activation, baseline preserved",
-    "uncertainty_calibration": "NOT_CALIBRATED",
-    "limitations": "CI verifies configured tests/build; it does not demonstrate empirical advantage, calibration, transfer, full historical migration, or live external integration"
+    "static_guards": {
+      "scripts/verify-m8-b5-architecture.py": "PASS",
+      "scripts/verify-m8-r2-evidence.py": "PASS",
+      "scripts/verify-m8-preb7-f03-f04.py": "PASS"
+    },
+    "postgresql_migrations": "V001–V015; parser checks passed for added V013–V015 and migration runner registration",
+    "experimental_evidence": "No verified outcome corpus or independent holdout scenarios; B1/B3 policy activation remains SHADOW/DISABLED",
+    "uncertainty_calibration": "NOT_CALIBRATED; calibration lifecycle and controls exist, but no real labelled target corpus or active validated profile",
+    "limitations": "Targeted tests/static guards do not replace hosted Maven CI, live PostgreSQL integration, full LangGraph4j graph tests, independent matched experiments, calibration or transfer evaluation"
   },
   "conformance_verdict": {
-    "coala": "strong core architectural correspondence; not total application-scope implementation because learning-action breadth, procedural reuse in normal graph, full durable app composition and outer-cycle host remain incomplete",
-    "fan_lan": "substantial partial realizations of B1/B2/B3/B4/B6; B5 correctly closed as residual by GraSP but its governor remains a §VI-E dependency; cross-bundle and empirical evidence incomplete",
+    "coala": "strong core architecture and selected learning/retrieval paths; complete selected-application learning-action surface and durable full-host/outer-cycle scope remain GAP-07/GAP-08",
+    "fan_lan": "integrated adapted B1/B2/B3/B4/B6 source/control paths; B1/B3 empirical activation and B6 calibrated runtime remain evidence-gated; B5 is closed as a residual but GraSP-like governor is required for full §VI-E synthesis-runtime claim",
+    "gap01_gap05": "source/control-path implementation candidate; targeted local validation passed; hosted CI pending; independent empirical acceptance remains open",
+    "total_paper_conformance": "not claimed",
     "book_writing_authorized": false,
-    "reason": "Owner requires conformance/implementation acceptance before writing; this matrix documents remaining blocking gaps and acceptance evidence"
+    "reason": "Owner requires total implementation/conformance acceptance; GAP-06 through GAP-10 and independent matched experiments/calibration/transfer remain open"
   },
   "conformance_matrix_rows": 30
 }

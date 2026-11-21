@@ -22,6 +22,7 @@ public final class WorkspaceAdmissionService {
     private final WorkspaceRepository repository;
     private final dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment;
     private final WorkspaceCoalitionCompetitionPolicy coalitionPolicy;
+    private final WorkspaceCoalitionOutcomeAdjustment coalitionOutcomeAdjustment;
 
     public WorkspaceAdmissionService(WorkspaceRepository repository) {
         this(repository, dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment.neutral());
@@ -30,15 +31,24 @@ public final class WorkspaceAdmissionService {
     /** Outcome feedback is opt-in; only a trusted activation service can mint the production overlay. */
     public WorkspaceAdmissionService(WorkspaceRepository repository,
             dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment) {
-        this(repository, outcomeAdjustment, WorkspaceCoalitionCompetitionPolicy.standard());
+        this(repository, outcomeAdjustment, WorkspaceCoalitionCompetitionPolicy.standard(), WorkspaceCoalitionOutcomeAdjustment.neutral());
     }
 
     public WorkspaceAdmissionService(WorkspaceRepository repository,
             dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment,
             WorkspaceCoalitionCompetitionPolicy coalitionPolicy) {
+        this(repository,outcomeAdjustment,coalitionPolicy,WorkspaceCoalitionOutcomeAdjustment.neutral());
+    }
+
+    /** Full B3 composition with separately activated coalition-level outcome feedback. */
+    public WorkspaceAdmissionService(WorkspaceRepository repository,
+            dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment outcomeAdjustment,
+            WorkspaceCoalitionCompetitionPolicy coalitionPolicy,
+            WorkspaceCoalitionOutcomeAdjustment coalitionOutcomeAdjustment) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.outcomeAdjustment = Objects.requireNonNull(outcomeAdjustment, "outcomeAdjustment");
         this.coalitionPolicy = Objects.requireNonNull(coalitionPolicy, "coalitionPolicy");
+        this.coalitionOutcomeAdjustment = Objects.requireNonNull(coalitionOutcomeAdjustment,"coalitionOutcomeAdjustment");
     }
 
     public WorkspaceAdmissionOutcome admit(WorkspaceAdmissionRequest request) {
@@ -80,6 +90,7 @@ public final class WorkspaceAdmissionService {
             if (eligible.isEmpty()) break;
 
             var options = new ArrayList<BundleOption>();
+            List<WorkspaceCoalitionProposal> roundProposals = List.of();
             for (WorkspaceCandidate candidate : eligible) {
                 Set<String> fresh = freshCoverage(List.of(candidate), covered);
                 double base = adjustedBaseScore(candidate, request.scoringPolicy());
@@ -94,6 +105,7 @@ public final class WorkspaceAdmissionService {
                         freeUnits, slots, round, remainingSearchBudget);
                 coalitionAttemptsUsed += search.attempts();
                 if (search.truncated()) coalitionSearchTruncated = true;
+                roundProposals = search.proposals();
                 // If the search was truncated, its partial coalition set is not a comparable choice set.
                 // Keep the trace, but fall back to exhaustive singleton comparison for this and later rounds.
                 if (!search.truncated()) {
@@ -105,15 +117,24 @@ public final class WorkspaceAdmissionService {
                                 proposal.baseScore(), proposal.coverageBonus(), proposal.totalScore(), proposal));
                     }
                 }
-                BundleOption bestPreview = chooseBest(options);
-                for (WorkspaceCoalitionProposal proposal : search.proposals()) {
-                    boolean chosen = !search.truncated() && bestPreview != null && bestPreview.proposal() != null
-                            && bestPreview.proposal().id().equals(proposal.id());
-                    competitionTrace.add(withSelected(proposal, chosen));
-                }
             }
 
             BundleOption best = chooseBest(options);
+            int requiredKinds = request.uncertaintyDirective().minimumDistinctWorkspaceKinds();
+            Set<WorkspaceCandidateKind> selectedKinds = selected.stream()
+                    .map(entry -> entry.candidate().kind()).collect(java.util.stream.Collectors.toSet());
+            if (selectedKinds.size() < requiredKinds) {
+                // Validated high evidence uncertainty requires broader content diversity before
+                // admitting more of an already represented kind.
+                best = options.stream()
+                        .filter(option -> option.members().stream().map(WorkspaceCandidate::kind)
+                                .anyMatch(kind -> !selectedKinds.contains(kind)))
+                        .max(WorkspaceAdmissionService::compareBundles).orElse(null);
+            }
+            for (WorkspaceCoalitionProposal proposal : roundProposals) {
+                boolean chosen = best != null && best.proposal() != null && best.proposal().id().equals(proposal.id());
+                competitionTrace.add(withSelected(proposal, chosen));
+            }
             if (best == null || best.totalScore() <= 0.0) break;
 
             var newlyAdmitted = new ArrayList<WorkspaceCandidate>();
@@ -132,6 +153,7 @@ public final class WorkspaceAdmissionService {
                 List<String> ids = best.members().stream().map(WorkspaceCandidate::id).sorted().toList();
                 double aggregateScore = selected.stream().filter(entry -> ids.contains(entry.candidate().id()))
                         .mapToDouble(WorkspaceEntry::marginalScore).sum();
+                aggregateScore += best.proposal().coalitionOutcomeAdjustment();
                 String coalitionId = "coalition:" + best.proposal().id();
                 coalitions.add(new WorkspaceCoalition(coalitionId, ids, best.newlyCoveredTags(),
                         best.contextUnits(), aggregateScore));
@@ -142,15 +164,20 @@ public final class WorkspaceAdmissionService {
         String id = UUID.randomUUID().toString();
         var snapshot = new WorkspaceSnapshot(id, request.cycleId(), request.scopeId(), request.capacityUnits(), used,
                 selected, coalitions, covered, WorkspaceStatus.ADMITTED, 0, request.createdAt(), request.createdAt(),
-                request.experimentUnitFingerprint(), competitionTrace, coalitionSearchTruncated);
+                request.experimentUnitFingerprint(), competitionTrace, coalitionSearchTruncated, request.uncertaintyDirective());
         repository.saveNew(snapshot);
         var missing = request.requiredCoverage().stream().filter(tag -> !covered.contains(tag)).sorted().toList();
+        long distinctKinds = selected.stream().map(entry -> entry.candidate().kind()).distinct().count();
+        boolean diversityIncomplete = distinctKinds < request.uncertaintyDirective().minimumDistinctWorkspaceKinds();
         String explanation = missing.isEmpty()
                 ? "mandatory content protected; singleton and feasible coalition alternatives competed under bounded admission"
                 : "workspace admitted; required coverage remains incomplete after singleton/coalition competition";
+        if (diversityIncomplete) explanation += "; calibrated B6 evidence governance required "
+                + request.uncertaintyDirective().minimumDistinctWorkspaceKinds() + " distinct workspace content kinds but only " + distinctKinds + " were available within the constraints";
         if (coalitionSearchTruncated) explanation += "; coalition enumeration reached its configured bound and singleton fallback was used";
-        return new WorkspaceAdmissionOutcome(missing.isEmpty() ? WorkspaceAdmissionStatus.ADMITTED
-                : WorkspaceAdmissionStatus.INCOMPLETE_COVERAGE, snapshot, missing, explanation);
+        WorkspaceAdmissionStatus finalStatus = diversityIncomplete ? WorkspaceAdmissionStatus.INCOMPLETE_EVIDENCE_DIVERSITY
+                : missing.isEmpty() ? WorkspaceAdmissionStatus.ADMITTED : WorkspaceAdmissionStatus.INCOMPLETE_COVERAGE;
+        return new WorkspaceAdmissionOutcome(finalStatus, snapshot, missing, explanation);
     }
 
     /** Read-only inspection of the exact admitted snapshot for audit/evaluation consumers. */
@@ -203,9 +230,13 @@ public final class WorkspaceAdmissionService {
             double base = current.stream().mapToDouble(candidate -> adjustedBaseScore(candidate, request.scoringPolicy())).sum();
             double bonus = coverageBonus(fresh, request);
             List<String> ids = current.stream().map(WorkspaceCandidate::id).sorted().toList();
+            String preferenceKey = WorkspaceCoalitionProposal.preferenceKeyFor(ids, fresh);
+            double coalitionAdjustment = coalitionOutcomeAdjustment.adjustmentFor(request.scopeId(), preferenceKey);
+            if (!Double.isFinite(coalitionAdjustment) || Math.abs(coalitionAdjustment) > 5.0)
+                throw new SecurityException("B3 coalition outcome adjustment is non-finite or exceeds its safety bound");
             String proposalId = proposalId(round, ids, fresh);
             proposals.add(new WorkspaceCoalitionProposal(proposalId, round, ids, fresh, units, base, bonus,
-                    base + bonus, false));
+                    coalitionAdjustment, base + bonus + coalitionAdjustment, false));
             return;
         }
         for (int index = start; index < eligible.size(); index++) {
@@ -250,18 +281,22 @@ public final class WorkspaceAdmissionService {
     }
 
     private static BundleOption chooseBest(List<BundleOption> options) {
-        return options.stream().max(Comparator.comparingDouble(BundleOption::totalScore)
+        return options.stream().max(WorkspaceAdmissionService::compareBundles).orElse(null);
+    }
+
+    private static int compareBundles(BundleOption left, BundleOption right) {
+        return Comparator.comparingDouble(BundleOption::totalScore)
                 .thenComparing(Comparator.comparingInt(BundleOption::contextUnits).reversed())
                 .thenComparing(Comparator.comparingInt((BundleOption option) -> option.members().size()).reversed())
                 .thenComparing(option -> option.members().stream().map(WorkspaceCandidate::id).sorted()
-                        .collect(java.util.stream.Collectors.joining("\u001f")), Comparator.reverseOrder()))
-                .orElse(null);
+                        .collect(java.util.stream.Collectors.joining("\u001f")), Comparator.reverseOrder())
+                .compare(left, right);
     }
 
     private static WorkspaceCoalitionProposal withSelected(WorkspaceCoalitionProposal proposal, boolean selected) {
         return new WorkspaceCoalitionProposal(proposal.id(), proposal.round(), proposal.candidateIds(),
                 proposal.newlyCoveredTags(), proposal.contextUnits(), proposal.baseScore(),
-                proposal.coverageBonus(), proposal.totalScore(), selected);
+                proposal.coverageBonus(), proposal.coalitionOutcomeAdjustment(), proposal.totalScore(), selected);
     }
 
     private static String proposalId(int round, List<String> ids, Set<String> tags) {

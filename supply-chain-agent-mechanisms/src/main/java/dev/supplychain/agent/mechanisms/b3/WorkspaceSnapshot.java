@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyGovernanceDirective;
 
 /** Immutable result of one bounded B3 admission and coalition-competition cycle. */
 public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
@@ -13,7 +15,8 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
                                 Set<String> coveredTags, WorkspaceStatus status, long version,
                                 Instant createdAt, Instant updatedAt, String experimentUnitFingerprint,
                                 List<WorkspaceCoalitionProposal> evaluatedCoalitionProposals,
-                                boolean coalitionSearchTruncated) {
+                                boolean coalitionSearchTruncated,
+                                UncertaintyGovernanceDirective uncertaintyDirective) {
     public WorkspaceSnapshot {
         id = require(id, "id");
         cycleId = require(cycleId, "cycleId");
@@ -95,11 +98,27 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
                 coalitionUnits += member.candidate().contextUnits();
                 coalitionScore += member.marginalScore();
             }
+            double coalitionFeedbackAdjustment = evaluatedCoalitionProposals.stream()
+                    .filter(proposal -> proposal.selected() && proposal.candidateIds().equals(coalition.candidateIds())
+                            && proposal.newlyCoveredTags().equals(coalition.jointCoverageTags())
+                            && proposal.contextUnits() == coalition.contextUnits())
+                    .mapToDouble(WorkspaceCoalitionProposal::coalitionOutcomeAdjustment).findFirst().orElse(0.0);
             if (coalitionUnits != coalition.contextUnits()
-                    || Double.compare(coalitionScore, coalition.aggregateMarginalScore()) != 0) {
-                throw new IllegalArgumentException("coalition accounting does not match its workspace members");
+                    || Double.compare(coalitionScore + coalitionFeedbackAdjustment, coalition.aggregateMarginalScore()) != 0) {
+                throw new IllegalArgumentException("coalition accounting does not match its workspace members and admitted feedback adjustment");
             }
         }
+    }
+
+    /** Source-compatible constructor before B6 calibrated workspace governance was persisted. */
+    public WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId, int capacityUnits, int usedUnits,
+            List<WorkspaceEntry> entries, List<WorkspaceCoalition> coalitions, Set<String> coveredTags,
+            WorkspaceStatus status, long version, Instant createdAt, Instant updatedAt,
+            String experimentUnitFingerprint, List<WorkspaceCoalitionProposal> evaluatedCoalitionProposals,
+            boolean coalitionSearchTruncated) {
+        this(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions, coveredTags, status, version,
+                createdAt, updatedAt, experimentUnitFingerprint, evaluatedCoalitionProposals, coalitionSearchTruncated,
+                neutralDirective(scopeId));
     }
 
     /** Compatibility constructor for callers that predate explicit coalition competition traces. */
@@ -125,7 +144,14 @@ public record WorkspaceSnapshot(String id, String cycleId, MemoryScopeId scopeId
         if (at.isBefore(updatedAt)) throw new IllegalArgumentException("workspace time cannot move backwards");
         return new WorkspaceSnapshot(id, cycleId, scopeId, capacityUnits, usedUnits, entries, coalitions,
                 coveredTags, WorkspaceStatus.CLOSED, version + 1, createdAt, at, experimentUnitFingerprint,
-                evaluatedCoalitionProposals, coalitionSearchTruncated);
+                evaluatedCoalitionProposals, coalitionSearchTruncated, uncertaintyDirective);
+    }
+
+    private static UncertaintyGovernanceDirective neutralDirective(MemoryScopeId scope) {
+        var reference = new UncertaintyAssessment.Reference("workspace-standalone-neutral", 1,
+                "workspace-standalone", scope.value());
+        return new UncertaintyGovernanceDirective(reference, UncertaintyAssessment.CalibrationStatus.NOT_CALIBRATED,
+                "", "", 0, 0, 0, 0, 1, 1, false, false);
     }
 
     private static String require(String value, String name) {

@@ -1,14 +1,16 @@
 # Final CoALA and Fan & Lan Paper-to-Code Conformance Matrix
 
 **Project:** Supply-Chain Disruption Management Agent  
-**Assessment revision:** Final as-built assessment for the post-R1/R2 and F-01–F-04 candidate source stack  
-**Assessment date:** 2026-11-21  
+**Assessment revision:** First-five GAP-01–GAP-05 implementation candidate, layered over the owner-confirmed F-01–F-04 green stack  
+**Assessment date:** 2026-11-21 (GAP-01–GAP-05 candidate revision)  
 **Scope:** CoALA conceptual-framework implementation; Fan & Lan review-method coverage; B1, B2, B3, B4, B5 and B6 control bundles; cross-bundle synthesis and evaluation evidence  
 **Change class:** Documentation only. No Java source, tests, POMs, SQL migrations, scripts or CI workflow logic are changed by this matrix package.
 
-> **Primary conclusion:** The current application has strong architectural correspondence to CoALA and substantial, integrated but incomplete realizations of Fan & Lan's B1, B2, B3, B4 and B6 residual bundles. It is **not yet a total implementation of all the operational invariants in either paper**, and the project must not claim that it is. In particular, B1/B3 outcome-driven learning is not active on a verified corpus, B2 procedure reuse is not yet part of the normal full-graph planning path, B4's complete intention record is narrower than the paper's proposed record, B6 uncertainty is not calibrated or value-propagated across stages, and the GraSP-like B5 skill governor is not implemented even though Fan & Lan make it an implementation dependency of their bounded synthesis runtime.
+> **Primary conclusion:** The first-five implementation increment now supplies durable B1 verified-use/accessibility and utility features; normal future-cycle B2 procedure retrieval into M5 planning; receipt- and coalition-attributed B3 outcome learning with shadow/holdout activation gates; a fuller durable B4 intention/continuation/authority contract; and a target-specific B6 calibration lifecycle with actionable controls at selected decision boundaries. The code paths and targeted tests are present. This is **implementation-level completion of GAP-01–GAP-05 in the selected application scope**, not empirical completion: the real runtime remains `NOT_CALIBRATED`, B1/B3 adaptive policies remain inactive without verified outcome/holdout data, and independent matched experiments/transfer evaluations are still open.
+>
+> **Total paper conformance is still not claimed.** CoALA's conceptual framework is strongly implemented, but the application still has explicit learning-action scope and durable full-host gaps. Fan & Lan's five residual bundles are implemented as application-adapted control paths, but the review's bounded synthesis runtime still depends on a GraSP-like skill-governance component (B5 is closed as a residual, not something to re-label as a sixth residual). See GAP-06–GAP-10 and the acceptance evidence below.
 
-This matrix therefore does **not** authorize starting the book chapters. The remaining implementation/evaluation work is listed in `FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md`.
+This matrix is an acceptance record, not authorization to start the book chapters. The owner has required that writing remain blocked until the implementation and conformance claims are accepted.
 
 ---
 
@@ -41,15 +43,15 @@ Fan & Lan's §VI-D/§VI-E then describes cross-bundle dependencies and a bounded
 | Scope | Current status | Is “complete” justified? |
 |---|---|---|
 | CoALA's three organizing dimensions | Strong and integrated | **No** — some learning modes and the outer host loop remain out of scope or absent |
-| CoALA working/episodic/semantic/procedural memory | Strong, with governed application-specific lifecycles | **Strong core architecture; not complete for active procedural reuse, learning-action coverage, durable full-host composition or all CoALA learning forms** |
+| CoALA working/episodic/semantic/procedural memory | Strong, with governed application-specific lifecycles and active B2 recovery-procedure reuse in subsequent planning requests | **Strong core architecture; learning-action coverage and durable full-host composition remain** |
 | CoALA internal/external actions | Substantive; grounding is simulator-backed | **No** — the learning action surface is narrower and no live external system adapters are present |
 | CoALA iterative decision procedure | Full bounded graph with proposal/evaluation/retry, authority, execution and observation | **Strong bounded-cycle realization** — the full continuously running host is not supplied |
-| Fan & Lan B1 | Integrated selector and shadow feedback protocol | **No** — accessibility update and active, verified learning are incomplete |
-| Fan & Lan B2 | Typed recovery, guarded drafts, governed procedural staging | **No** — automatic condition-specific retrieval/use in the normal planner path and transfer evidence are incomplete |
-| Fan & Lan B3 | Bounded workspace, pair/triple coalition competition, synchronous broadcast and receipt-linked evidence | **No** — coalition-level outcome learning and live evidence activation are absent |
-| Fan & Lan B4 | Persistent intention and actual planner-method authority | **No** — intention record remains narrower than the full proposed schema and trigger policy |
+| Fan & Lan B1 | Durable selection/access/verified-use history and utility/cue updates from exact verified outcomes; guarded training/activation | **Implementation path present; live learning/effectiveness pending an independently verified corpus** |
+| Fan & Lan B2 | Typed recovery, governed procedure staging, condition/evidence/action-descriptor revalidation, retrieval in subsequent planning cycles | **Adapted reuse path implemented; transfer/repeat-failure effect still untested empirically** |
+| Fan & Lan B3 | Bounded workspace, pair/triple competition, synchronous broadcast, coalition-linked verified outcomes and shadow policy trainer | **Coalition learning path implemented; active policy/effectiveness pending independent evidence and approval** |
+| Fan & Lan B4 | Persisted rationale, active plan reference, continuation condition, typed reconsideration triggers, authority policy, termination semantics and F-01 method routing | **Strong adapted control implementation; long-horizon benefit not yet empirically established** |
 | Fan & Lan B5 | Correctly excluded from the residual list; no local GraSP implementation | **No** for §VI-E synthesis-runtime completeness; it must be supplied as dependency or subsystem |
-| Fan & Lan B6 | Shared resource guard, typed downshift, interruption and stopping | **No** — uncertainty is not calibrated or consumed as values across all target stages |
+| Fan & Lan B6 | Shared resource guard/downshift plus target-specific train/validate/approve calibration and actionable directives at B1, B3, M5 review and plan revalidation | **Calibration machinery implemented; active runtime remains NOT_CALIBRATED and coverage is not universal** |
 | Empirical validation of the five-bundle composition | CI and synthetic/fixture evidence; no verified outcome/holdout corpus | **No** |
 
 ---
@@ -65,22 +67,23 @@ The final source assessed here is the base archive supplied by the project owner
 | Base project | `supply-chain-agent-main (6).zip` | `ea765285e4a20520bd51cf49abaa02dedc8382015fce325862b4ab86dc1894a6` |
 | F-01/F-02 | `M8_PREB7_F01_F02_B4_METHOD_AUTHORITY_AND_B6_PLANNER_DOWNSHIFT_CHANGESET_ONLY_2026-11-21.zip` | `a05ed45d02d9a3c141f4f21d2b1924ddcc57c1f13779032b28a5f7146a08593a` |
 | F-03/F-04 | `M8_PREB7_F03_F04_GOVERNED_RECOVERY_MEMORY_AND_B3_COALITION_COMPETITION_CHANGESET_ONLY_2026-11-21.zip` | `27a16c8869f2e4eb54cbb00007a405e84caff6799bc6af04abee1ce3a5fe5d01` |
+| GAP-01–GAP-05 | `M8_PREB7_GAP01_GAP05_B1_TO_B6_LEARNING_AND_CALIBRATION_IMPLEMENTATION_CHANGESET_ONLY_2026-11-21.zip` and `SUPPLY_CHAIN_AGENT_GAP01_GAP05_CANDIDATE_FROZEN_SOURCE_2026-11-21.zip` | SHA-256 is supplied in the adjacent delivery sidecars; the matrix does not embed a self-referential archive digest |
 
-The changesets are repository-root-relative. This assessment reconstructs the combined tree by applying them in the order above. A Git commit SHA and hosted workflow-run URL were not supplied with the files, so the source identity available for this assessment is the three-archive digest chain, not a Git commit identity.
+The changesets are repository-root-relative. The current candidate is the base archive plus F-01/F-02, F-03/F-04 and GAP-01–GAP-05 source replacements applied in that order. A Git commit SHA and hosted workflow-run URL for the first-five candidate were not supplied; the frozen source archive, per-file source manifest, tree fingerprint and sidecar checksums are the source identity for this candidate until it is committed and passes hosted CI.
 
-### 2.2 Static inventory of the reconstructed tree
+### 2.2 Static inventory of the current candidate tree
 
 | Inventory item | Count | Interpretation |
 |---|---:|---|
 | Maven submodules | 11 | Domain, memory, core, simulator, actions, mechanisms, planning, runtime, PostgreSQL infrastructure, app and evaluation |
 | POM files | 12 | Parent POM plus 11 module POMs |
-| Production Java files under Maven modules | 462 | Compiled module production source inventory |
-| Test Java files under Maven modules | 72 | Test source inventory; not an executed-test count |
-| Additional root `src/` Java files | 0 | All Java files are under the 11 module source roots |
-| Total Java files in tree | 534 | All are within the 11 Maven module source roots |
-| PostgreSQL migration chain | V001–V012 | V001 is in the memory module; subsequent runtime/infrastructure migrations extend through V012 |
+| Production Java files under Maven modules | 495 | Module production source inventory |
+| Test Java files under Maven modules | 74 | Test source inventory; not a Maven/Surefire executed-test count |
+| Additional root `src/` Java files | 2 | Legacy shadow copies outside Maven module source roots; not compiled by the reactor and retained as a source-hygiene item |
+| Total Java files in tree | 571 | 569 module-source files plus two uncompiled root-level shadows |
+| PostgreSQL migration chain | V001–V015 | V001 resides in the memory module; V002–V015 reside in PostgreSQL infrastructure |
 
-The final reconstructed stack contains no Java files outside the 11 Maven modules. All 534 Java files are located under module `src/main/java` or `src/test/java` roots. Earlier audit inventories that reported two root-level duplicate files described a prior candidate tree; that finding does not apply to this final F-01–F-04 stack.
+The two root-level Java files are `src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java` and the corresponding test under `src/test/java/...`. They are not in any Maven module and are not included in module compilation/test inventory. They are disclosed rather than silently counted as compiled source. Remove or formally archive these shadow copies before declaring repository hygiene complete.
 
 ### 2.3 Validation status and limitations
 
@@ -149,11 +152,11 @@ An E-code is not a quality level, and a D-code is not a completeness score. D4 c
 | Working memory | Short-term active symbolic state that persists across model calls; current perception, retrieved knowledge, hypotheses and goals | `WorkingMemorySnapshot`, `WorkingMemoryEntry`, `MemoryValue`, `Hypothesis`, `WorkingMemoryService`, `WorkingMemoryRepository`, `PostgresWorkingMemoryRepository` | Versioned immutable snapshots, typed slots, evidence links, expiry and compare-and-set; working memory is explicitly distinct from LangGraph state/checkpoint | **Strong core correspondence** | Ensure the full production host uses the durable repository on every path; document which goal/plan fields belong in working memory vs authoritative intention state |
 | Episodic memory | Stored experiences and event/trajectory knowledge | `Episode`, `EpisodeEvent`, `EpisodeOutcome`, `EpisodicMemoryService`, PostgreSQL adapter | New episodes are `RECORDED`; verified episodes have reviewer/evidence/time and are eligible for trusted retrieval | **Strong adapted realization** | Add verified outcome attribution from real downstream actions and show that retrieved episodes improve later decisions in controlled experiments; do not treat generic logs as episodes |
 | Semantic memory | General facts and world knowledge | `SemanticFact`, `SemanticFactRevision`, `SemanticMemoryService`, `SemanticAdmissionPolicy`, PostgreSQL adapter | Valid-time and knowledge-time are separate; sourced facts are staged and conservatively activated; model-derived facts require review | **Strong adapted realization** | Provide explicit full-graph semantic learning/write action and evaluate whether future retrieval actually consumes admitted facts; preserve authoritative source-system boundary |
-| Procedural memory | Implicit procedural knowledge in LLM weights and explicit procedures/code | `ProcedureVersion`, `ProcedureArtifactReference`, `ProceduralMemoryService`, B2 recovery artifacts, F-03 promotion service and V012 store | Immutable artifact references and lifecycle `DRAFT → VALIDATED → ACTIVE → RETIRED`; approved B2 drafts can be staged for separate review/activation | **Strong for explicit procedures; partial overall** | Complete the full-graph B2 reuse path; decide and document whether model-weight learning is explicitly out of scope or supplied through a separately governed model-adaptation adapter; code/prompt change must remain reviewed and versioned |
+| Procedural memory | Implicit procedural knowledge in LLM weights and explicit procedures/code | `ProcedureVersion`, `ProcedureArtifactReference`, `ProceduralMemoryService`, B2 recovery artifacts, F-03 promotion service, V012 and `CognitiveCycleDecisionServices.retrieveActive` | Immutable artifact references and lifecycle `DRAFT → VALIDATED → ACTIVE → RETIRED`; approved B2 drafts can be independently activated, condition-matched and supplied as typed knowledge to later M5 requests | **Strong adapted explicit-procedure governance and future-cycle reuse; weights/code remain out of scope** | Evaluate future-case transfer and document model-weight learning/self-modifying code as excluded or separately governed; M3 action authorization remains independent |
 | Grounding actions | External actions interact with the environment through grounding | `SupplyChainPerceptionActions`, `SupplyChainGroundingActions`, action descriptors, `ActionDispatcher`, `CapabilityAuthorizer`, idempotency and resource guards | Action plan is a proposal; approval, revalidation, capability checks and dispatch are separate; simulator is the environment | **Adapted realization** | Add real-world adapter only if the deployment target requires it; for the book, clearly label the simulator as the grounding environment and do not claim live ERP/WMS/supplier/carrier execution |
-| Retrieval actions | Read from long-term memory into working memory; rule-based/sparse/dense or recency/importance/relevance methods are examples | `MemoryRetrievalAction`, `MemoryRetrievalService`, `B1MemoryCandidateFactory`, `B1RetrievalSelector`, evidence-set and workspace paths, R1A working-memory projection | Exact lifecycle-aware retrieval is separated from B1 scoring; selected references are projected into versioned working memory | **Adapted realization** | Integrate activated B2 artifact dereference into the normal full-graph planning context; improve B1 learning so observed use updates accessibility as well as utility; ensure uncertainty can influence pre-inference admission |
+| Retrieval actions | Read from long-term memory into working memory; rule-based/sparse/dense or recency/importance/relevance methods are examples | `MemoryRetrievalAction`, `MemoryRetrievalService`, `B1MemoryCandidateFactory`, `B1RetrievalSelector`, `B1MemoryFeatureLearningService`, active B2 procedure retrieval, evidence-set/workspace paths and R1A projection | Exact lifecycle-aware retrieval is separated from B1 scoring; durable access and verified-use histories plus cue/utility outcomes enrich subsequent candidates; active B2 procedures enter subsequent `PlanningRequest` as typed knowledge | **Integrated adapted realization; adaptive benefit remains evidence-gated** | Keep independent outcome/holdout evaluation; semantic learning-action breadth and full durable host remain GAP-07/08 |
 | Reasoning actions | LLM reasoning reads and writes working memory to generate new information | `ReasoningAction`, `ReasoningProvider`, `LangChain4jReasoningProvider`, `BudgetedReasoningProvider`, separate `WorkingMemoryUpdateAction` | Typed findings, assumptions, hypotheses, evidence references and assessments; write-back is an explicit versioned action | **Adapted realization** | Add end-to-end tests that a reasoning result can be admitted as a typed working-memory update and later consumed; no need to persist private model chain-of-thought |
-| Learning actions | Write to long-term memory: episodic experience, semantic knowledge, implicit procedural parameters and explicit procedures/code; potentially learn retrieval/decision procedures | `EpisodeLearningAction`; episodic/semantic/procedural services; B2-to-procedural bridge; R2 outcome policy trainer/activation boundary | Episode write is registered as internal action; semantic/procedural updates use governed services; retrieval/admission overlay is implemented but shadow-only | **Partial/adapted** | Provide an explicit, composable learning-action contract for semantic/procedural promotion if the action-space claim is intended to cover all memory types; complete and evaluate retrieval-policy learning; keep weight/code changes an explicit governed scope decision |
+| Learning actions | Write to long-term memory: episodic experience, semantic knowledge, implicit procedural parameters and explicit procedures/code; potentially learn retrieval/decision procedures | `EpisodeLearningAction`; episodic/semantic/procedural services; B2 governed promotion/retrieval; B1 verified-use/utility updates; B3 coalition outcome trainer/activation | Episodic write is registered; B2 procedures are governed; verified B3 outcomes can update future B1/B3 policy state behind independent evidence/activation gates | **Substantial adapted learning paths; full CoALA learning-action surface remains scoped** | Add/expose semantic/procedural learning actions where required; keep model-weight/code updates explicitly out of scope; independent learning/effectiveness evidence remains GAP-09 |
 | Planning | Reasoning and retrieval form proposals and evaluate possible grounding or learning actions | M5 planners and candidate/evaluation services; `CognitiveCycleDecisionServices`; proposal, evaluation and selection edges in `CognitiveCycleGraph` | Several planner methods are registered and compared; `NEEDS_MORE_SEARCH` can return to proposal; infeasible candidates can enter B2 | **Strong core correspondence** | Ensure the B5/GraSP governor is integrated if claiming Fan & Lan's complete synthesis runtime; make B6 uncertainty values available to the actual planning algorithms, not only a reference |
 | Execution | Selected grounding/learning action executes | intention governance, approval, `ActionDispatcher`, simulator, action batches/ledger and B6 budget guard | Human approval for state-changing operations; plan revalidation before dispatch; unknown external outcomes go to reconciliation rather than blind retry | **Strong adapted realization** | Full production host and live connector/restart tests remain outside the simulator-backed reference implementation |
 | Observation and repeated decision cycles | Observe action outcome and begin another cycle; CoALA describes a continuously repeated main procedure | `observe-and-reconcile`, working-memory update, episode learning and graph paths back to `load-context` for reconsideration/evidence/recovery | The graph supports bounded planning/reconsideration and observation-driven return; successful terminal execution records an episode and ends the invocation | **Strong bounded-cycle realization** | Add an explicit host-level outer loop/event ingress that invokes the complete graph for subsequent observations/tasks; current `Phase0Application` runs the older simple intake graph, not the full cognitive graph |
@@ -202,223 +205,206 @@ The paper expressly says the five bundles are not independent plug-ins: B4 scope
 
 ## 6. Fan & Lan residual mechanism conformance matrix
 
+The status below distinguishes **mechanism implementation** from **empirical activation/effectiveness**. The first-five increment closes the planned GAP-01–GAP-05 source/control-path work in the selected application scope. It does not create real outcome data, a calibrated profile, or a causal performance result.
+
 ### 6.1 B1 — activation, retrieval latency, downstream utility and maintenance cost
 
-**Paper target:** a runtime memory item carries activation, predicted retrieval latency, downstream value and maintenance cost. Context assembly performs bounded competition; observed use updates both accessibility and utility. (Fan & Lan, §VI-C, B1.)
+**Paper target:** a runtime memory item carries activation, predicted retrieval latency, downstream value and maintenance cost. Context assembly performs bounded competition; observed use updates accessibility and utility. (Fan & Lan, §VI-C, B1.)
 
-| Field | Current code | Assessment and missing invariant |
+| Field | Current code | Assessment and boundary |
 |---|---|---|
-| **S — State** | M2 memory records become `B1MemoryCandidate` values; feature provider supplies access history, cue associations, expected utility, context units, measured I/O latency and maintenance profile | Explicit candidate state exists. Several features are host-supplied; durable, complete access/cue history is not a first-class PostgreSQL B1 feature store |
-| **C — Control** | `B1RetrievalSelector` scores, filters and admits candidates | Real selector authority, not merely a label |
-| **T — Trigger** | Context/evidence assembly after exact M2 retrieval and before workspace admission | Integrated in the full decision service path |
-| **P — Persistence** | M2 memory records have PostgreSQL adapters; `MemoryMaintenanceAccountingService` uses `MemoryMaintenanceLedger`, whose provided implementation is in-memory; feature history is supplied externally | Partial persistence for B1 feature and maintenance evidence |
-| **F — Failure** | Scope validation, lifecycle validation, deterministic score calculation, candidate-count/context limits and minimum-accessibility/net-utility gates | Explicit local failure/bounding semantics; no full adaptive selector recovery policy |
-| **L — Learning** | R2 can train a candidate-specific score adjustment from separately verified B3 receipts/outcomes and apply it through an authorized overlay. This adjustment changes net utility. It does **not** update the activation/accessibility model or the feature provider's access history. The overlay remains `SHADOW`/`DISABLED` because there is no verified outcome corpus/holdout set | **Defining coupling incomplete:** observed use must update both accessibility and utility. Current feedback addresses only candidate utility. No live D4 learning claim |
-| **R — Resources** | Context-unit capacity, maximum candidates, predicted cognitive latency, measured infrastructure latency, maintenance estimate and bounded outcome adjustment | The resource dimensions are explicitly considered; feature quality depends on host data |
+| **S — State** | Exact `B1MemoryCandidateReference` binds a feature row to memory kind/scope/item ID/item version. `B1MemoryFeatureState` stores retrieval access history, verified downstream-use history, cue associations, expected utility, outcome counters, idempotency keys and CAS revision. | Durable feature state is version-specific; old/new memory revisions do not share learned values. |
+| **C — Control** | `B1MemoryFeatureLearningService` enriches candidates before `B1RetrievalSelector`; only `VerifiedDownstreamOutcomeEvidence` minted from B3 receipt/outcome verification can update the feature row. | The update path is verifier-gated; a model assertion alone cannot write outcome features. |
+| **T — Trigger** | Selected candidate access records an idempotent event; a verified downstream outcome records a separate verified-use event and reward/cue update. Both occur in the normal decision-service path when their inputs are available. | Selection is distinguished from downstream consumption. Checkpoint replay is idempotent. |
+| **P — Persistence** | `PostgresB1MemoryFeatureRepository` persists the complete record through a scoped CAS row; V014 installs the table. In-memory repository is available for tests. | History is bounded to 64 entries; feature updates are limited to exact memory revisions. |
+| **F — Failure** | Scope mismatch, malformed reference, stale revision, duplicate event, time regression and repeated CAS contention are rejected or retried within a bounded limit. | Fail-closed feature attribution; no cross-scope training. |
+| **L — Learning** | Retrieval access and verified-use timestamps feed the next candidate's activation/accessibility input; verified useful/harmful/neutral outcomes update expected downstream utility and cue-association strength with bounded updates. | **Implementation path complete; runtime learning remains inactive or unproven without real verified outcomes and an authorized active feedback policy.** Tests prove the state transition and persistence contract, not retrieval improvement. |
+| **R — Resources** | Candidate count/context budget, retrieval latency, infrastructure latency, maintenance cost and bounded feature history constrain selection. | Feature values and limits are explicit engineering choices, not equations prescribed by Fan & Lan. |
 
-**Code:** `B1MemoryCandidateFactory`, `B1CandidateFeatureProvider`, `RecencyFrequencyActivationEstimator`, `CognitiveRetrievalLatencyModel`, `B1RetrievalSelector`, `MemoryMaintenanceAccountingService`, R2 feedback trainer/activation service.  
-**Assessment:** **Partial realization.**  
-**Provisional E/D:** **E3/D3 active** for the candidate-selection control: functionally comparable memory-admission control through a custom organization; the selector autonomously runs at context assembly. A D4 utility-adjustment capability exists behind verified evidence and separate activation, but it is dormant and does not complete B1 because accessibility is not updated.  
-**Acceptance needed:** durable access/cue/use features; verified outcome attribution; update both activation/accessibility and downstream utility; demonstrate on independent holdout units that the coupled selector beats or justifies its cost against top-k and current adaptive-memory baselines without reducing relevant recall.
+**Code:** `B1MemoryCandidateReference`, `B1MemoryFeatureState`, `B1MemoryFeatureLearningService`, `PostgresB1MemoryFeatureRepository`, `B1RetrievalSelector`, `CognitiveCycleDecisionServices`, V014, `B1MemoryFeatureLearningServiceTest`, B3 outcome verification path.  
+**Assessment:** **Integrated adapted implementation; empirical adaptive benefit pending.**  
+**Provisional E/D:** **E3/D3 for the active selection control.** A verified outcome can support a D4-like policy update only when evidence and activation gates permit it; no D4 performance claim is made for the current runtime configuration.  
+**Still required:** verified outcome corpus, independent holdout, activation approval and matched comparison against top-k/adaptive retrieval baselines for recall, precision, utility, latency, cost and harmful-memory suppression.
 
 ### 6.2 B2 — typed impasse, protected substate, typed return and resolution compilation
 
 **Paper target:** classify an impasse, freeze the relevant parent state, open a bounded recovery subgraph, return a typed resolution and compile only the dependencies that made the resolution valid. (Fan & Lan, §VI-C, B2; Soar lineage in §III-A.)
 
-| Field | Current code | Assessment and missing invariant |
+| Field | Current code | Assessment and boundary |
 |---|---|---|
-| **S — State** | `ImpasseSignal`, `ImpasseResolutionCase`, `ParentContextSnapshot`, protected objective/scope/version references, child state, `ChildResolutionResult`, resolution findings and recovery drafts/artifacts | Strong explicit parent/child state model |
-| **C — Control** | `DeterministicImpasseDetector`, `ImpasseResolutionService`, `B2ResolutionSubgraph`, parent-result validation and governed draft/promotion services | Actual trigger and child-resolution authority in graph; promotion requires separate actors |
-| **T — Trigger** | Typed validator signals, unresolved planning choice and full-graph `NO_FEASIBLE_CANDIDATE`/impasse routing | Integrated into the full graph, including the F-01–F-04 stack |
-| **P — Persistence** | PostgreSQL impasse case/draft repositories; V011 for drafts/evidence; F-03 immutable content-addressed artifact store and V012; procedural-memory versions | Durable component persistence exists. Default evaluation host uses in-memory procedural/artifact adapters; no production full-host assembly |
-| **F — Failure** | Child capabilities are bounded by parent grant and allowlist; parent identity/objective/WM version rechecked; typed disposition; terminal case not reopened; scope/evidence/action descriptor freshness checks; bounded retries | Strong explicit failure and corruption controls |
-| **L — Learning** | Approved draft may be staged as a CoALA procedural `DRAFT`; independent procedural review and activation are required; `retrieveActive` returns verified typed planning knowledge. Ordinary M2 retrieval/B1 candidate formation can expose an active procedure reference. However, source call-site inspection found no normal full-graph production call to `retrieveActive`; the dereference/reuse operation is exercised through service tests/host API rather than the planner's standard request construction | **Important remaining gap:** the actual future-cycle planner must receive the condition-matched typed procedure content through an explicit full-graph path. A service API plus a memory reference does not prove automated reuse. No repeated-failure/transfer evidence |
-| **R — Resources** | Child action/read allowlist, parent capability subset, bounded action budget, deadline and bounded retry/promotion attempts | Explicit bounded recovery and governance |
+| **S — State** | Typed impasse/case, protected `ParentContextSnapshot`, child state, typed result, resolution findings, immutable recovery artifact and active procedural-memory version; objective/scope/working-memory and action descriptor fingerprints are bound. | Explicit parent/child state and reusable procedure knowledge are represented separately. |
+| **C — Control** | `DeterministicImpasseDetector`, `ImpasseResolutionService`, `B2ResolutionSubgraph`, `RecoveryProcedureDraftService`, `RecoveryProcedurePromotionService` and `CognitiveCycleDecisionServices`. | Recovery draft approval, procedural review and activation remain separate governance decisions. |
+| **T — Trigger** | Typed impasse/validator signal and `NO_FEASIBLE_CANDIDATE` route to B2. In a later planning cycle, the condition resolver supplies trusted keys and `retrieveActive` is called during planning-input construction. | Future-cycle use is on the standard decision path, not merely an exposed service method. |
+| **P — Persistence** | B2 cases/drafts/evidence use PostgreSQL repositories; V011 stores draft/evidence state; V012 stores immutable content-addressed recovery artifact payloads; procedural-memory versions persist separately. | Active procedure content is revalidated when retrieved. The default full evaluation host still uses in-memory adapters for selected stores; durable application-wide composition remains open. |
+| **F — Failure** | Parent objective/scope/WM version, condition key, evidence freshness and exact registered action descriptors are rechecked. Stale/mismatched content is rejected. Retrieved procedure knowledge does not grant capability or bypass M3 authorization. | Bounded, typed and evidence-scoped reuse. |
+| **L — Learning** | An approved B2 draft is staged as procedural-memory DRAFT, independently reviewed/activated, then condition-matched and revalidated in a later cycle. Typed evidence/provenance and descriptor references enter `PlanningRequest`; sequential, ToT and MCTS planning use them as soft search priorities. | **Future-cycle knowledge reuse implemented.** This is not literal Soar chunking into production rules: it is a governed, immutable, application-specific procedure artifact and planning bias. Transfer/repeated-failure reduction remains empirically untested. |
+| **R — Resources** | Child action/read allowlist, parent capability subset, bounded action budget/deadline, retries, artifact size and descriptor freshness constraints. | No capability grant is inherited from retrieved procedural memory. |
 
-**Code:** `DeterministicImpasseDetector`, `ImpasseResolutionCase`, `ParentContextSnapshot`, `ChildResolutionResult`, `ImpasseResolutionService`, `B2ResolutionSubgraph`, `RecoveryProcedureDraftService`, `RecoveryProcedurePromotionService`, `RecoveryProcedureArtifactCodec`, V011/V012 PostgreSQL adapters.  
-**Assessment:** **Substantial adapted realization, still partial at compilation-to-reuse integration.**  
-**Provisional E/D:** **E2/D3** for the typed parent/child impasse and return structure; **D2** for the reusable-procedure edge as presently connected to normal graph execution. The governed artifact is not Soar's exact chunking/production representation.  
-**Acceptance needed:** invoke exact-scope `retrieveActive` as part of the normal planner context construction; supply the typed conditions/effects/action references to planner evaluation; revalidate before use; prove that the resulting plan still passes ordinary M3 authorization (procedure retrieval must never be an execution grant); demonstrate repeated-failure reduction on independent future cases and reject overgeneralized reuse.
+**Code:** `B2ResolutionSubgraph`, `RecoveryProcedureDraftService`, `RecoveryProcedurePromotionService`, `RecoveryProcedureArtifactCodec`, `ProceduralMemoryService`, `CognitiveCycleDecisionServices`, `PlanningRequest`, planner rankers, V011/V012, `ReusableRecoveryProcedurePlanningTest`.  
+**Assessment:** **Substantial integrated adapted implementation with next-cycle reuse.**  
+**Provisional E/D:** **E2/D3** for typed parent/child control; D4-like cross-cycle adaptation is plausible for activated verified procedure artifacts, but it is human-governed and does not reproduce Soar's exact chunking operator. Keep scientific coding provisional.  
+**Still required:** independent future-case transfer/repeat-failure experiments, test distribution shift/overgeneralization, and a durable full-graph composition test using PostgreSQL adapters across process restart.
 
 ### 6.3 B3 — typed content competition, bounded workspace, broadcast and admission learning
 
-**Paper target:** typed candidates from memory, agents, tools, monitors and plans compete for a bounded shared workspace; a winning coalition is broadcast for one cycle; downstream utility changes future admission. (Fan & Lan, §VI-C, B3; LIDA comparison in §III-B.)
+**Paper target:** typed content candidates compete for a capacity-limited shared workspace; a winning coalition is broadcast for a cycle; downstream utility affects later admission. (Fan & Lan, §VI-C, B3; LIDA comparison in §III-B.)
 
-| Field | Current code | Assessment and missing invariant |
+| Field | Current code | Assessment and boundary |
 |---|---|---|
-| **S — State** | `WorkspaceCandidate` kinds currently include `OBSERVATION`, `MEMORY`, `HYPOTHESIS`, `CONSTRAINT`, `CANDIDATE_PLAN`, `POLICY`; pair/triple `WorkspaceCoalitionProposal`, workspace snapshot, receipts, downstream outcomes and experiment-unit fingerprints | Typed state and explicit coalitions exist. Candidate types do not separately express tools, monitors and agents, which are explicit in the paper's proposal |
-| **C — Control** | `WorkspaceAdmissionService`, `WorkspaceCoalitionCompetitionPolicy`, `WorkspaceSnapshot` validation and `WorkspaceBroadcastService` | Admission authority is explicit; mandatory items are protected; singleton and coalition alternatives are compared |
-| **T — Trigger** | Pre-inference workspace admission; selected snapshot is synchronously broadcast to registered consumers for the cycle | Integrated before M5 proposal generation |
-| **P — Persistence** | Workspace snapshots use `InMemoryWorkspaceRepository` in the full evaluation host and are cycle-bounded/ephemeral; B3 consumer receipts and separately verified outcomes have PostgreSQL repositories | Receipt/outcome durability exists; no durable workspace event/outbox/replay store is wired in the full host |
-| **F — Failure** | Conflicts, mandatory capacity, insufficient coverage, deterministic proposal selection, hard maximum of 512 evaluated coalitions, singleton-only fallback if coalition enumeration is truncated; receipt identity/consumption checks | Strong bounded failure semantics; synchronous broadcast rather than durable async delivery |
-| **L — Learning** | R2 receipt-linked verified outcomes can train candidate-specific utility adjustments for B1/B3. This changes later candidate base scores when an authorized overlay is active. Current outcome attribution is per candidate, not per winning coalition/proposal; the overlay remains disabled with no verified outcome corpus | **Defining B3 gap:** downstream consequences of the admitted coalition/broadcast must update future coalition admission. Current system adjusts candidate scores and recomputes deterministic coalition scores; it does not learn coalition-level interaction/synergy or broadcast utility from coalition-specific outcome attribution |
-| **R — Resources** | Bounded workspace capacity, maximum candidate count, context units, mandatory-content priority, candidate utility/reliability/risk and coverage-value scoring; coalition search bound | Explicit bounded admission policy |
+| **S — State** | `WorkspaceCandidate`, singleton/pair/triple `WorkspaceCoalitionProposal`, preference key, exact selected proposal fingerprint/member set, workspace snapshot/version, broadcast-consumer receipts, verifier-bound coalition outcome and experiment-unit fingerprint. | Coalition identity is first-class and outcome attribution records the joint selected set. The candidate taxonomy remains narrower than memory/agents/tools/monitors/plans in the paper's proposal. |
+| **C — Control** | `WorkspaceAdmissionService` compares bounded singleton and coalition proposals; an active, scope-bound `WorkspaceCoalitionOutcomeAdjustment` affects a future matching coalition preference key. `WorkspaceBroadcastService` dispatches the admitted snapshot and receipts are persisted. | First-class bounded coalition competition is implemented; it is an engineering analogue, not a complete LIDA global workspace. |
+| **T — Trigger** | Pre-inference workspace admission and synchronous broadcast; consumed coalition receipt plus independently verified downstream outcome triggers feedback evidence. | The receipt/outcome binding is exact to the selected coalition, not inferred from a generic event. |
+| **P — Persistence** | Coalition receipt/outcome evidence persists through PostgreSQL V015; workspace snapshots remain cycle-bounded and use an in-memory repository in the evaluation host. | Evidence persists; full workspace/outbox/replay durability is part of GAP-08. |
+| **F — Failure** | Bounded proposal enumeration, mandatory-capacity/coverage checks, deterministic ordering, singleton fallback on truncation, exact receipt/proposal/member/fingerprint verification, independent holdout and approval gates. | Truncated search does not claim to have found the global optimum. |
+| **L — Learning** | `B3CoalitionFeedbackPolicyService` trains from verified coalition outcomes and produces a SHADOW candidate. It requires distinct training units, non-overlapping paired independent holdout runs, acceptable resource/safety results and a separate activation approval. An active policy changes future admission by coalition preference key. | **Coalition-level learning path implemented; currently not active without verified outcome/holdout evidence.** This is the code-level learning operator, not proof that it improves workspace quality. |
+| **R — Resources** | Workspace capacity, candidate limits, pair/triple search cap, context units, mandatory priority, score/cost/risk and bounded feedback adjustment. | Resource/capacity handling is explicit; no universal LIDA scoring equation is claimed. |
 
-**Code:** `WorkspaceCandidate`, `WorkspaceAdmissionRequest`, `WorkspaceAdmissionService`, `WorkspaceCoalitionCompetitionPolicy`, `WorkspaceCoalitionProposal`, `WorkspaceCoalition`, `WorkspaceSnapshot`, `WorkspaceBroadcastService`, `B3OutcomeEvidenceService`, R2 feedback services.  
-**Assessment:** **Substantial adapted structural realization; outcome-learning component is partial.**  
-**Provisional E/D:** **E2/D3** for explicit bounded content/coalition competition and broadcast trigger. The R2 candidate-score feedback has a dormant D4-like update capability, but it is not coalition-outcome learning and is not active on evidence.  
-**Acceptance needed:** represent agent/tool/monitor candidates where the runtime needs them; bind outcomes to the exact coalition proposal and broadcast recipients; train/adapt coalition-level admission from verified downstream utility; persist/replay workspace/receipt lifecycles if restart/resume is part of the runtime target; compare against top-k and a Global Workspace Agent-like selector on matched experiments; prove that decisive/rare evidence is not suppressed.
+**Code:** `WorkspaceAdmissionService`, `WorkspaceCoalitionCompetitionPolicy`, `WorkspaceCoalitionProposal`, `WorkspaceCoalitionReceipt`, `B3OutcomeEvidenceService`, `B3CoalitionFeedbackPolicyService`, `PostgresB3OutcomeEvidenceRepository`, V015, `B3OutcomeEvidenceServiceTest`, `WorkspaceAdmissionServiceTest`.  
+**Assessment:** **Integrated adapted coalition competition and learning protocol; empirical activation pending.**  
+**Provisional E/D:** **E2/D3** for explicit bounded competition and broadcast; a D4-like coalition-preference update is implemented behind verified independent evidence and approval, but inactive in the current evidence state. This is not a claim of LIDA migration or reproduction.  
+**Still required:** independent matched comparisons (singletons/top-k/GWA-like baselines), synergy/rare-evidence suppression/cost/truncation outcomes, and real activated policy evaluation. Workspace snapshot durability remains GAP-08.
 
 ### 6.4 B4 — persistent intention, reconsideration and method authority
 
-**Paper target:** a persistent intention stores committed goal, rationale, plan, continuation condition, reconsideration triggers, authority and termination status. A governor may continue, delegate, suspend, abandon or change method. (Fan & Lan, §VI-C, B4; BDI/MIDCA comparison in §III-C.)
+**Paper target:** a persistent intention contains committed goal, rationale, plan, continuation condition, reconsideration triggers, authority and termination status; a governor can continue, delegate, suspend, abandon or change method. (Fan & Lan, §VI-C, B4; BDI/MIDCA comparison in §III-C.)
 
-| Field | Current code | Assessment and missing invariant |
+| Field | Current code | Assessment and boundary |
 |---|---|---|
-| **S — State** | `RecoveryIntention`: ID, scope, objective ID/fingerprint/owner, protected constraints, current method reference, status, version/timestamps, reason, resume state, delegation ID and completion proof | Objective and method are durable. The record does not separately encode all proposed fields: a full plan object, continuation condition, typed reconsideration-trigger policy, and explicit authority field are not present as first-class intention data |
-| **C — Control** | `RecoveryIntentionService`, `CognitiveCycleAuthorityPort`, `PlannerMethodResolver`, `PlannerSelectionOverride`, `PlannerRouter` | F-01 makes method authority live: selected registered planner follows the persisted intention binding, not a model proposal; objective fingerprint and intention version bind the override |
-| **T — Trigger** | Explicit reconsideration, delegation return, suspension/resume, completion/termination; method switch only after reconsideration and matching objective fingerprint | Actual transition path reaches the next planner invocation |
-| **P — Persistence** | In-memory and PostgreSQL intention repositories with compare-and-set/version history | Durable persistence for the intention state |
-| **F — Failure** | Protected objective hash, version checks, missing/unknown method rejection, invalid transition rejection, planner session invalidation on changed method/objective binding, completion proof verification | Strong objective-preservation semantics |
-| **L — Learning** | Method change alters the next invocation's planner choice. No outcome-trained method preference policy is claimed | B4 requires live method authority; it does not require autonomous online learning of method choices. However, effectiveness of reconsideration is not experimentally established |
-| **R — Resources/governance** | Delegation, suspension, actor/reason termination, explicit approval/authority boundary, bounded reconsideration rounds | Strong application governance; fuller authority/continuation schema remains |
+| **S — State** | `RecoveryIntention` stores objective/scope/fingerprint/owner, protected constraints, current method, rationale, active plan reference, continuation condition, typed reconsideration triggers, `IntentionAuthorityPolicy`, status/version/timestamps, delegation/resume state, completion proof and typed termination reason/actor. | The proposed intention fields are explicit rather than inferred from a generic reason string. |
+| **C — Control** | `RecoveryIntentionService`, `CognitiveCycleAuthorityPort`, `PlannerMethodResolver`, `PlannerSelectionOverride` and `PlannerRouter`. | F-01 binds the stored method to the next registered planner; objective fingerprint/intention version are verified and stale/unknown methods fail closed. |
+| **T — Trigger** | Continuation condition is checked at lifecycle transitions; only configured typed reconsideration triggers authorize reconsideration; delegate return, suspend/resume, verified completion and authorized termination have explicit transitions. | Model proposals do not themselves exercise intention authority. |
+| **P — Persistence** | Scoped in-memory and PostgreSQL repositories with CAS/version history and immutable objective identity. | Durable intention state is implemented; full host composition across all ports remains GAP-08. |
+| **F — Failure** | Actor policy, objective hash, intention version, method registry, allowed trigger, termination authorization and completion proof are validated. | Wrong-method, stale-intention, unauthorized termination and objective drift reject. |
+| **L — Learning** | A governed method change changes the next planner invocation while the committed objective is held fixed. No autonomous method-preference training is claimed or required for the core B4 control hypothesis. | **Application-level B4 control implementation complete; long-horizon effectiveness remains untested.** |
+| **R — Resources/governance** | Owner/governor/delegate/terminator authority, continuation/reconsideration bounds, suspension and delegation transitions. | Application-specific authority policy is explicit. |
 
-**Code:** `RecoveryIntention`, `RecoveryIntentionService`, `RecoveryMethodReference`, `ObjectiveFingerprint`, `PlannerMethodResolver`, `PlannerSelectionOverride`, planner routing and full-graph F-01 tests.  
-**Assessment:** **Strong adapted realization, but not a complete copy of the proposed intention record/governor.**  
-**Provisional E/D:** **E2/D3** for durable intention state and trigger-driven planner-method control. No E1 historical inheritance claim is made; it is an application-level structural transfer.  
-**Acceptance needed:** add explicit continuation conditions, structured reconsideration triggers and rationale; make the plan/trajectory and authority semantics explicit; test stale commitments, wrong-method selection, oscillation, premature stopping, objective drift and the full decision set; add controlled evaluations against a no-B4 baseline.
+**Code:** `RecoveryIntention`, `ContinuationCondition`, `ReconsiderationTrigger`, `IntentionAuthorityPolicy`, `IntentionTerminationReason`, `RecoveryIntentionService`, F-01 planner-method resolver/override, `CognitiveCycleLifecycleServices`, `RecoveryIntentionServiceTest`, `CognitiveCycleDecisionServicesTest`.  
+**Assessment:** **Strong adapted implementation of the B4 intention/method-authority contract.**  
+**Provisional E/D:** **E2/D3** for durable intention structure and trigger-driven planner-method control; this is an application-level structural transfer, not historical BDI/MIDCA inheritance.  
+**Still required:** matched long-horizon B4-on/B4-off experiments for goal retention, method oscillation, recovery and premature stopping; durable full-host/restart coverage remains GAP-08.
 
 ### 6.5 B5 — skill governance closed by GraSP
 
-**Paper disposition:** Fan & Lan's adversarial closest-baseline screening closes B5 through GraSP. GraSP combines calibrated confidence routing between a typed skill DAG and ReAct, node pre/postcondition verification, five bounded typed repair operators, and escalation to global replanning or ReAct. The paper characterizes this as an E3/D4 convergence case and removes it from the residual intervention count. (Fan & Lan, §VI-C, B5.)
+**Paper disposition:** Fan & Lan's closest-baseline analysis closes B5 through GraSP; B5 is not a sixth residual hypothesis. The GraSP-like skill-governance capability nevertheless remains a dependency for the paper's bounded synthesis-runtime claim in §VI-D/§VI-E. It includes confidence routing between a typed skill DAG and ReAct, node pre/postcondition verification, five bounded repair operators and escalation. (Fan & Lan, §VI-C B5, §VI-D–§VI-E.)
 
 | Question | Current project state |
 |---|---|
-| Is B5 an additional residual gap like B1/B2/B3/B4/B6? | **No.** The paper closes it as already represented by GraSP in the reviewed corpus. |
-| Does this repository implement GraSP or an equivalent typed skill governor? | **No.** Search of active Java production sources found no typed skill DAG, GraSP router, node pre/postcondition lifecycle, five repair operators, or ReAct fallback subsystem. |
-| Does §VI-E synthesis runtime reuse a GraSP-like skill governor? | **Yes.** Fan & Lan explicitly treat a migrated B5 skill governor as an implementation dependency. |
-| What is needed if the project claims the complete §VI-E synthesis runtime? | Integrate a GraSP-like governor or declare and test a versioned external dependency that supplies the full routing/verification/repair/fallback contract. |
+| Is B5 an additional residual like B1/B2/B3/B4/B6? | **No.** It is closed as a residual by the paper's closest-baseline analysis. |
+| Does this repository implement GraSP/a complete equivalent? | **No.** The repository does not supply the complete typed skill-DAG compiler/executor, five repair operators, confidence router and ReAct fallback as an integrated governor. |
+| Is a GraSP-like governor needed to claim the whole bounded synthesis runtime? | **Yes.** It must be integrated or supplied as a versioned, tested dependency. |
+| What is the current decision? | Keep GAP-06 open; do not claim §VI-E synthesis-runtime completeness. Do not describe B5 as an unimplemented sixth residual. |
 
-**Assessment:** **Closed candidate in the paper; absent local implementation; unresolved synthesis-runtime dependency.** Do not describe B5 as a sixth residual hypothesis, and do not claim the entire Fan & Lan synthesis runtime until this dependency is met.
+**Assessment:** **Correctly closed residual; local synthesis dependency remains absent.**
 
-### 6.6 B6 — calibrated uncertainty, resource allocation, interruption and stopping
+### 6.6 B6 — uncertainty, resources, interruption and stopping
 
-**Paper target:** one calibrated uncertainty object accompanies consequential proposals and propagates through memory admission, planning, tool authorization, execution monitoring and stopping. Resource policy allocates bounded compute/verification/action resources and supports interruption/stopping. (Fan & Lan, §VI-C, B6.)
+**Paper target:** uncertainty and resource controls affect consequential decisions, including evidence selection, planning, verification, tool authorization, execution monitoring and stopping. (Fan & Lan, §VI-C B6; EPIC/Sigma comparisons in §III-D.)
 
-| Field | Current code | Assessment and missing invariant |
+| Field | Current code | Assessment and boundary |
 |---|---|---|
-| **S — State** | `UncertaintyAssessment` with `EVIDENCE`, `HYPOTHESIS`, `PLAN` signals, provenance, scope/execution/version and calibration metadata; `ResourceBudget`, `ResourceBudgetSnapshot`, `ResourceUsage`, planner local budget and durable reservation state | Explicit uncertainty and resource objects. The calibration type supports `CALIBRATED`, but active source evidence identifies runtime assessments as `NOT_CALIBRATED` |
-| **C — Control** | `MetaControlGovernor`, `ResourceBudgetExecutionGuard`, `LeasedResourceBudgetLedger`, B6 reservation/recovery services, full-graph state and planner downshift | Explicit governor and shared resource authority; F-02 causes downshift to affect the next `PlanningRequest` |
-| **T — Trigger** | Next-step resource requirement, remaining budget fraction, actual overrun, deadline, and configured maximum uncertainty thresholds | Triggered control transitions operate in graph, not only as metrics |
-| **P — Persistence** | PostgreSQL durable resource budget ledger, lease ownership/fencing and migrations V009/V010; assessment store is host-owned and not established as a calibrated production dataset | Strong resource persistence; uncertainty calibration/evidence persistence is incomplete |
-| **F — Failure** | `STOP`, `REQUEST_EVIDENCE`, `INTERRUPT_FOR_HUMAN`, `REDUCE_COMPUTATION`; typed planner downshift is applied cumulatively to consumable planner resources; the execution-wide shared resource ceiling remains unchanged | Strong local resource/failure controls. No general scheduler for concurrent tasks, process preemption or tool-level interruption is claimed |
-| **L — Learning** | No calibration-update or outcome-trained uncertainty policy; no future meta-control policy update from verified outcomes | Missing learning operator for calibrated uncertainty/resource adaptation |
-| **R — Resources/governance** | Resource vector (search expansions, reasoning evaluations, model calls, MCTS rollouts and related limits), shared guard, leases/fences, hard deadline, planner-local budget scale and human approval boundaries | Strong planner/action resource guard; resource allocation does not yet cover every scheduler/tool/verification cost dimension |
+| **S — State** | `UncertaintyAssessment` has evidence/hypothesis/plan signals, scope/execution/trigger/revision and calibration metadata. `UncertaintyCalibrationProfile` stores target-bound bins, training/holdout fingerprints, labels, ECE and reviewer/approver identity. | Versioned uncertainty and auditable target-specific calibration are modeled. |
+| **C — Control** | `UncertaintyCalibrationTrainer/Service`, lifecycle calibration binding, `UncertaintyGovernanceDirective`, `MetaControlGovernor`, B1 selector, B3 admission, M5 alternative-hypothesis review, independent plan verification and F-02 planner downshift. | Calibrated directive is bound to exact assessment/profile/version; missing or stale independent review fails closed. |
+| **T — Trigger** | Target-specific validated profile is applied to an assessment. Directive thresholds govern B1 evidence diversity, B3 workspace diversity, M5 independent alternative-hypothesis review and revalidation-time independent plan verification. Resource triggers still drive reduce/stop/interruption. | There is an actual cross-stage value-dependent control path at these named stages, not universal propagation. |
+| **P — Persistence** | Calibration profiles and observations are persisted through PostgreSQL V013; resource budgets/reservations remain on V009/V010; assessment persistence remains host/domain supplied. | Calibration lifecycle persistence exists, but no production-calibrated profile is installed/active in current evidence. |
+| **F — Failure** | Calibration rejects insufficient labels, non-independent training/holdout IDs/evidence, scope/target mixing and ECE above threshold; directives remain neutral when `NOT_CALIBRATED`; missing alternative/plan verifier fails closed. | Calibration failure does not turn heuristic values into probabilities. |
+| **L — Learning** | Target-specific training and independent validation can produce a versioned calibrated profile, and separately approved activation affects future governance directives. | **Calibration workflow implemented; no real labelled corpus/validated active profile exists.** Test fixtures verify the lifecycle, not real calibration quality. |
+| **R — Resources/governance** | ECE gate (configured maximum 0.15), minimum 20 labelled samples per uncertainty dimension for training and independent validation, target/scope binding, separate reviewer/approver, B1/B3 diversity and M5 verification costs; F-02 keeps hard execution ceiling immutable. | These numerical thresholds are application engineering choices, not values prescribed by Fan & Lan. No complete concurrent scheduler or tool-level preemption is claimed. |
 
-**Critical propagation detail:** the graph carries a versioned uncertainty **reference** through workspace/planning/authorization boundaries and rechecks currency. That proves identity and freshness binding, not that the actual calibrated uncertainty values affect every stage. In the normal ordering, B1 retrieval selection occurs before the uncertainty-assessment node. `WorkspaceAdmissionRequest` and `PlanningRequest` carry the assessment reference rather than the uncertainty channels as actionable scores; workspace admission does not incorporate them into coalition scoring; M5 planners do not receive a calibrated uncertainty vector as an active search/risk control; the meta-governor later consumes the assessment's maximum uncertainty for its local policy. Therefore B6 has meaningful reference propagation and a working resource downshift, but **not the paper's calibrated cross-stage value propagation**.
-
-**Code:** `UncertaintyAssessment`, `UncertaintySignal`, `MetaControlGovernor`, `PlannerBudgetDownshift`, `ResourceBudget`, `ResourceBudgetExecutionGuard`, PostgreSQL ledger and leases, F-02 graph/planning request changes.  
-**Assessment:** **Substantial adapted resource-control realization; uncertainty integration remains partial.**  
-**Provisional E/D:** **E3/D3** for the resource-governance and interruption control: a functionally comparable solution through Java budget ledgers and a meta-governor, with triggers that change planning/authorization behavior. No D4 uncertainty-learning claim.  
-**Acceptance needed:** create and validate task-specific calibration profiles on an independent labelled dataset; carry the calibrated value vector—not just the reference—into pre-retrieval/context selection, B3 coalition admission, M5 strategy/search allocation, M3 tool authorization, execution monitoring and stopping; evaluate calibration, selective risk, resource use, interruptions and task outcomes; include verification costs and any intended parallel scheduling/preemption in the resource policy.
-
----
+**Code:** `UncertaintyCalibrationObservation/Profile/Trainer/Service/Repository`, `PostgresUncertaintyCalibrationRepository`, V013, `UncertaintyGovernanceDirective`, `CognitiveCycleLifecycleServices`, `CognitiveCycleDecisionServices`, `IndependentAlternativeHypothesisReview`, `IndependentPlanVerification`, `MetaControlGovernor`, `ResourceBudgetExecutionGuard`, F-02 downshift.  
+**Assessment:** **Calibration and selected-stage governance implementation complete; operational calibration and full paper-wide propagation remain incomplete.**  
+**Provisional E/D:** **E3/D3** for resource/interruption authority and the implemented calibrated-control pathway. No D4 uncertainty-learning claim is made for the current runtime because there is no validated active profile.  
+**Still required:** real target-specific labelled outcomes, independent calibration/validation, calibration report, sequential/stress and transfer evaluations; expand controls to additional stages only where the application explicitly claims them (M3 authorization/execution monitoring is not yet driven by calibrated numeric values).
 
 ## 7. Cross-bundle synthesis and full-graph integration
 
-Fan & Lan's §VI-D/§VI-E dependency structure is the most demanding test of the current implementation. It is not enough that each service has a unit test. The full agent must pass the correct authoritative state and decision across component boundaries.
+The current graph integrates the selected B1/B2/B3/B4/B6 paths; integration does not imply that every historical architecture is reproduced or that every empirical effect is demonstrated.
 
-| Required dependency | Current implementation | Remaining integration gap |
+| Required dependency | Current implementation | Remaining boundary |
 |---|---|---|
-| B4 scopes B2 recovery to the committed parent objective | B2 child context receives parent objective/scope/working-memory identity and checks result against the protected snapshot; B4 objective fingerprint is carried and checked | Complete intention schema/trigger policy remains; add adversarial tests across long-running parent/child recovery and restart |
-| B2 produces reusable resolutions for skill governance | F-03 stages approved drafts into CoALA procedural memory, independently reviewed/activated; V012 stores immutable artifact payloads | Normal full-graph planning does not call `retrieveActive` to hydrate condition-matched reusable procedure content; B5/GraSP governor is absent |
-| B1 and migrated skills provide candidates to B3 | B1 candidates are derived from M2 retrieval; B3 admits typed candidates and compares singleton/pair/triple options | No GraSP skill candidates; B1 accessibility learning is incomplete; B3 outcome adjustment is per-candidate rather than coalition-level |
-| B3 decides what becomes globally available for a cycle | Bounded workspace snapshot and synchronous consumer broadcast; receipts/outcomes are persisted and validated | Workspace snapshot itself is ephemeral/in-memory; no durable outbox/replay; outcome corpus remains empty and feedback shadow-only |
-| Workspace evidence can trigger B4 reconsideration | Graph supports observation/evidence/reconsideration routes into context loading and intention governance | Need controlled experiments proving this dependency improves goal retention or avoids method oscillation |
-| B6 governs verification, tool authorization, interruption and stopping across bundles | Shared resource guard, exact uncertainty reference checks, planner downshift, approval and stop routes | Uncertainty values are not calibrated and do not drive all relevant stages; resource vector is not a complete cross-service scheduler |
-| Durable runtime state includes intention, workspace, memory, skills, uncertainty, budgets and recovery substate | Intention, memory, budgets, cases, action ledgers and B2 artifacts have persistence adapters; checkpointing exists | Workspace is ephemeral; active procedure payload reuse is not in the graph; uncertainty data store/calibration not complete; no GraSP skill state; default full evaluation host composes many in-memory adapters |
+| B4 scopes B2 recovery to a committed parent objective | B2 child context carries parent objective/scope/working-memory identity; B4 intention carries continuation/authority/trigger fields and the method override; B2 result and later reuse are checked against exact objective and current registered actions | Transfer and long-horizon tests remain empirical work; full durable host composition remains GAP-08 |
+| B2 produces future reusable procedural knowledge | Approved B2 artifact is staged/activated through separate CoALA procedural governance; `CognitiveCycleDecisionServices` calls `retrieveActive` each planning cycle with trusted condition keys; `PlanningRequest` receives typed procedure knowledge and provenance | This is soft planning priority, not code compilation or execution authority. M3 still validates/authorizes normal actions. |
+| B1 and B2 knowledge are admitted into B3 | M2 retrieval enriches B1 candidates with durable exact-revision access/use/cue/utility; active B2 procedures can appear as typed procedural candidates; B3 compares singleton and bounded coalition proposals | Feature/policy feedback remains inactive until actual verified corpus and independent approval. Candidate kinds do not fully cover every theoretical source (agents/tools/monitors). |
+| B3 outcome changes future coalition admission | Exact selected coalition/proposal/member/receipt/experiment-unit outcome is verified and stored; B3 trainer can create a shadow preference candidate; future `WorkspaceAdmissionService` reads an explicitly active coalition adjustment | No activated policy or empirical benefit exists in the current corpus. Workspace snapshots remain in-memory in the evaluation host. |
+| B3/workspace evidence can trigger B4 reconsideration | Full graph feeds observations/evidence/reconsideration into the intention lifecycle; B4 owns goal/method authority | Causal benefit for goal retention/oscillation remains untested. |
+| B6 governs resources and calibrated evidence/verification at selected stages | Shared resource guard and F-02 next-planning-request downshift; exact calibrated directive controls B1/B3 diversity and M5 alternative review/selected-plan verification where an active profile exists | Runtime remains `NOT_CALIBRATED`; calibrated numeric controls are not propagated to every M3/tool/execution stage. GAP-09 remains. |
+| Durable state covers the whole bounded runtime | PostgreSQL adapters exist for memory, B1 features, B2 drafts/artifacts, B3 receipts/outcomes, B4 intentions, B6 profiles and resource leases; runtime checkpointing/restart tests exist | Full application bootstrap is not yet composed to use every durable adapter; evaluation host keeps some in-memory stores; top-level event ingress/outer cycle remains GAP-08. |
+| B5 skill governance participates in the synthesis runtime | B5 correctly remains closed as a residual; no integrated GraSP-like governor is in this repository | GAP-06 is open for a full §VI-E synthesis-runtime claim. |
 
-### 7.1 Full graph vs production host
+### 7.1 Full graph vs durable application host
 
-`CognitiveCycleApplicationGraph.buildFull/compileFull` is a real composition entry point, and the evaluation host composes the full cognitive graph. The `Phase0Application`, however, still runs the older `SupplyChainIntakeGraph`; it is a local deterministic smoke application, not the complete CoALA/Fan & Lan host. The full evaluation host uses in-memory workspace, procedural memory and recovery-artifact stores by default, even though PostgreSQL adapters exist for selected components. The application module does not yet provide a complete, durable, production-style bootstrap that wires every full-graph port to the PostgreSQL stores and a durable checkpoint saver.
+`CognitiveCycleApplicationGraph.buildFull/compileFull` is the graph composition seam, and the evaluation host composes the full cognitive graph. The default `Phase0Application` still runs the older `SupplyChainIntakeGraph`, not the full CoALA/Fan–Lan host. The full evaluation host still uses in-memory adapters for some workspace/procedural/recovery artifact services even though PostgreSQL adapters exist for many stores. The application module does not yet supply a runnable bootstrap that wires every full-graph port to durable PostgreSQL repositories and a durable checkpoint saver. This remains GAP-08.
 
-This is not a reason to reject the educational architecture. It is a reason not to claim that a fully composed durable production runtime has already been delivered.
+### 7.2 Repeated-cycle boundary
 
-### 7.2 Continuous cycle boundary
+The graph contains bounded internal loops for clarification, evidence requests, retries, B2 recovery, B4 reconsideration, B6 downshift and observation/re-entry. Completion of an objective terminates one graph invocation; fresh top-level observations/tasks require another host invocation. CoALA's continuously repeated main procedure can be hosted by a caller loop, but the supplied full application host/event-ingress contract is not complete. Treat this as an application-host gap, not a missing CoALA decision-process node.
 
-`CognitiveCycleGraph` has internal loops for clarification, evidence requests, planning retries, B2 recovery, B4 reconsideration, B6 downshift and observation-driven re-entry. A completed objective records an episode and terminates that graph invocation; new top-level perceptual input is expected to arrive through another host invocation. CoALA describes a continuously repeated main procedure. A caller-driven invocation model can implement that pattern, but the currently supplied application entry point does not provide a full always-running perception/decision host. The outer-loop contract should be made explicit and tested before claiming complete cycle hosting.
+## 8. Validation and empirical evidence: what tests do and do not establish
 
----
+### 8.1 Source and targeted-test evidence for GAP-01–GAP-05
 
-## 8. Empirical evidence: what green CI does and does not establish
+The first-five candidate was validated locally as follows:
 
-### 8.1 What is established
+- Eight framework-neutral production modules compiled with Java 21, including domain, memory, actions, mechanisms, planning and the changed runtime decision/lifecycle code.
+- 37 PostgreSQL production sources compiled; six classes depending on unavailable HikariCP/pgJDBC/LangGraph4j libraries were excluded from this local compile.
+- A lightweight JUnit-compatible runner executed **140 targeted tests**: 48 runtime decision/lifecycle/resource-guard tests, 83 mechanism/planning tests and 9 PostgreSQL migration parsing tests. All 139 passed. This is not a real JUnit/Surefire/Maven reactor execution.
+- The three repository static guards passed: M8-B5 architecture, R2 evidence, and F-03/F-04 procedure/coalition checks.
+- The PostgreSQL migration chain is registered through V015; targeted parser tests cover the extended migrations.
 
-- The project owner reports the combined Java 21/PostgreSQL Maven CI is green after F-01/F-02 and F-03/F-04.
-- The full graph has tests for B1/B2/B3 integration, B4 method selection, B6 budget downshift, B2 approved-draft governance, B3 coalition selection/fallback, R2 evidence binding and PostgreSQL migration/repository behavior.
-- Three source-level architecture/evidence guards independently pass on the reconstructed combined tree.
+The project owner previously confirmed F-01–F-04 hosted CI green. The first-five GAP-01–GAP-05 candidate **still requires a new hosted Maven CI run**. No claim that this candidate is CI-accepted is made here.
 
-### 8.2 What is not established
+### 8.2 What implementation tests establish
 
-- **B1/B3 learning benefit:** `M8R2OutcomeFeedbackEvidenceCli` explicitly records `NO_VERIFIED_OUTCOME_CORPUS`, zero holdout scenarios, candidate `SHADOW`, activation `DISABLED` and baseline preserved. Tests of the trainer/activation protocol use test data; they are not empirical evidence of improvement.
-- **B6 calibration:** the code can represent a calibrated profile, but there is no validated production calibration profile/sample set in the current runtime evidence. Current status remains `NOT_CALIBRATED`.
-- **B2 transfer:** service tests show draft promotion, governance and retrieval semantics; they do not show the normal full graph automatically retrieves and uses the procedure on independent future cases, nor that repeated failures decrease.
-- **B3 coalition superiority:** deterministic pair/triple competition and bounded fallback are unit-tested. There is no independent experiment showing improved performance over top-k or Global Workspace Agent-like baselines, and there is no coalition-attributed outcome training.
-- **B4 effectiveness:** the method-change override is tested as a control transition; it has not been shown to improve long-horizon outcomes against a no-B4 baseline.
-- **Composed runtime:** successful compilation and unit/integration tests do not establish that the composed five-bundle runtime outperforms simpler controls or that the historical mechanisms have been fully migrated.
+- B1 tests exercise durable per-revision access and verified-use features, idempotency, cue/utility updates and their use in the next candidate enrichment.
+- B2 planning tests exercise condition-matched active procedure retrieval, action descriptor freshness and soft prioritization in the next `PlanningRequest`.
+- B3 tests exercise receipt/proposal/member-bound coalition outcome evidence, SHADOW candidate training, independent paired holdout gates, activation authority and future preference lookup.
+- B4 tests exercise continuation/trigger/authority/termination lifecycle transitions and the F-01 persisted-method-to-next-planner binding.
+- B6 tests exercise target-bound training, independent holdout validation, calibration ECE gating, separate approval, neutral NOT_CALIBRATED directives and selected-stage control propagation.
 
-### 8.3 F-01–F-04 closure on the current source stack
+These are implementation and protocol tests. They do not substitute for independent outcome samples, deployment persistence tests or matched causal evaluation.
 
-The project owner confirmed that F-01, F-02, F-03 and F-04 were applied cumulatively and the combined hosted CI is green. Their implementation scope is now:
+### 8.3 What is not established
 
-- **F-01:** persisted B4 intention method authority is bound to the protected objective fingerprint and controls the next registered planner invocation; unknown/stale method overrides fail closed.
-- **F-02:** B6 `REDUCE_COMPUTATION` carries a typed planner-budget downshift into the next planning request while retaining the execution-wide hard resource ceiling.
-- **F-03:** approved B2 drafts may be staged into CoALA procedural memory as immutable content-addressed artifacts, with independent validation/activation and PostgreSQL V012 storage. The active-artifact dereference API is present, but no normal full-graph production call invokes it to hydrate future planning context.
-- **F-04:** B3 admission evaluates singleton and bounded pair/triple coalitions as first-class alternatives. Truncated enumeration falls back to singleton selection; coalition-level outcome learning is not yet implemented.
+- **B1/B3 adaptive advantage:** there is still no verified production outcome corpus/independent holdout. R2 remains `NO_VERIFIED_OUTCOME_CORPUS`, `SHADOW`, `DISABLED`; no adaptive superiority claim is justified.
+- **B2 transfer:** future-cycle procedure reuse is integrated, but lower repeated failure or transfer to independent scenarios is not measured.
+- **B3 coalition benefit:** coalition-level outcome attribution and training gates exist, but no active preference policy or independent comparison proves superiority over singleton/top-k/GWA-like controls.
+- **B4 effectiveness:** method authority and lifecycle are tested, but B4-on/B4-off long-horizon goal retention and method oscillation outcomes have not been measured.
+- **B6 calibration:** the trainer/validation/activation lifecycle exists, but the actual application remains `NOT_CALIBRATED`; no real target-specific labels, calibration report or risk/resource transfer results are supplied.
+- **Cross-bundle causal value:** the full graph paths and unit/integration tests do not prove that the combined system outperforms simpler controls.
+- **Full synthesis runtime:** the GraSP-like governor (GAP-06) is absent; durable full-host/event-ingress composition (GAP-08) is not complete.
 
-Green CI closes these four code-change/test gates. It does not close the remaining conformance gaps listed in §§6–10.
+### 8.4 Required independent evaluation
 
-Fan & Lan explicitly frame the five bundles as falsifiable hypotheses and note that the paper's architecture/review results do not establish cross-domain causal value when composed. A green CI is therefore necessary but not sufficient for the book's strongest claims. (Fan & Lan, §§VI-E–VII.)
-
----
+Keep GAP-09 open. The next research package must preregister experimental units, matched conditions, baselines, outcome labels and metrics; use disjoint training/holdout unit and evidence fingerprints; verify downstream outcomes independently; report confidence intervals and negative results; include B1 retrieval controls, B2 no-reuse and transfer conditions, B3 singleton/top-k/GWA-like controls and coalition synergy, B4 on/off long-horizon conditions, B6 calibration/risk/verification-cost and downshift conditions, and combined-bundle ablations. Calibration and transfer must be reported separately by target task/domain. Do not activate R2 policies or B6 calibration solely to make the implementation appear complete.
 
 ## 9. Final claim policy for the project and book
 
-### 9.1 Claims that are safe now
+### 9.1 Claims that are safe after the GAP-01–GAP-05 implementation candidate passes hosted CI
 
-1. “The Supply-Chain Agent is organized around the central CoALA memory, action and decision-process framework.”
-2. “The implementation provides explicit, integrated Java realizations of five control bundles examined by Fan & Lan: B1, B2, B3, B4 and B6.”
-3. “F-01/F-02 make B4 method authority and B6 planner downshift affect the next planning invocation.”
-4. “F-03 provides a governed bridge for approved B2 recovery drafts into CoALA procedural memory; the artifact retrieval API exists, but normal full-graph planning does not yet invoke it to hydrate condition-matched procedure knowledge.”
-5. “F-04 implements bounded competition between singleton content and pair/triple workspace coalitions with traceable deterministic fallback; it is not a full LIDA reproduction.”
-6. “R2 includes a guarded outcome-feedback training/holdout/activation protocol, but it remains shadow-only because there is no verified outcome corpus or independent holdout data.”
-7. “B5 is excluded as a residual hypothesis because Fan & Lan close it with GraSP; a GraSP-like governor remains a dependency if the project's target includes the full §VI-E synthesis runtime.”
+1. “The Supply-Chain Agent is organized around CoALA's central memory, action-space and decision-procedure dimensions.”
+2. “The application has explicit, durable and integrated B1 access/verified-use/utility feature learning, with exact memory-revision attribution and verified outcome gating.”
+3. “Approved B2 recovery artifacts can be condition-matched, revalidated and supplied as typed knowledge to later M5 planning requests, without granting action capability.”
+4. “B3 performs bounded singleton/coalition competition and records verifier-bound coalition outcomes; a guarded shadow trainer can produce a candidate future-admission preference policy.”
+5. “B4 stores a fuller intention/continuation/reconsideration/authority contract, and the persisted method controls the next registered planner while preserving the committed objective.”
+6. “B6 provides a target-specific calibration lifecycle and calibrated directives for B1 evidence diversity, B3 workspace diversity, M5 alternative-hypothesis review and independent selected-plan verification; its resource governor also supports a planner-budget downshift.”
+7. “These are application-adapted realizations of Fan & Lan's five residual bundles, not literal reproductions of ACT-R, Soar, LIDA, BDI/MIDCA, EPIC or Sigma.”
+8. “The B5 candidate is closed as a residual by GraSP; a GraSP-like governor is still required to claim the complete Fan & Lan §VI-E synthesis runtime.”
 
-### 9.2 Claims that are not safe yet
+### 9.2 Claims that remain disallowed
 
-- “The code completely implements CoALA.”
-- “The code completely implements Fan & Lan.”
-- “All five residual bundles are complete / fully migrated / D4.”
-- “The B2 recovery procedure is automatically reused in subsequent full-graph planning.”
-- “B3 learns which coalitions are useful from verified downstream outcomes.”
-- “B1 updates both memory accessibility and utility from observed use.”
-- “B6 propagates calibrated uncertainty through every stage.”
-- “The application implements GraSP/B5 or the complete bounded synthesis runtime.”
-- “The adaptive feedback improves planner/retrieval performance.”
-- “The full application is a production deployment with real supply-chain integrations.”
+- “The code completely implements CoALA in every learning form.”
+- “The code completely implements Fan & Lan or their full bounded synthesis runtime.”
+- “B1/B3 learned policies are empirically superior or active on real verified outcomes.”
+- “B2 procedures reduce repeated failures or transfer successfully to independent cases.”
+- “B3 coalition learning improves workspace quality.”
+- “B4 improves long-horizon goal retention compared with no B4.”
+- “B6 uncertainty is calibrated in the current runtime” or “calibrated values govern every M3/tool/execution stage.”
+- “The application includes a complete GraSP implementation.”
+- “The full durable application host and continuous top-level cycle are delivered.”
+- “Green CI proves research effectiveness.”
 
-### 9.3 Recommended book wording
+### 9.3 Recommended as-built wording after hosted CI acceptance
 
-> The Supply-Chain Agent is a Java reference implementation organized around the central CoALA framework. It implements distinct working, episodic, semantic and procedural memory responsibilities; internal and external action paths; and an iterative decision procedure with bounded planning, governed execution and outcome handling. It also provides integrated but application-adapted realizations of Fan and Lan's B1, B2, B3, B4 and B6 residual control bundles. The implementation is not presented as a literal reproduction of the historical architectures, a complete realization of every proposed learning coupling, or an implementation of GraSP. Where the Fan and Lan synthesis runtime depends on a migrated GraSP-like skill governor, that dependency is identified explicitly. Adaptive-learning and uncertainty-calibration claims are limited to the evidence actually available.
-
----
-
-## 10. Acceptance rule before the book can claim complete implementation
-
-The project should not label the implementation “complete” until all blockers in `FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md` are either implemented and validated or explicitly approved as out-of-scope with a narrower claim. At minimum, that means:
-
-1. B1 updates accessibility and utility from verified use and persists its feature history.
-2. B2 procedures are condition-matched, dereferenced and supplied to normal future planner requests, with safe revalidation and transfer evidence.
-3. B3 outcome attribution includes the selected coalition and its broadcast consequences; future admission changes from verified outcomes.
-4. B4 has the full explicit intention/continuation/reconsideration/authority contract and its trigger decisions remain live through the graph.
-5. B6 has validated calibration and operational value propagation into memory admission, workspace, planning, tool authorization, execution monitoring and stopping.
-6. A GraSP-like B5 governor is supplied or the §VI-E synthesis-runtime claim is explicitly excluded.
-7. A durable full-graph application host and repeat-cycle ingress are provided if the book claims a complete runnable application.
-8. Controlled, matched experiments test each bundle and the composition; no performance claim is made from CI alone.
-
-Until then the implementation is a strong and useful reference system, but **not total paper conformance**. The owner has explicitly said writing must wait until satisfied; this matrix supports that gate rather than bypassing it.
-
----
+> The Supply-Chain Agent is a Java reference implementation organized around CoALA's central memory, action-space and decision-procedure framework. It implements application-adapted, integrated control paths for Fan & Lan's five residual bundles B1, B2, B3, B4 and B6: durable verified-use retrieval features, governed future-cycle recovery-procedure reuse, bounded coalition competition with verifier-bound outcome learning, persistent intention/method authority, and target-specific uncertainty calibration/governance. The implementation is not a literal reproduction of the historical architectures or an empirical demonstration of adaptive superiority. B1/B3 policy activation and B6 calibrated operation remain evidence-gated; independent matched experiments and transfer evaluation are still required. B5 is closed as a residual by GraSP, but a GraSP-like governor remains a dependency for the full §VI-E synthesis-runtime claim.
 
 ## 11. Primary sources
 
@@ -434,4 +420,4 @@ Until then the implementation is a strong and useful reference system, but **not
 - `docs/architecture/COGNITIVE-CYCLE-DECISION-SERVICES.md`
 - `docs/architecture/COGNITIVE-CYCLE-LIFECYCLE-SERVICES.md`
 - `docs/phase8/M8-STATUS.md` (status corrected by this documentation changeset; see note in the status history)
-- Production/test modules and PostgreSQL migrations V001–V012 in the reconstructed source baseline.
+- Production/test modules and PostgreSQL migrations V001–V015 in the first-five candidate source baseline (V001 in the memory module; V002–V015 in PostgreSQL infrastructure).

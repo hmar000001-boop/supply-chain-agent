@@ -10,4 +10,6 @@ public interface B3OutcomeEvidenceRepository {
     Optional<WorkspaceReceiptEvidence> findReceipt(MemoryScopeId scopeId, String receiptId);
     void appendOutcome(DownstreamOutcomeEvidence outcome);
     List<DownstreamOutcomeEvidence> findOutcomes(MemoryScopeId scopeId, int maximum);
+    void appendCoalitionOutcome(WorkspaceCoalitionOutcomeEvidence outcome);
+    List<WorkspaceCoalitionOutcomeEvidence> findCoalitionOutcomes(MemoryScopeId scopeId, int maximum);
 }

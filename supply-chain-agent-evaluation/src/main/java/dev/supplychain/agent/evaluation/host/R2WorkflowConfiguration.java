@@ -5,6 +5,7 @@ import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureApprovalAuthority;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftRepository;
 import dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceRepository;
 import dev.supplychain.agent.mechanisms.b3.DownstreamOutcomeEvidenceVerifier;
+import dev.supplychain.agent.mechanisms.b3.ActiveB3CoalitionFeedbackPolicy;
 import dev.supplychain.agent.mechanisms.feedback.ActiveOutcomeFeedbackPolicy;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.RecoveryProcedureDraftRequestFactory;
 import java.util.Objects;
@@ -18,7 +19,8 @@ public record R2WorkflowConfiguration(
         B3OutcomeEvidenceRepository b3OutcomeEvidenceRepository,
         DownstreamOutcomeEvidenceVerifier downstreamOutcomeEvidenceVerifier,
         String admissionPolicyVersion, String outcomeVerifierId,
-        ActiveOutcomeFeedbackPolicy activeFeedbackPolicy) {
+        ActiveOutcomeFeedbackPolicy activeFeedbackPolicy,
+        ActiveB3CoalitionFeedbackPolicy activeCoalitionFeedbackPolicy) {
     public R2WorkflowConfiguration {
         Objects.requireNonNull(recoveryDraftRepository, "recoveryDraftRepository");
         Objects.requireNonNull(recoveryDraftEvidenceVerifier, "recoveryDraftEvidenceVerifier");
@@ -28,6 +30,18 @@ public record R2WorkflowConfiguration(
         Objects.requireNonNull(downstreamOutcomeEvidenceVerifier, "downstreamOutcomeEvidenceVerifier");
         admissionPolicyVersion = required(admissionPolicyVersion, "admissionPolicyVersion");
         outcomeVerifierId = required(outcomeVerifierId, "outcomeVerifierId");
+    }
+    /** Compatibility constructor before coalition-level B3 feedback was added. */
+    public R2WorkflowConfiguration(RecoveryProcedureDraftRepository recoveryDraftRepository,
+            RecoveryDraftEvidenceVerifier recoveryDraftEvidenceVerifier,
+            RecoveryProcedureApprovalAuthority recoveryProcedureApprovalAuthority,
+            RecoveryProcedureDraftRequestFactory recoveryDraftRequestFactory,
+            B3OutcomeEvidenceRepository b3OutcomeEvidenceRepository,
+            DownstreamOutcomeEvidenceVerifier downstreamOutcomeEvidenceVerifier,
+            String admissionPolicyVersion,String outcomeVerifierId,ActiveOutcomeFeedbackPolicy activeFeedbackPolicy) {
+        this(recoveryDraftRepository,recoveryDraftEvidenceVerifier,recoveryProcedureApprovalAuthority,
+                recoveryDraftRequestFactory,b3OutcomeEvidenceRepository,downstreamOutcomeEvidenceVerifier,
+                admissionPolicyVersion,outcomeVerifierId,activeFeedbackPolicy,null);
     }
     private static String required(String value, String name) {
         String result=Objects.requireNonNull(value,name).trim();

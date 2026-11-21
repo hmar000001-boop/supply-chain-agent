@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.net.URI;
 
 /**
  * Canonical, content-sensitive planning-input fingerprint used to protect resumable planner sessions.
@@ -28,13 +29,25 @@ final class PlanningRequestFingerprint {
     private PlanningRequestFingerprint() { }
 
     static String canonicalInput(PlanningRequest request) {
+        return canonicalInput(request, true);
+    }
+
+    static String basisFingerprint(PlanningRequest request) {
+        return sha256(canonicalInput(request, false));
+    }
+
+    private static String canonicalInput(PlanningRequest request, boolean includeAlternativeReview) {
         Objects.requireNonNull(request, "request");
         var values = new ArrayList<Object>();
         values.add(request.executionId());
         values.add(request.objective());
         values.add(request.initialWorld());
         values.add(request.workingMemory());
-        values.add(request.evidence());
+        var fingerprintEvidence = new ArrayList<>(request.evidence());
+        if (!includeAlternativeReview && request.alternativeHypothesisReview() != null) {
+            fingerprintEvidence.remove(request.alternativeHypothesisReview().evidenceReference());
+        }
+        values.add(fingerprintEvidence);
         values.add(request.availableActionDefinitions());
         values.add(request.hardConstraints());
         values.add(request.scoringProfile());
@@ -49,7 +62,21 @@ final class PlanningRequestFingerprint {
         // A B4 method binding changes which strategy is authoritative, so it must not reuse
         // a planner session created under a different intention method/version.
         values.add(request.plannerSelectionOverride());
+        // Reusable B2 procedures are explicit long-term cognitive context and therefore affect search identity.
+        values.add(request.reusableRecoveryProcedures());
+        // B6 governance changes retrieval diversity, planning scrutiny and pre-execution verification.
+        values.add(request.uncertaintyDirective());
+        if (includeAlternativeReview) values.add(request.alternativeHypothesisReview());
         return encode(values);
+    }
+
+    private static String sha256(String value) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 unavailable", impossible);
+        }
     }
 
     static String encode(Object value) {
@@ -62,6 +89,7 @@ final class PlanningRequestFingerprint {
             return token(value.getClass().getName(), value.toString());
         }
         if (value instanceof Currency currency) return token("currency", currency.getCurrencyCode());
+        if (value instanceof URI uri) return token("uri", uri.toASCIIString());
         if (value instanceof TemporalAccessor || value instanceof Duration) {
             return token(value.getClass().getName(), value.toString());
         }

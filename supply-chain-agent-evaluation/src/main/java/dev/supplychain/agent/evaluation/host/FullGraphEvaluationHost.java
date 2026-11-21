@@ -26,6 +26,8 @@ import dev.supplychain.agent.memory.inmemory.InMemoryWorkingMemoryRepository;
 import dev.supplychain.agent.memory.retrieval.MemoryRetrievalService;
 import dev.supplychain.agent.memory.working.WorkingMemoryService;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateFactory;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryFeatureLearningService;
+import dev.supplychain.agent.mechanisms.b1.InMemoryB1MemoryFeatureRepository;
 import dev.supplychain.agent.mechanisms.b1.B1RetrievalSelector;
 import dev.supplychain.agent.mechanisms.b1.ExponentialActivationLatencyModel;
 import dev.supplychain.agent.mechanisms.b1.RecencyFrequencyActivationEstimator;
@@ -233,28 +235,34 @@ public final class FullGraphEvaluationHost {
         var actionRegistry = ports.actionRegistry();
         var impasses = new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository());
         R2WorkflowConfiguration r2 = ports.r2Workflow();
+        var b1FeatureLearning = new B1MemoryFeatureLearningService(new InMemoryB1MemoryFeatureRepository());
         CandidateOutcomeAdjustment feedbackAdjustment = r2 == null || r2.activeFeedbackPolicy() == null
                 ? CandidateOutcomeAdjustment.neutral() : r2.activeFeedbackPolicy();
+        var coalitionFeedbackAdjustment = r2 == null || r2.activeCoalitionFeedbackPolicy() == null
+                ? dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeAdjustment.neutral()
+                : r2.activeCoalitionFeedbackPolicy();
         B3OutcomeEvidenceService b3Evidence = r2 == null ? null : new B3OutcomeEvidenceService(
                 r2.b3OutcomeEvidenceRepository(), r2.downstreamOutcomeEvidenceVerifier(),
-                r2.admissionPolicyVersion(), r2.outcomeVerifierId());
+                r2.admissionPolicyVersion(), r2.outcomeVerifierId(), b1FeatureLearning);
         WorkspaceReceiptRecorder receiptRecorder = b3Evidence == null ? WorkspaceReceiptRecorder.noOp() : b3Evidence;
-        var b1Selector = new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
-                new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000), feedbackAdjustment);
-        var workspaceAdmission = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository(), feedbackAdjustment);
-        var workspaceBroadcast = new WorkspaceBroadcastService(ports.workspaceConsumers(), receiptRecorder);
-        var decisionServices = new CognitiveCycleDecisionServices(
-                retrieval, new B1MemoryCandidateFactory(), b1Selector, workspaceAdmission, workspaceBroadcast,
-                new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
-                ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
-                ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard(), workingMemoryService);
-
         RecoveryProcedureDraftService recoveryDraftService = r2 == null ? null : new RecoveryProcedureDraftService(
                 impasses, actionRegistry, r2.recoveryDraftRepository(), r2.recoveryDraftEvidenceVerifier(),
                 r2.recoveryProcedureApprovalAuthority());
         RecoveryProcedurePromotionService recoveryProcedurePromotion = r2 == null ? null
                 : new RecoveryProcedurePromotionService(recoveryDraftService, proceduralMemory, recoveryArtifactStore,
                         actionRegistry, r2.recoveryDraftEvidenceVerifier());
+        var b1Selector = new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
+                new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000), feedbackAdjustment);
+        var workspaceAdmission = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository(), feedbackAdjustment,
+                dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionCompetitionPolicy.standard(), coalitionFeedbackAdjustment);
+        var workspaceBroadcast = new WorkspaceBroadcastService(ports.workspaceConsumers(), receiptRecorder);
+        var decisionServices = new CognitiveCycleDecisionServices(
+                retrieval, new B1MemoryCandidateFactory(), b1Selector, workspaceAdmission, workspaceBroadcast,
+                new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
+                ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
+                ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard(), workingMemoryService,
+                dev.supplychain.agent.planning.routing.PlannerMethodResolver.canonical(), recoveryProcedurePromotion,
+                b1FeatureLearning);
         var lifecycleServices = new CognitiveCycleLifecycleServices(
                 workingMemoryService,
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),

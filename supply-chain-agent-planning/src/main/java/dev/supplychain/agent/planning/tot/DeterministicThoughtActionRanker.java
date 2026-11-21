@@ -20,7 +20,8 @@ public final class DeterministicThoughtActionRanker implements ThoughtActionRank
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(availableActions, "availableActions");
         return availableActions.stream().sorted(Comparator
-                .comparingDouble((PlanningAction action) -> estimatedUtility(request, action)).reversed()
+                .comparing((PlanningAction action) -> request.isReusableRecoveryAction(action)).reversed()
+                .thenComparing(Comparator.comparingDouble((PlanningAction action) -> estimatedUtility(request, action)).reversed())
                 .thenComparing(PlanningAction::planningActionId)).toList();
     }
 

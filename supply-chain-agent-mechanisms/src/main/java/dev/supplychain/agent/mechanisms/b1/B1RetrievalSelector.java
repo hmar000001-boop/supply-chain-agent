@@ -56,19 +56,40 @@ public final class B1RetrievalSelector {
         int used = 0;
         var selected = new ArrayList<B1MemoryCandidate>();
         var selectedIds = new HashSet<String>();
+        int requiredKinds = request.uncertaintyDirective().minimumDistinctMemoryKinds();
+        Set<B1MemoryCandidateKind> selectedKinds = new HashSet<>();
         for (var score : raw) {
             if (selected.size() >= request.maximumCandidates()) break;
             if (score.accessibilityProbability() < request.policy().minimumAccessibilityProbability()) continue;
             if (score.netUtility() <= request.policy().minimumNetUtility()) continue;
             if (score.contextUnits() > request.contextBudgetUnits() - used) continue;
-            selected.add(byId.get(score.candidateId()));
+            B1MemoryCandidate candidate = byId.get(score.candidateId());
+            // Under a validated high evidence-uncertainty profile, prefer distinct memory types
+            // before filling remaining slots. This is a bounded diversity floor, not a probability claim.
+            if (selectedKinds.size() < requiredKinds && selectedKinds.contains(candidate.kind())) continue;
+            selected.add(candidate);
             selectedIds.add(score.candidateId());
+            selectedKinds.add(candidate.kind());
             used += score.contextUnits();
+        }
+        if (selectedKinds.size() < requiredKinds) {
+            for (var score : raw) {
+                if (selected.size() >= request.maximumCandidates()) break;
+                if (selectedIds.contains(score.candidateId())) continue;
+                B1MemoryCandidate candidate = byId.get(score.candidateId());
+                if (selectedKinds.contains(candidate.kind())) continue;
+                if (score.accessibilityProbability() < request.policy().minimumAccessibilityProbability()
+                        || score.netUtility() <= request.policy().minimumNetUtility()
+                        || score.contextUnits() > request.contextBudgetUnits() - used) continue;
+                selected.add(candidate); selectedIds.add(score.candidateId());
+                selectedKinds.add(candidate.kind()); used += score.contextUnits();
+            }
         }
         var finalScores = raw.stream().map(s -> new B1CandidateScore(s.candidateId(), s.activation(), s.accessibilityProbability(),
                 s.predictedCognitiveLatency(), s.measuredInfrastructureLatency(), s.expectedDownstreamUtility(),
                 s.estimatedMaintenanceCost(), s.netUtility(), s.contextUnits(), selectedIds.contains(s.candidateId()))).toList();
-        return new B1SelectionResult(selected, finalScores, used, request.contextBudgetUnits());
+        return new B1SelectionResult(selected, finalScores, used, request.contextBudgetUnits(),
+                requiredKinds, selectedKinds.size());
     }
 
     private static double durationMillis(Duration duration) {

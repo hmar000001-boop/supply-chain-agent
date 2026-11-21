@@ -16,7 +16,11 @@ public final class RecoveryProcedureActionReferences {
     public static RegisteredRecoveryActionReference current(ActionRegistry registry, ActionId id) {
         Objects.requireNonNull(registry, "registry");
         Objects.requireNonNull(id, "id");
-        ActionDescriptor descriptor = registry.descriptor(id);
+        return current(registry.descriptor(id));
+    }
+
+    public static RegisteredRecoveryActionReference current(ActionDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
         String canonical = descriptor.id().value() + "|" + descriptor.name() + "|" + descriptor.description()
                 + "|" + descriptor.category() + "|" + descriptor.effect() + "|"
                 + descriptor.requiredCapability() + "|" + descriptor.idempotencyRequired();

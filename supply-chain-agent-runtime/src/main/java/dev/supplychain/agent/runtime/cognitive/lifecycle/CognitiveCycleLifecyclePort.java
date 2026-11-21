@@ -26,6 +26,8 @@ import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionSe
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
 import dev.supplychain.agent.memory.working.WorkingMemoryId;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntention;
+import dev.supplychain.agent.mechanisms.b4.ReconsiderationTrigger;
+import dev.supplychain.agent.mechanisms.b4.IntentionTerminationReason;
 
 import java.time.Instant;
 import java.util.List;
@@ -94,6 +96,21 @@ public interface CognitiveCycleLifecyclePort {
      * or older revision. This exactness applies at B4, B6, authorization, revalidation and execution boundaries.
      */
     UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at);
+
+    /** Stable task/uncertainty target used to select an independently validated B6 calibration profile. */
+    default String uncertaintyCalibrationTargetId(CognitiveCycleOperations.CycleContext context) {
+        return "supply-chain-disruption-v1";
+    }
+
+    /**
+     * Persist the calibrated interpretation of the exact immutable assessment revision. Hosts
+     * must store this binding durably; the default refuses to silently discard calibrated values.
+     */
+    default void persistCalibratedUncertaintyAssessment(CognitiveCycleOperations.CycleContext context,
+            UncertaintyAssessment calibrated, Instant at) {
+        if (calibrated.calibration().status() == UncertaintyAssessment.CalibrationStatus.CALIBRATED)
+            throw new UnsupportedOperationException("host must persist exact calibrated B6 assessment before the graph can use it");
+    }
 
     MetaControlInputs metaControlInputs(CognitiveCycleOperations.CycleContext context, Instant at);
 
@@ -201,18 +218,39 @@ public interface CognitiveCycleLifecyclePort {
 
     record IntentionDirective(CognitiveCycleOperations.IntentionAction action, String reason,
                               RecoveryMethodReference replacementMethod, String assertedObjectiveFingerprint,
-                              String actorId) {
+                              String actorId, ReconsiderationTrigger reconsiderationTrigger,
+                              IntentionTerminationReason terminationReason,
+                              boolean objectiveVerified, boolean authorityReleased) {
         public IntentionDirective {
             Objects.requireNonNull(action, "action");
             reason = required(reason, "reason");
             assertedObjectiveFingerprint = optional(assertedObjectiveFingerprint);
             actorId = optional(actorId);
+            reconsiderationTrigger = reconsiderationTrigger == null
+                    ? ReconsiderationTrigger.OPERATOR_REQUEST : reconsiderationTrigger;
+            terminationReason = terminationReason == null
+                    ? IntentionTerminationReason.OPERATOR_CANCELLED : terminationReason;
             if (action == CognitiveCycleOperations.IntentionAction.CHANGE_METHOD && replacementMethod == null) {
                 throw new IllegalArgumentException("method change requires a replacement method");
             }
             if (action == CognitiveCycleOperations.IntentionAction.TERMINATE && actorId.isEmpty()) {
                 throw new IllegalArgumentException("termination requires an authenticated actor reference");
             }
+        }
+
+        /** Source-compatible constructor retaining typed reconsideration and termination fields. */
+        public IntentionDirective(CognitiveCycleOperations.IntentionAction action, String reason,
+                RecoveryMethodReference replacementMethod, String assertedObjectiveFingerprint, String actorId,
+                ReconsiderationTrigger reconsiderationTrigger, IntentionTerminationReason terminationReason) {
+            this(action, reason, replacementMethod, assertedObjectiveFingerprint, actorId,
+                    reconsiderationTrigger, terminationReason, false, false);
+        }
+
+        /** Source-compatible constructor; the lifecycle defaults to the explicit typed trigger. */
+        public IntentionDirective(CognitiveCycleOperations.IntentionAction action, String reason,
+                RecoveryMethodReference replacementMethod, String assertedObjectiveFingerprint, String actorId) {
+            this(action, reason, replacementMethod, assertedObjectiveFingerprint, actorId,
+                    ReconsiderationTrigger.OPERATOR_REQUEST, IntentionTerminationReason.OPERATOR_CANCELLED, false, false);
         }
     }
 

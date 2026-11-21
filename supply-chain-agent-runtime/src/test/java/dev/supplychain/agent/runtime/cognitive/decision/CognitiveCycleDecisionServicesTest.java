@@ -69,6 +69,7 @@ import dev.supplychain.agent.mechanisms.b3.WorkspaceScoringPolicy;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyDimension;
 import dev.supplychain.agent.mechanisms.b6.UncertaintySignal;
+import dev.supplychain.agent.mechanisms.b4.ObjectiveFingerprint;
 import dev.supplychain.agent.actions.api.ActionCategory;
 import dev.supplychain.agent.actions.api.ActionDescriptor;
 import dev.supplychain.agent.actions.api.ActionEffect;
@@ -88,6 +89,7 @@ import dev.supplychain.agent.planning.api.SimulatorBackedPlanningWorldModel;
 import dev.supplychain.agent.planning.api.PlannerId;
 import dev.supplychain.agent.planning.api.PlannerTerminationReason;
 import dev.supplychain.agent.planning.api.PlanningRequest;
+import dev.supplychain.agent.planning.api.IndependentAlternativeHypothesisReview;
 import dev.supplychain.agent.planning.api.PlanningResult;
 import dev.supplychain.agent.planning.api.PlanningStatistics;
 import dev.supplychain.agent.planning.api.PlanningStrategy;
@@ -354,6 +356,50 @@ final class CognitiveCycleDecisionServicesTest {
     }
 
     @Test
+    void calibratedHighHypothesisUncertaintyFailsClosedWhenIndependentReviewIsUnavailable() {
+        var port = new TestDecisionPort();
+        var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
+        port.planningRequest = planningRequest("execution:test", workingMemory);
+        port.uncertaintyOverride = calibratedHighHypothesis(context(workingMemory, ""));
+        var world = new SimulatorBackedPlanningWorldModel(new SupplyChainSimulator(),
+                (request, state) -> List.of(), "decision-test-world-v1");
+        var services = services(port, workspaceBroadcast(), world, new DeterministicCandidateEvaluator(world));
+
+        assertThrows(SecurityException.class, () -> services.proposeCandidates(context(workingMemory, "")));
+        assertTrue(port.alternativeReviewRequested, "the host must be asked for an independent review");
+        assertTrue(port.plannerInvocations.isEmpty(), "M5 must not run without the required review");
+    }
+
+    @Test
+    void calibratedHighHypothesisUncertaintyPassesOnlyWithExactIndependentReviewEvidence() {
+        var port = new TestDecisionPort();
+        var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
+        port.planningRequest = planningRequest("execution:test", workingMemory);
+        port.uncertaintyOverride = calibratedHighHypothesis(context(workingMemory, ""));
+        port.issueAlternativeReview = true;
+        port.plannerResultFactory = request -> {
+            port.lastPlanningRequest = request;
+            return new PlanningResult(PlannerId.COT_SEQUENTIAL, List.of(), PlannerTerminationReason.NO_AVAILABLE_ACTIONS,
+                    new PlanningStatistics(0, 0, 0, 0, 0, 0, Duration.ZERO),
+                    "review-bound-session", "reviewed no-action result", List.of());
+        };
+        var world = new SimulatorBackedPlanningWorldModel(new SupplyChainSimulator(),
+                (request, state) -> List.of(), "decision-test-world-v1");
+        var services = services(port, workspaceBroadcast(), world, new DeterministicCandidateEvaluator(world));
+
+        var prepared = services.proposeCandidates(context(workingMemory, ""));
+
+        assertEquals(PlannerId.COT_SEQUENTIAL, prepared.plannerId());
+        assertTrue(port.alternativeReviewRequested);
+        assertNotNull(port.lastPlanningRequest.alternativeHypothesisReview());
+        assertTrue(port.lastPlanningRequest.evidence().contains(
+                port.lastPlanningRequest.alternativeHypothesisReview().evidenceReference()));
+        assertEquals(port.lastPlanningRequest.reviewBasisFingerprint(),
+                port.lastPlanningRequest.alternativeHypothesisReview().basisPlanningFingerprint());
+        port.lastPlanningRequest.assertGovernanceComplete();
+    }
+
+    @Test
     void durableB6BudgetRefusalPreventsM5PlannerInvocationAndProducesTypedStopResult() {
         var port = new TestDecisionPort();
         var workingMemory = WorkingMemorySnapshot.empty(SCOPE, NOW, NOW.plus(Duration.ofDays(1)));
@@ -596,6 +642,7 @@ final class CognitiveCycleDecisionServicesTest {
             @Override public PlannerId id() { return id; }
             @Override public PlanningResult plan(PlanningRequest request) {
                 port.plannerInvocations.add(id);
+                port.lastPlanningRequest = request;
                 if (port.plannerResultFactory != null) return port.plannerResultFactory.apply(request);
                 return new PlanningResult(id, List.of(), PlannerTerminationReason.NO_AVAILABLE_ACTIONS,
                         new PlanningStatistics(0, 0, 0, 0, 0, 0, Duration.ZERO),
@@ -638,6 +685,17 @@ final class CognitiveCycleDecisionServicesTest {
                 UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "plan source", 1)));
     }
 
+    private static UncertaintyAssessment calibratedHighHypothesis(CognitiveCycleOperations.CycleContext context) {
+        var reference = context.requireUncertaintyAssessmentReference();
+        return new UncertaintyAssessment(reference, NOW.minusSeconds(1), NOW.plusSeconds(300),
+                "test-provenance:calibrated-hypothesis", new UncertaintyAssessment.Calibration(
+                UncertaintyAssessment.CalibrationStatus.CALIBRATED, "profile:test", "supplier-disruption", 1,
+                "a".repeat(64), 60), Map.of(
+                UncertaintyDimension.EVIDENCE, new UncertaintySignal(UncertaintyDimension.EVIDENCE, 0.1, "labelled evidence", 60),
+                UncertaintyDimension.HYPOTHESIS, new UncertaintySignal(UncertaintyDimension.HYPOTHESIS, 0.85, "labelled hypothesis", 60),
+                UncertaintyDimension.PLAN, new UncertaintySignal(UncertaintyDimension.PLAN, 0.1, "labelled plan", 60)));
+    }
+
     private static final class TestDecisionPort implements CognitiveCycleDecisionPort {
         private MemoryRetrievalQuery query;
         private dev.supplychain.agent.memory.retrieval.MemoryRetrievalResult retrieved;
@@ -649,6 +707,10 @@ final class CognitiveCycleDecisionServicesTest {
         private B1CandidateFeatureProvider featureProvider;
         private String persistedEvidenceSetId = "";
         private UncertaintyAssessment.Reference workspaceAssessmentReferenceOverride;
+        private UncertaintyAssessment uncertaintyOverride;
+        private boolean issueAlternativeReview;
+        private boolean alternativeReviewRequested;
+        private PlanningRequest lastPlanningRequest;
         private java.util.function.Function<PlanningRequest, PlanningResult> plannerResultFactory;
         private final List<PlannerId> plannerInvocations = new java.util.ArrayList<>();
 
@@ -678,7 +740,17 @@ final class CognitiveCycleDecisionServicesTest {
                     "empty but valid evidence set persisted");
         }
         @Override public UncertaintyAssessment currentUncertaintyAssessment(CognitiveCycleOperations.CycleContext context, Instant at) {
-            return uncertainty(context, at);
+            return uncertaintyOverride == null ? uncertainty(context, at) : uncertaintyOverride;
+        }
+        @Override public java.util.Optional<IndependentAlternativeHypothesisReview> independentlyReviewAlternativeHypotheses(
+                CognitiveCycleOperations.CycleContext context, PlanningRequest request, Instant at) {
+            alternativeReviewRequested = true;
+            if (!issueAlternativeReview) return java.util.Optional.empty();
+            String fingerprint = ObjectiveFingerprint.from(request.objective()).value();
+            EvidenceReference evidence = new EvidenceReference("independent-hypothesis-review", "review:" + request.reviewBasisFingerprint());
+            return java.util.Optional.of(IndependentAlternativeHypothesisReview.create(request.executionId(),
+                    request.uncertaintyAssessmentReference(), fingerprint, request.reviewBasisFingerprint(),
+                    List.of("hypothesis:primary", "hypothesis:alternative"), "reviewer:independent", evidence, at));
         }
         @Override public WorkspaceAdmissionRequest workspaceAdmissionRequest(
                 CognitiveCycleOperations.CycleContext context, Instant at) {

@@ -11,9 +11,15 @@ import dev.supplychain.agent.memory.working.WorkingMemoryService;
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateFactory;
 import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidate;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryCandidateReference;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryAttribution;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryFeatureLearningService;
 import dev.supplychain.agent.mechanisms.b1.B1RetrievalSelector;
 import dev.supplychain.agent.mechanisms.b1.B1SelectionResult;
+import dev.supplychain.agent.mechanisms.b2.RecoveryProcedurePromotionService;
+import dev.supplychain.agent.mechanisms.b2.ReusableRecoveryProcedure;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionService;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionRequest;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionStatus;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastService;
 import dev.supplychain.agent.planning.api.CandidateEvaluator;
@@ -35,6 +41,7 @@ import dev.supplychain.agent.mechanisms.b6.ResourceBudgetExceededException;
 import dev.supplychain.agent.mechanisms.b6.ResourceUnit;
 import dev.supplychain.agent.mechanisms.b6.ResourceUsage;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyAssessment;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyGovernanceDirective;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -43,6 +50,7 @@ import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 
 import static dev.supplychain.agent.runtime.cognitive.CognitiveCycleOperations.CandidateEvaluation;
@@ -78,6 +86,8 @@ public final class CognitiveCycleDecisionServices {
     private final Clock clock;
     private final ResourceBudgetExecutionGuard budgetGuard;
     private final PlannerMethodResolver plannerMethodResolver;
+    private final RecoveryProcedurePromotionService recoveryProcedurePromotion;
+    private final B1MemoryFeatureLearningService b1FeatureLearning;
 
     public CognitiveCycleDecisionServices(
             MemoryRetrievalService memoryRetrieval,
@@ -150,6 +160,51 @@ public final class CognitiveCycleDecisionServices {
             ResourceBudgetExecutionGuard budgetGuard,
             WorkingMemoryService workingMemory,
             PlannerMethodResolver plannerMethodResolver) {
+        this(memoryRetrieval, b1CandidateFactory, b1Selector, workspaceAdmission, workspaceBroadcast,
+                plannerRouter, planningWorldModel, candidateEvaluator, planningArtifacts, domainPort,
+                clock, budgetGuard, workingMemory, plannerMethodResolver, null);
+    }
+
+    /** Full composition with an explicit governed B2-to-CoALA procedural-memory reuse bridge. */
+    public CognitiveCycleDecisionServices(
+            MemoryRetrievalService memoryRetrieval,
+            B1MemoryCandidateFactory b1CandidateFactory,
+            B1RetrievalSelector b1Selector,
+            WorkspaceAdmissionService workspaceAdmission,
+            WorkspaceBroadcastService workspaceBroadcast,
+            PlannerRouter plannerRouter,
+            PlanningWorldModel planningWorldModel,
+            CandidateEvaluator candidateEvaluator,
+            PlanningArtifactStore planningArtifacts,
+            CognitiveCycleDecisionPort domainPort,
+            Clock clock,
+            ResourceBudgetExecutionGuard budgetGuard,
+            WorkingMemoryService workingMemory,
+            PlannerMethodResolver plannerMethodResolver,
+            RecoveryProcedurePromotionService recoveryProcedurePromotion) {
+        this(memoryRetrieval,b1CandidateFactory,b1Selector,workspaceAdmission,workspaceBroadcast,plannerRouter,
+                planningWorldModel,candidateEvaluator,planningArtifacts,domainPort,clock,budgetGuard,workingMemory,
+                plannerMethodResolver,recoveryProcedurePromotion,null);
+    }
+
+    /** Full composition with durable B1 feature learning and governed B2 procedural reuse. */
+    public CognitiveCycleDecisionServices(
+            MemoryRetrievalService memoryRetrieval,
+            B1MemoryCandidateFactory b1CandidateFactory,
+            B1RetrievalSelector b1Selector,
+            WorkspaceAdmissionService workspaceAdmission,
+            WorkspaceBroadcastService workspaceBroadcast,
+            PlannerRouter plannerRouter,
+            PlanningWorldModel planningWorldModel,
+            CandidateEvaluator candidateEvaluator,
+            PlanningArtifactStore planningArtifacts,
+            CognitiveCycleDecisionPort domainPort,
+            Clock clock,
+            ResourceBudgetExecutionGuard budgetGuard,
+            WorkingMemoryService workingMemory,
+            PlannerMethodResolver plannerMethodResolver,
+            RecoveryProcedurePromotionService recoveryProcedurePromotion,
+            B1MemoryFeatureLearningService b1FeatureLearning) {
         this.memoryRetrieval = Objects.requireNonNull(memoryRetrieval, "memoryRetrieval");
         this.workingMemory = workingMemory;
         this.b1CandidateFactory = Objects.requireNonNull(b1CandidateFactory, "b1CandidateFactory");
@@ -164,6 +219,8 @@ public final class CognitiveCycleDecisionServices {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.budgetGuard = budgetGuard;
         this.plannerMethodResolver = Objects.requireNonNull(plannerMethodResolver, "plannerMethodResolver");
+        this.recoveryProcedurePromotion = recoveryProcedurePromotion;
+        this.b1FeatureLearning = b1FeatureLearning;
     }
 
     public ResourceBudgetExecutionGuard resourceBudgetGuard() { return budgetGuard; }
@@ -171,16 +228,26 @@ public final class CognitiveCycleDecisionServices {
     public EvidenceRetrieved retrieveEvidence(CognitiveCycleOperations.CycleContext context) {
         Objects.requireNonNull(context, "context");
         Instant at = clock.instant();
+        UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, at);
         var scope = domainPort.memoryScope(context);
         var query = domainPort.retrievalQuery(context, at);
-        var selectionRequest = domainPort.b1SelectionRequest(context, at);
+        var selectionRequest = domainPort.b1SelectionRequest(context, at)
+                .withUncertaintyDirective(dev.supplychain.agent.mechanisms.b6.UncertaintyGovernanceDirective.from(activeUncertainty));
         if (!scope.equals(query.scopeId()) || !scope.equals(selectionRequest.scopeId())) {
             throw new SecurityException("memory retrieval and B1 scopes must match the active cognitive-cycle scope");
         }
         var retrieved = memoryRetrieval.retrieve(query);
         List<B1MemoryCandidate> candidates = b1CandidateFactory.from(
                 scope, retrieved, query.knownAt(), domainPort.b1FeatureProvider(context));
+        if (b1FeatureLearning != null) candidates = b1FeatureLearning.enrich(candidates, at);
         B1SelectionResult selected = b1Selector.select(selectionRequest, candidates);
+        if (!selected.diversitySatisfied()) {
+            return new EvidenceRetrieved(EvidenceDisposition.FAILED, "", 1.0,
+                    "B6 calibrated evidence-uncertainty governance required " + selected.requiredDistinctMemoryKinds()
+                            + " distinct CoALA memory kinds but only " + selected.achievedDistinctMemoryKinds()
+                            + " passed B1 accessibility, utility and context-budget constraints",
+                    context.workingMemoryId(), context.workingMemoryVersion());
+        }
         EvidenceRetrieved persisted = Objects.requireNonNull(
                 domainPort.persistEvidenceSelection(context, retrieved, selected, at),
                 "domain port returned null evidence result");
@@ -198,6 +265,10 @@ public final class CognitiveCycleDecisionServices {
                     Math.max(persisted.maximumUncertainty(), 1.0),
                     "CoALA retrieval-to-working-memory projection failed closed: "
                             + safeMessage(projectionFailure), context.workingMemoryId(), context.workingMemoryVersion());
+        }
+        if (b1FeatureLearning != null) {
+            b1FeatureLearning.recordSelected(selected.selectedCandidates(), selectionRequest.queryCues(),
+                    context.executionId(), persisted.evidenceSetId(), at);
         }
         if (projected == null) return new EvidenceRetrieved(persisted.disposition(), persisted.evidenceSetId(),
                 persisted.maximumUncertainty(), persisted.reason(), context.workingMemoryId(), context.workingMemoryVersion());
@@ -303,8 +374,10 @@ public final class CognitiveCycleDecisionServices {
         if (context.evidenceSetId().isBlank()) {
             throw new IllegalStateException("B3 workspace admission requires the persisted B1 evidence-set reference");
         }
-        var request = Objects.requireNonNull(domainPort.workspaceAdmissionRequest(context, at), "domain port returned null workspace admission request")
-                .withExperimentUnitFingerprint(Objects.requireNonNull(
+        var request = Objects.requireNonNull(domainPort.workspaceAdmissionRequest(context, at), "domain port returned null workspace admission request");
+        request = request.withUncertaintyDirective(dev.supplychain.agent.mechanisms.b6.UncertaintyGovernanceDirective.from(activeUncertainty));
+        request = attachB1MemoryAttributions(context, request, at);
+        request = request.withExperimentUnitFingerprint(Objects.requireNonNull(
                         domainPort.experimentUnitFingerprint(context, at), "domain port returned null experiment-unit fingerprint"));
         if (!request.experimentUnitFingerprint().isEmpty()
                 && !request.experimentUnitFingerprint().matches("[0-9a-f]{64}")) {
@@ -338,11 +411,48 @@ public final class CognitiveCycleDecisionServices {
             return new WorkspacePrepared(WorkspaceDisposition.FAILED, snapshot.id(),
                     "workspace admission succeeded but broadcast was not fully acknowledged: " + failed);
         }
-        if (outcome.status() == WorkspaceAdmissionStatus.INCOMPLETE_COVERAGE) {
+        if (outcome.status() == WorkspaceAdmissionStatus.INCOMPLETE_COVERAGE
+                || outcome.status() == WorkspaceAdmissionStatus.INCOMPLETE_EVIDENCE_DIVERSITY) {
             return new WorkspacePrepared(WorkspaceDisposition.INCOMPLETE, snapshot.id(), outcome.explanation());
         }
         return new WorkspacePrepared(WorkspaceDisposition.ADMITTED, snapshot.id(),
                 outcome.explanation() + "; all configured consumers acknowledged the workspace");
+    }
+
+    private WorkspaceAdmissionRequest attachB1MemoryAttributions(
+            CognitiveCycleOperations.CycleContext context, WorkspaceAdmissionRequest request, Instant at) {
+        var mapping = Objects.requireNonNull(domainPort.workspaceCandidateMemoryAttributions(context, at),
+                "decision domain returned null B1 workspace attribution map");
+        if (mapping.isEmpty()) return request;
+        if (b1FeatureLearning == null) throw new IllegalStateException("B1 workspace attribution requires the B1 feature learning service");
+        var selected = Objects.requireNonNull(domainPort.selectedB1MemoryCandidates(context, at),
+                "decision domain returned null persisted B1 candidate selection");
+        var selectedByReference = new java.util.HashMap<B1MemoryCandidateReference,B1MemoryCandidate>();
+        for (B1MemoryCandidate candidate : selected) {
+            if (!request.scopeId().equals(candidate.scopeId())) throw new SecurityException("persisted B1 candidate is outside workspace scope");
+            String memoryReference = candidate.memoryReference();
+            int colon = memoryReference.indexOf(':'); int atIndex = memoryReference.lastIndexOf('@');
+            if (colon < 1 || atIndex <= colon + 1) throw new SecurityException("persisted B1 candidate has invalid memory reference");
+            var reference = new B1MemoryCandidateReference(candidate.kind(), candidate.scopeId(),
+                    memoryReference.substring(colon + 1, atIndex), Long.parseLong(memoryReference.substring(atIndex + 1)));
+            if (selectedByReference.putIfAbsent(reference, candidate) != null) throw new SecurityException("duplicate selected B1 memory reference");
+        }
+        var workspaceIds = request.candidates().stream().map(dev.supplychain.agent.mechanisms.b3.WorkspaceCandidate::id)
+                .collect(java.util.stream.Collectors.toSet());
+        if (!workspaceIds.containsAll(mapping.keySet())) throw new SecurityException("B1 attribution references a candidate outside the workspace request");
+        var queryCues = domainPort.b1SelectionRequest(context, at).queryCues();
+        var decorated = request.candidates().stream().map(candidate -> {
+            var references = mapping.getOrDefault(candidate.id(), List.of());
+            if (references.isEmpty()) return candidate;
+            var fingerprint = dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceService.candidateFingerprint(candidate);
+            var attributions = references.stream().map(reference -> {
+                B1MemoryCandidate source = selectedByReference.get(reference);
+                if (source == null) throw new SecurityException("workspace item attributes a memory revision not selected in its persisted B1 evidence set");
+                return b1FeatureLearning.attribute(source, queryCues, fingerprint);
+            }).toList();
+            return candidate.withMemoryAttributions(attributions);
+        }).toList();
+        return request.withCandidates(decorated);
     }
 
     public PlanningPrepared proposeCandidates(CognitiveCycleOperations.CycleContext context) {
@@ -350,7 +460,8 @@ public final class CognitiveCycleDecisionServices {
         Instant at = clock.instant();
         UncertaintyAssessment activeUncertainty = requireCurrentUncertainty(context, at);
         PlanningRequest request = Objects.requireNonNull(
-                domainPort.planningRequest(context, at), "domain port returned null planning request");
+                domainPort.planningRequest(context, at), "domain port returned null planning request")
+                .withUncertaintyDirective(dev.supplychain.agent.mechanisms.b6.UncertaintyGovernanceDirective.from(activeUncertainty));
         if (!Objects.equals(request.uncertaintyAssessmentReference(), activeUncertainty.reference())) {
             throw new SecurityException("M5 planning request must carry the exact current uncertainty assessment reference");
         }
@@ -369,6 +480,31 @@ public final class CognitiveCycleDecisionServices {
         }
         if (!request.initialWorld().recoveryObjectives().containsKey(request.objective().id())) {
             throw new SecurityException("planning objective is not present in the authoritative world snapshot");
+        }
+
+        // B2's approved-and-activated procedures are retrieved by exact trusted condition keys
+        // on every planning cycle. The service revalidates scope, evidence and action descriptors.
+        Set<String> recoveryConditionKeys = Set.copyOf(Objects.requireNonNull(
+                domainPort.recoveryProcedureConditionKeys(context, at), "decision domain returned null B2 condition keys"));
+        if (recoveryConditionKeys.stream().anyMatch(key -> key == null || !key.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,159}"))) {
+            throw new SecurityException("B2 procedure retrieval requires registered opaque condition keys");
+        }
+        if (!recoveryConditionKeys.isEmpty()) {
+            if (recoveryProcedurePromotion == null) {
+                throw new IllegalStateException("B2 recovery condition keys were supplied but governed procedural retrieval is not configured");
+            }
+            var recoveryScope = request.workingMemory().scopeId();
+            List<ReusableRecoveryProcedure> reusable = recoveryConditionKeys.stream().sorted()
+                    .map(key -> recoveryProcedurePromotion.retrieveActive(recoveryScope, key, at))
+                    .flatMap(java.util.Optional::stream).toList();
+            request = request.withReusableRecoveryProcedures(reusable);
+        }
+
+        // B6 hypothesis scrutiny is a host-owned, independent review performed after all
+        // planning inputs (including B2 procedures and B4 method authority) are fixed, but before
+        // M5 receives the request. A proof from an earlier/different request is not reusable.
+        if (request.alternativeHypothesisReview() != null) {
+            throw new SecurityException("planning host cannot pre-populate B6 alternative-hypothesis review evidence");
         }
 
         // B4 method authority is resolved from the current persisted intention, not from an
@@ -395,9 +531,22 @@ public final class CognitiveCycleDecisionServices {
             throw new SecurityException("planning method reference cannot be used without its authoritative B4 intention");
         }
 
+        // Rebuild the request after B4 has supplied its authoritative planner binding so that
+        // the independent B6 reviewer sees exactly the method that M5 will use.
         var originalBudget = request.budget();
         var effectiveBudget = originalBudget.scaleComputeResources(context.plannerBudgetScalePercent());
-        final PlanningRequest controlledRequest = request.withPlannerControl(effectiveBudget, methodOverride);
+        request = request.withPlannerControl(effectiveBudget, methodOverride);
+        if (request.uncertaintyDirective().requireAlternativeHypothesisReview()) {
+            var review = domainPort.independentlyReviewAlternativeHypotheses(context, request, at)
+                    .orElseThrow(() -> new SecurityException(
+                            "B6 calibrated hypothesis uncertainty requires an independent alternative-hypothesis review before M5"));
+            if (review.reviewedAt().isBefore(request.requestedAt()) || review.reviewedAt().isAfter(at)) {
+                throw new SecurityException("B6 alternative-hypothesis review timestamp is outside the current planning/review interval");
+            }
+            request = request.withAlternativeHypothesisReview(review);
+        }
+        request.assertGovernanceComplete();
+        final PlanningRequest controlledRequest = request;
         PlanningResult result;
         if (context.plannerBudgetScalePercent() < 100 && effectiveBudget.equals(originalBudget)) {
             var selection = plannerRouter.select(controlledRequest);
@@ -560,6 +709,46 @@ public final class CognitiveCycleDecisionServices {
         }
         SelectedPlanningCandidate selected = selectedCandidate(context);
         PlanningRequest original = selected.request();
+        if (freshRequest.alternativeHypothesisReview() == null
+                && freshRequest.uncertaintyDirective().requireAlternativeHypothesisReview()) {
+            boolean reusedExactReview = false;
+            if (original.alternativeHypothesisReview() != null) {
+                try {
+                    // Reuse only if the fresh authoritative inputs have the same pre-review
+                    // fingerprint. Any material change requires a new independent review.
+                    freshRequest = freshRequest.withAlternativeHypothesisReview(original.alternativeHypothesisReview());
+                    reusedExactReview = true;
+                } catch (SecurityException staleReview) {
+                    // The host will be asked to review the changed request below.
+                }
+            }
+            if (!reusedExactReview) {
+                var freshReview = domainPort.independentlyReviewAlternativeHypotheses(context, freshRequest, clock.instant())
+                        .orElse(null);
+                if (freshReview == null) return new CandidateRevalidation(false,
+                        "B6 calibrated hypothesis uncertainty requires a fresh independent review for changed planning inputs");
+                try {
+                    freshRequest = freshRequest.withAlternativeHypothesisReview(freshReview);
+                } catch (SecurityException invalidReview) {
+                    return new CandidateRevalidation(false, "fresh B6 alternative-hypothesis review is invalid: "
+                            + invalidReview.getMessage());
+                }
+            }
+        }
+        try {
+            freshRequest.assertGovernanceComplete();
+        } catch (SecurityException incompleteGovernance) {
+            return new CandidateRevalidation(false, incompleteGovernance.getMessage());
+        }
+        if (!Objects.equals(freshRequest.alternativeHypothesisReview(), original.alternativeHypothesisReview())
+                && freshRequest.alternativeHypothesisReview() == null) {
+            return new CandidateRevalidation(false,
+                    "fresh planning request does not carry required independent B6 alternative-hypothesis review evidence");
+        }
+        if (!Objects.equals(freshRequest.alternativeHypothesisReview(), original.alternativeHypothesisReview())) {
+            return new CandidateRevalidation(false,
+                    "fresh planning request does not preserve the exact independent B6 alternative-hypothesis review");
+        }
         if (!freshRequest.executionId().equals(context.executionId())
                 || !freshRequest.objective().id().equals(original.objective().id())
                 || !freshRequest.objective().equals(original.objective())
@@ -575,9 +764,25 @@ public final class CognitiveCycleDecisionServices {
         }
         EvaluatedCandidate replay = evaluateCandidate(freshRequest, selected.candidate().candidateId(),
                 selected.candidate().actions());
-        return replay.feasible()
-                ? new CandidateRevalidation(true, "selected candidate remains feasible under fresh deterministic replay")
-                : new CandidateRevalidation(false, "selected candidate no longer satisfies deterministic transitions and hard constraints");
+        if (!replay.feasible()) return new CandidateRevalidation(false,
+                "selected candidate no longer satisfies deterministic transitions and hard constraints");
+        if (freshRequest.uncertaintyDirective().requireIndependentPlanVerification()) {
+            IndependentPlanVerification proof = domainPort.independentlyVerifySelectedPlan(context, selected,
+                    freshRequest, clock.instant()).orElse(null);
+            if (proof == null) return new CandidateRevalidation(false,
+                    "B6 calibrated plan uncertainty requires a separate host verifier; no proof was supplied");
+            if (!proof.executionId().equals(context.executionId())
+                    || !proof.candidateId().equals(selected.candidate().candidateId())
+                    || !proof.objectiveFingerprint().equals(ObjectiveFingerprint.from(freshRequest.objective()).value())
+                    || !proof.planningRequestFingerprint().equals(freshRequest.fingerprint())
+                    || !proof.candidateFingerprint().equals(IndependentPlanVerification.fingerprint(selected.candidate()))
+                    || proof.verifiedAt().isBefore(freshRequest.requestedAt())
+                    || proof.verifiedAt().isAfter(clock.instant())
+                    || proof.verifierId().isBlank() || proof.evidenceReference().isBlank()) {
+                return new CandidateRevalidation(false, "independent plan verification is not bound to the exact selected candidate and fresh request");
+            }
+        }
+        return new CandidateRevalidation(true, "selected candidate passed deterministic replay and all required B6 independent verification");
     }
 
     public record SelectedPlanningCandidate(String candidateSetId, PlanCandidate candidate,

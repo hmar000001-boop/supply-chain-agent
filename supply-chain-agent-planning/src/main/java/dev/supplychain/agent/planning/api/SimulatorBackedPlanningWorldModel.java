@@ -51,7 +51,9 @@ public final class SimulatorBackedPlanningWorldModel implements PlanningWorldMod
             if (!ids.add(action.planningActionId())) throw new IllegalStateException("action provider returned duplicate planningActionId: " + action.planningActionId());
             validateAllowedAction(request, descriptors, action);
         }
-        return actions.stream().sorted(Comparator.comparing(PlanningAction::planningActionId)).toList();
+        return actions.stream().sorted(Comparator
+                .comparing((PlanningAction action) -> request.isReusableRecoveryAction(action)).reversed()
+                .thenComparing(PlanningAction::planningActionId)).toList();
     }
 
     @Override

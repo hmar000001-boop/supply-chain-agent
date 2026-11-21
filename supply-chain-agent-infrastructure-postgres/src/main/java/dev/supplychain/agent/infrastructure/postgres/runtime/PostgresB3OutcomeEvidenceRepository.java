@@ -5,6 +5,7 @@ import dev.supplychain.agent.mechanisms.b3.B3OutcomeEvidenceRepository;
 import dev.supplychain.agent.mechanisms.b3.ConsumerReceiptStatus;
 import dev.supplychain.agent.mechanisms.b3.DownstreamOutcomeEvidence;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceReceiptEvidence;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeEvidence;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -21,11 +22,18 @@ public final class PostgresB3OutcomeEvidenceRepository implements B3OutcomeEvide
     private final DataSource dataSource; private final String scopeId;
     private final JsonCodec<WorkspaceReceiptEvidence> receiptCodec;
     private final JsonCodec<DownstreamOutcomeEvidence> outcomeCodec;
+    private final JsonCodec<WorkspaceCoalitionOutcomeEvidence> coalitionOutcomeCodec;
 
     public PostgresB3OutcomeEvidenceRepository(DataSource dataSource,String scopeId,
             JsonCodec<WorkspaceReceiptEvidence> receiptCodec,JsonCodec<DownstreamOutcomeEvidence> outcomeCodec) {
+        this(dataSource,scopeId,receiptCodec,outcomeCodec,null);
+    }
+    public PostgresB3OutcomeEvidenceRepository(DataSource dataSource,String scopeId,
+            JsonCodec<WorkspaceReceiptEvidence> receiptCodec,JsonCodec<DownstreamOutcomeEvidence> outcomeCodec,
+            JsonCodec<WorkspaceCoalitionOutcomeEvidence> coalitionOutcomeCodec) {
         this.dataSource=Objects.requireNonNull(dataSource,"dataSource");this.scopeId=required(scopeId);
         this.receiptCodec=Objects.requireNonNull(receiptCodec,"receiptCodec");this.outcomeCodec=Objects.requireNonNull(outcomeCodec,"outcomeCodec");
+        this.coalitionOutcomeCodec=coalitionOutcomeCodec;
     }
 
     @Override public void appendReceipt(WorkspaceReceiptEvidence receipt) {
@@ -89,6 +97,52 @@ public final class PostgresB3OutcomeEvidenceRepository implements B3OutcomeEvide
             try(ResultSet r=q.executeQuery()){while(r.next())result.add(outcomeCodec.decode(r.getString(1)));}
             return List.copyOf(result);
         } catch(SQLException e){throw new PostgresPersistenceException("PostgreSQL B3 outcome query failed",e);}
+    }
+
+    @Override public void appendCoalitionOutcome(WorkspaceCoalitionOutcomeEvidence outcome) {
+        requireScope(outcome.scopeId());
+        if (coalitionOutcomeCodec == null) throw new IllegalStateException("coalition outcome JSON codec is required for B3 coalition learning persistence");
+        String payload=PostgresJsonArtifactRepository.validJson(coalitionOutcomeCodec.encode(outcome));
+        transaction(c->{
+            WorkspaceReceiptEvidence receipt=selectReceipt(c,outcome.receiptId(),true)
+                    .orElseThrow(()->new SecurityException("coalition outcome references a missing receipt"));
+            var coalition=receipt.selectedCoalitions().get(outcome.coalitionId());
+            if(receipt.status()!=ConsumerReceiptStatus.ACCEPTED || coalition==null
+                    || !coalition.proposalFingerprint().equals(outcome.proposalFingerprint())
+                    || !coalition.candidateIds().equals(outcome.candidateIds())
+                    || !receipt.workspaceId().equals(outcome.workspaceId()) || !receipt.cycleId().equals(outcome.cycleId())
+                    || !receipt.consumerId().equals(outcome.consumerId()))
+                throw new SecurityException("B3 coalition outcome does not match the exact selected receipt");
+            try(PreparedStatement insert=c.prepareStatement("""
+                    INSERT INTO b3_coalition_downstream_outcome(scope_id,idempotency_key,receipt_id,workspace_id,cycle_id,
+                        coalition_id,proposal_fingerprint,signal,payload,verified_at)
+                    VALUES(?,?,?,?,?,?,?,?,CAST(? AS jsonb),?) ON CONFLICT(scope_id,idempotency_key) DO NOTHING
+                    """)) {
+                insert.setString(1,scopeId);insert.setString(2,outcome.idempotencyKey());insert.setString(3,outcome.receiptId());
+                insert.setString(4,outcome.workspaceId());insert.setString(5,outcome.cycleId());insert.setString(6,outcome.coalitionId());
+                insert.setString(7,outcome.proposalFingerprint());insert.setString(8,outcome.signal().name());insert.setString(9,payload);
+                PostgresJdbc.setInstant(insert,10,outcome.verifiedAt());insert.executeUpdate();
+            }
+            try(PreparedStatement q=c.prepareStatement("SELECT payload::text FROM b3_coalition_downstream_outcome WHERE scope_id=? AND idempotency_key=? FOR UPDATE")) {
+                q.setString(1,scopeId);q.setString(2,outcome.idempotencyKey());
+                try(ResultSet r=q.executeQuery()){if(!r.next()||!outcome.equals(coalitionOutcomeCodec.decode(r.getString(1))))
+                    throw new SecurityException("B3 coalition outcome key conflicts with different evidence");}
+            }
+            return null;
+        });
+    }
+
+    @Override public List<WorkspaceCoalitionOutcomeEvidence> findCoalitionOutcomes(MemoryScopeId scope,int maximum) {
+        requireScope(scope);if(maximum<1||maximum>10000)throw new IllegalArgumentException("maximum must be in 1..10000");
+        if (coalitionOutcomeCodec == null) throw new IllegalStateException("coalition outcome JSON codec is required for B3 coalition learning persistence");
+        try(Connection c=dataSource.getConnection();PreparedStatement q=c.prepareStatement("""
+                SELECT payload::text FROM b3_coalition_downstream_outcome WHERE scope_id=?
+                ORDER BY verified_at ASC,idempotency_key ASC LIMIT ?
+                """)) {
+            q.setString(1,scopeId);q.setInt(2,maximum);List<WorkspaceCoalitionOutcomeEvidence> result=new ArrayList<>();
+            try(ResultSet r=q.executeQuery()){while(r.next())result.add(coalitionOutcomeCodec.decode(r.getString(1)));}
+            return List.copyOf(result);
+        } catch(SQLException e){throw new PostgresPersistenceException("PostgreSQL B3 coalition outcome query failed",e);}
     }
 
     private Optional<WorkspaceReceiptEvidence> selectReceipt(Connection c,String receiptId,boolean lock)throws SQLException {

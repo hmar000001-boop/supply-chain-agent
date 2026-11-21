@@ -134,21 +134,51 @@ Chapters 19 and 20 remain gated on the M8-B6 freeze and approval of their detail
 
 ## M8-PreB7 — F-01–F-04 implementation increments (hosted CI accepted by owner)
 
-- Current static inventory for this candidate: **462 production Java files, 72 test Java sources; zero Java files outside module source roots**. The architecture guard and `M8-TEST-INVENTORY.csv` were synchronized to these counts; they are not test execution totals.
+- Historical F-01–F-04 inventory before GAP-01–GAP-05: **462 production Java files and 72 test Java sources** under module roots. The current first-five candidate inventory is reported in the section below; these historical counts are not test execution totals.
 
 
 - F-03 bridges an approved, evidence-bound B2 recovery draft into CoALA procedural memory as a `DRAFT`; the B2 approver cannot also perform procedural validation or activation. The immutable artifact contains registered action references, opaque condition keys and evidence, not executable commands or generated free-form steps.
-- Active procedural-memory records can appear through shared CoALA M2 retrieval and B1 candidate construction. The F-03 `retrieveActive` API revalidates scope, evidence and current action-descriptor fingerprints, but no normal full-graph production call invokes it to hydrate condition-matched procedure content. No automatic activation or dispatcher execution is added.
+- At the F-03/F-04 checkpoint, `retrieveActive` existed but was not yet invoked by the normal planning-input path. This was superseded by GAP-02: `CognitiveCycleDecisionServices` now resolves trusted condition keys, retrieves active procedures on subsequent cycles, revalidates scope/evidence/action descriptors, and passes typed non-executable recovery knowledge plus registered action references into M5 planning. No capability grant or dispatcher execution is added.
 - PostgreSQL V012 adds content-addressed immutable recovery-artifact payload storage; migrations V001-V011 remain unchanged. The PG adapter and repository-replacement test are present; the full evaluation host still uses in-memory procedural/artifact stores.
 - F-04 changes B3 optional admission from post-hoc aggregation to bounded comparison of singleton options and pair/triple content coalitions. Proposal traces record membership, joint coverage, score and winner. Mandatory content remains protected; conflicts are excluded; a truncated search cannot win from incomplete alternatives and falls back to singleton admission.
 - B3 workspace snapshots remain ephemeral. Receipt/outcome evidence and R2 shadow/disabled feedback gates are unchanged. Coalition competition is an engineering extension, not a claim of full LIDA reproduction.
 - Added `scripts/verify-m8-preb7-f03-f04.py` to both identical CI workflow copies. F-01/F-02 were applied before F-03/F-04. The project owner confirmed the cumulative Java 21/PostgreSQL hosted CI is green on 2026-11-21. This status closes the code-change/test gate but does not prove outcome-learning effectiveness, calibration, coalition-level learning, procedure transfer, GraSP migration or production deployment.
 
 
-## Post-F-01–F-04 evidence/status note
+## Post-F-01–F-04 evidence/status note (historical checkpoint; superseded by the GAP-01–GAP-05 candidate section below)
 
 - **Project-owner-confirmed hosted CI:** the cumulative R1/R2 + F-01/F-02 + F-03/F-04 source stack is green (2026-11-21). The GitHub Actions run URL, run ID and commit SHA were not supplied to this workspace; archive them with the next frozen source checkpoint.
-- **Final source inventory reconstructed for the conformance matrix:** 11 Maven modules, 12 POM files, 462 production Java files, 72 test Java files, 534 Java files total, zero Java files outside module source roots, PostgreSQL migrations V001–V012.
+- **Source inventory at the F-01–F-04 checkpoint:** 11 Maven modules, 12 POM files, 462 production Java files and 72 test Java files under module roots; this historical count is superseded by the GAP-01–GAP-05 candidate inventory below.
 - **Static guards independently rerun on the reconstructed tree:** M8-B5 architecture guard, R2 evidence guard and F-03/F-04 guard all PASS. This does not represent a local Maven reactor rerun.
 - **Empirical evidence remains limited:** R2 reports no verified outcome corpus and no independent holdout scenarios; the candidate is SHADOW, activation DISABLED and baseline preserved. B6 calibration remains NOT_CALIBRATED. No adaptive or cross-bundle performance improvement is claimed.
 - **Conformance remains open:** the updated `docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md` and `FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md` are the authoritative as-built assessment and acceptance backlog. M8-B7/book drafting remains gated on author approval of conformance and any remaining implementation work.
+
+
+## M8-PreB7 — GAP-01–GAP-05 implementation candidate (2026-11-21)
+
+**Status:** Source implementation and targeted local validation complete; **hosted Maven CI pending for this candidate**. Do not treat the first-five increment as accepted until the owner confirms the exact combined source passes CI.
+
+| Gap | Implemented source/control path | Acceptance boundary |
+|---|---|---|
+| GAP-01 B1 durable accessibility/use/utility | Exact memory-revision B1 feature state; retrieval access plus verified downstream-use history; cue/utility updates from B3 verifier-bound outcomes; PostgreSQL V014; next-cycle candidate enrichment | No real verified corpus/holdout; adaptive policy/effectiveness remains unclaimed |
+| GAP-02 B2 future-cycle procedure reuse | Approved B2 artifact is staged, independently validated/activated, retrieved by trusted condition keys in normal planning-input construction, revalidated against evidence/action descriptors and added to M5 as soft planning knowledge | Not literal Soar chunking or an execution capability; transfer/repeated-failure benefit pending |
+| GAP-03 B3 coalition learning | Exact selected coalition/proposal/member/receipt/outcome attribution; shadow preference trainer; independent paired holdout/approval gate; PostgreSQL V015; future admission reads active preference adjustments | No verified corpus or active policy; no coalition performance benefit claim |
+| GAP-04 B4 intention contract | Rationale, active-plan ref, continuation condition, typed reconsideration triggers, authority/termination policies; F-01 persists planner method authority to next invocation | Long-horizon B4-on/off effectiveness pending |
+| GAP-05 B6 calibration/governance | Target-specific labelled training/independent validation/approval; PostgreSQL V013; actionable directives at B1/B3/M5/plan revalidation; F-02 downshift retained | Actual runtime remains NOT_CALIBRATED; no calibrated values drive every M3/tool/execution stage |
+
+**Current local validation:** Java 21 fresh compile passed for eight framework-neutral production modules. 37 PostgreSQL production source files compiled; six dependency-bound PostgreSQL classes were excluded because HikariCP/pgJDBC/LangGraph4j dependencies were unavailable locally. A lightweight JUnit-compatible runner passed 140 targeted tests (48 runtime, 83 mechanism/planning, 9 migration parsing), zero failures. Three static guards passed. This is not a full Maven reactor/Surefire run. The first-five hosted CI is pending.
+
+**Migrations:** V001–V015 registered; new migrations are V013 B6 calibration profiles, V014 B1 feature learning and V015 B3 coalition downstream outcomes.
+
+**Empirical status:** R2 verified-outcome corpus remains empty; B1/B3 policy candidates remain shadow/disabled. B6 profile status remains NOT_CALIBRATED. GAP-09 independent matched experiments, calibration and transfer evaluations remain open.
+
+**Book gate:** Chapters 19 and 20 remain blocked until hosted CI on this candidate, subsequent source freeze, updated conformance review and explicit owner acceptance.
+
+
+### Current GAP-01–GAP-05 candidate inventory and freeze status
+
+- **Current inventory:** 11 Maven modules, 12 POM files, 495 production Java files and 74 test Java files under module source roots, plus two root-level legacy Java shadow files outside module roots (571 Java files total). The two root-level files are excluded from Maven reactor compilation and remain GAP-10.
+- **Current PostgreSQL migration head:** V015 (V001 in `supply-chain-agent-memory`; V002–V015 in PostgreSQL infrastructure).
+- The GAP-01–GAP-05 source/control-path increment has passed 140 targeted local checks using a lightweight JUnit-compatible runner and the three static guards. It has **not** yet passed the hosted full Maven CI gate.
+- Independent matched experiments, verified outcome-corpus creation, target-specific uncertainty calibration and transfer evaluation remain GAP-09. B1/B3 feedback remains SHADOW/DISABLED and B6 remains NOT_CALIBRATED until real evidence and separate approval exist.
+- This is a candidate source freeze only. Replace this status with the exact Git commit and hosted workflow run when the first-five candidate's full CI succeeds.

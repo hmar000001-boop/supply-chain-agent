@@ -82,6 +82,62 @@ class RecoveryIntentionServiceTest {
         assertThrows(IllegalArgumentException.class,()->s.terminate(current.id(),current.version(),"operator","cancelled",NOW.plusSeconds(5)));
     }
 
+
+    @Test void intentionPersistsRationalePlanContinuationTriggersAndAuthorityContract(){
+        var policy = new IntentionAuthorityPolicy("owner", "runtime-governor",
+                Set.of("owner", "runtime-governor"), Set.of("owner", "operator"), true);
+        var s = service();
+        var i = s.create(new RecoveryIntentionId("i-b4-contract"), objective(), SCOPE, "owner", method("cot"),
+                "Preserve affected customer orders while restoring supplier capacity",
+                ContinuationCondition.untilDeadline(NOW.plusSeconds(3600)),
+                Set.of(ReconsiderationTrigger.NEW_VERIFIED_EVIDENCE, ReconsiderationTrigger.METHOD_FAILURE),
+                policy, NOW);
+        assertEquals("Preserve affected customer orders while restoring supplier capacity", i.rationale());
+        assertEquals("plan:cot", i.activePlanReference());
+        assertEquals(ContinuationCondition.Kind.UNTIL_DEADLINE, i.continuationCondition().kind());
+        assertTrue(i.reconsiderationTriggers().contains(ReconsiderationTrigger.METHOD_FAILURE));
+        assertEquals(policy, i.authorityPolicy());
+        assertFalse(i.continuationExpired(NOW.plusSeconds(5), false, false));
+        assertTrue(i.continuationExpired(NOW.plusSeconds(3600), false, false));
+    }
+
+    @Test void typedReconsiderationRequiresAnAllowedTriggerAndAuthorizedActor(){
+        var policy = new IntentionAuthorityPolicy("owner", "runtime-governor",
+                Set.of("owner", "runtime-governor"), Set.of("owner", "operator"), true);
+        var s = service();
+        var i = s.create(new RecoveryIntentionId("i-b4-trigger"), objective(), SCOPE, "owner", method("cot"),
+                "Protect objective", ContinuationCondition.untilObjectiveVerified(),
+                Set.of(ReconsiderationTrigger.METHOD_FAILURE), policy, NOW);
+        var current = i;
+        assertThrows(SecurityException.class, () -> s.requestReconsideration(current.id(), current.version(),
+                ReconsiderationTrigger.OPERATOR_REQUEST, "runtime-governor", "manual", NOW.plusSeconds(1)));
+        assertThrows(SecurityException.class, () -> s.requestReconsideration(current.id(), current.version(),
+                ReconsiderationTrigger.METHOD_FAILURE, "untrusted-model", "method failed", NOW.plusSeconds(1)));
+        i = s.requestReconsideration(i.id(), i.version(), ReconsiderationTrigger.METHOD_FAILURE,
+                "runtime-governor", "planner failed", NOW.plusSeconds(1));
+        assertEquals(IntentionStatus.RECONSIDERATION_PENDING, i.status());
+    }
+
+    @Test void methodChangeUpdatesActivePlanReferenceButNeverObjectiveFingerprint(){
+        var s = service();
+        var i = s.create(objective(), SCOPE, "owner", method("cot"), NOW);
+        String objectiveFingerprint = i.objectiveFingerprint();
+        i = s.requestReconsideration(i.id(), i.version(), "new evidence", NOW.plusSeconds(1));
+        i = s.changeMethod(i.id(), i.version(), method("tot"), objectiveFingerprint, NOW.plusSeconds(2));
+        assertEquals("plan:tot", i.activePlanReference());
+        assertEquals(objectiveFingerprint, i.objectiveFingerprint());
+    }
+
+    @Test void terminationRecordsTypedReasonAndAuthenticatedActor(){
+        var s = service();
+        var i = s.create(objective(), SCOPE, "owner", method("cot"), NOW);
+        i = s.terminate(i.id(), i.version(), "operator", "safety review cancelled the recovery",
+                IntentionTerminationReason.SAFETY_STOP, NOW.plusSeconds(1));
+        assertEquals(IntentionStatus.TERMINATED, i.status());
+        assertEquals(IntentionTerminationReason.SAFETY_STOP, i.terminationReason());
+        assertEquals("operator", i.terminatedBy());
+    }
+
     @Test void terminalIntentionCannotBeResumedOrChanged(){
         var s=service();var i=s.create(objective(),SCOPE,"owner",method("cot"),NOW);i=s.terminate(i.id(),i.version(),"operator","cancelled",NOW.plusSeconds(1));var terminal=i;
         assertEquals(IntentionStatus.TERMINATED,terminal.status());assertThrows(IllegalStateException.class,()->s.requestReconsideration(terminal.id(),terminal.version(),"later",NOW.plusSeconds(2)));
