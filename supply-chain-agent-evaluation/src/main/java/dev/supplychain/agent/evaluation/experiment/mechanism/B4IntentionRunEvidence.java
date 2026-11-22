@@ -58,7 +58,9 @@ public record B4IntentionRunEvidence(
         transitions = List.copyOf(Objects.requireNonNull(transitions, "transitions"));
         if (transitions.stream().map(TransitionObservation::sequence).distinct().count() != transitions.size())
             throw new SecurityException("B4 transition audit contains duplicate sequence numbers");
-        if (!objectiveFingerprint.isEmpty() && transitions.stream().anyMatch(t -> !objectiveFingerprint.equals(t.objectiveBefore())))
+        String committedObjectiveFingerprint = objectiveFingerprint;
+        if (!committedObjectiveFingerprint.isEmpty()
+                && transitions.stream().anyMatch(t -> !committedObjectiveFingerprint.equals(t.objectiveBefore())))
             throw new SecurityException("B4 audit objective does not match the run's committed objective");
         String expected = ExperimentEvidenceFingerprint.sha256(canonical(arm, experimentUnitFingerprint,
                 trainingArtifactFingerprint, intentionId, objectiveFingerprint, protectedConstraints,
@@ -91,20 +93,11 @@ public record B4IntentionRunEvidence(
     }
     public static List<TransitionObservation> observations(List<InMemoryRecoveryIntentionTransitionRecorder.Entry> entries) {
         return entries.stream().map(entry -> {
-            String actor = actor(entry.after().reason());
             return new TransitionObservation(entry.sequence(), entry.before().version(), entry.after().version(),
                     entry.kind().name(), entry.before().currentMethod().methodId(), entry.after().currentMethod().methodId(),
-                    entry.before().objectiveFingerprint(), entry.after().objectiveFingerprint(), actor,
+                    entry.before().objectiveFingerprint(), entry.after().objectiveFingerprint(), entry.actor(),
                     entry.before().status().name(), entry.after().status().name());
         }).toList();
-    }
-    private static String actor(String reason) {
-        String value = Objects.requireNonNullElse(reason, "");
-        int start = value.lastIndexOf("[actor=");
-        if (start >= 0) { int end = value.indexOf(']', start); if (end > start) return value.substring(start + 7, end).trim(); }
-        int by = value.lastIndexOf(" by ");
-        if (by >= 0) return value.substring(by + 4).trim();
-        return "unrecorded-actor";
     }
     private static String canonical(ExperimentArm arm, String unit, String bundle, String intention, String objective,
             List<String> constraints, String initialMethod, String initialPlan, String finalMethod, String finalPlan,

@@ -23,7 +23,7 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
     "supply-chain-agent-actions": (58, 5, 28, 4, 1),
-    "supply-chain-agent-mechanisms": (166, 12, 124, 12, 0),
+    "supply-chain-agent-mechanisms": (166, 12, 125, 12, 0),
     "supply-chain-agent-planning": (54, 10, 43, 9, 1),
     "supply-chain-agent-runtime": (38, 11, 87, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (43, 15, 57, 13, 2),

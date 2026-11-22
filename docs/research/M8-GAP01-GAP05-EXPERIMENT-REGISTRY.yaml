@@ -2,9 +2,9 @@ protocol_id: M8-GAP01-05-IEP-1.1
 protocol_status: PREREGISTERED_LOCKED
 protocol_date: 2026-11-21
 protocol_amendment_date: 2026-11-22
-candidate_id: M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1
+candidate_id: M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX1
 candidate_ci_status: PENDING_HOSTED_CI_FOR_RESEARCH_PIPELINE_INCREMENT
-candidate_code_fingerprint: f16e581e617047874a57da2118eb029be23004d786a35f6939ccd319e89e1c42
+candidate_code_fingerprint: 8f64c3765be2e2eefe0ed1b00ff018526860e188ef6bb446a10dd1d60ef27236
 candidate_fingerprint_file: docs/research/M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-CANDIDATE-FINGERPRINT.json
 parent_candidate_id: M8-GAP01-GAP05-CI-GREEN-FIX3
 candidate_git_commit: NOT_PROVIDED

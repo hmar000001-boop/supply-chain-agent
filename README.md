@@ -1,48 +1,30 @@
-# GAP-01–GAP-05 implementation candidate — changeset and frozen source
+# M8 mechanism experiment pipeline — CI Fix 1
 
-**Project:** Supply-Chain Disruption Management Agent  
-**Date:** 2026-11-21  
-**Base:** owner-confirmed F-01–F-04 hosted-CI-green stack  
-**Increment:** GAP-01 through GAP-05  
-**Hosted CI:** owner-confirmed green after CI Fix 3 (B6 graph assessment ordering, B4 planner-session preservation, B4 intention-version regression assertion). Exact workflow run URL and Git commit were not included in the confirmation.
+## Purpose
 
-## Application order
+This changeset repairs the first hosted-CI compilation failure in the mechanism-specific experiment harness and fixes two related B4 evidence-integrity / Java 21 compilation defects discovered during the same audit.
 
-The changeset is repository-root-relative. Apply it only over the source stack containing the accepted F-01/F-02 and F-03/F-04 increments. Do not apply it directly to the original base ZIP without those overlays. A complete source snapshot accompanies this delivery as a reproducible checkpoint.
+## Apply
 
-## What this increment implements
+Extract this archive at the repository root, over the previously applied M8 experiment protocol, Scenario Factory v1, Full-Graph Adapter v1, and Mechanism-Specific Experiment Harness / Independent Evidence Pipeline v1 changesets.
 
-- **GAP-01 / B1:** durable exact-memory-revision retrieval-access and verified-use histories, cue associations and expected utility; only verifier-bound B3 outcomes update learned features; PostgreSQL V014.
-- **GAP-02 / B2:** approved recovery procedures are retrieved in later normal planning cycles by trusted condition keys, revalidated for scope/evidence/live action-descriptor identity, and supplied to M5 as typed non-executable planning knowledge and soft search priority. No capability or execution authority is granted.
-- **GAP-03 / B3:** exact coalition/proposal/member/receipt/outcome attribution; shadow preference trainer; disjoint paired holdout, resource/safety gates and separate activation approval; future admission can use an active coalition preference adjustment; PostgreSQL V015.
-- **GAP-04 / B4:** persisted rationale, plan reference, continuation condition, typed reconsideration triggers, authority and termination semantics; F-01's protected method-to-next-planner binding remains.
-- **GAP-05 / B6:** target-specific train/holdout/calibration/review/approval lifecycle; assessment/profile binding; directives for selected B1/B3/M5/plan-verification boundaries; PostgreSQL V013. F-02 downshift and the immutable execution-wide resource ceiling remain.
+All paths in this ZIP are repository-root-relative. Project delta: 10 complete file replacements, 1 new file, zero deletions.
 
-## Local evidence
+## Main corrections
 
-- Eight framework-neutral production modules compile with Java 21, including changed runtime decision/lifecycle sources.
-- Thirty-seven PostgreSQL production Java sources compile locally; six classes requiring unavailable HikariCP/pgJDBC/LangGraph4j dependencies were excluded.
-- **140 targeted tests passed, zero failed:** 48 runtime, 83 mechanism/planning and 9 migration parser tests. Execution used a lightweight JUnit-compatible runner, not Maven Surefire/JUnit.
-- Three source/architecture guards pass: M8-B5 architecture, R2 evidence and F-03/F-04 integration.
-- The migration chain is registered through V015 (V001 in the memory module, V002–V015 in PostgreSQL infrastructure).
-- Full Maven reactor/Surefire, live PostgreSQL integration for V013–V015 and full LangGraph4j hosted graph tests were not run locally.
-- The predecessor F-01–F-04 stack and the combined GAP-01–GAP-05 + CI Fix 1–3 candidate are owner-confirmed hosted-CI green. The exact run URL and Git commit SHA were not supplied.
+1. Adds a validating `RecoveryIntentionService.transitionKind(before, after)` classifier. It enforces same intention identity, exactly one version increment and an unchanged committed objective fingerprint; it classifies method changes, reconsideration requests, active-plan bindings and other lifecycle transitions.
+2. Carries the authenticated actor explicitly through `RecoveryIntentionTransitionRecorder` and its in-memory entries. The evidence adapter now consumes this typed actor rather than trying to infer identity from free-text intention reasons.
+3. Fixes a Java 21 effectively-final capture in `B4IntentionRunEvidence`.
+4. Synchronizes the mechanisms test annotation inventory with the added regression test.
+5. Refreshes the experiment candidate fingerprint and research registry metadata.
 
-## Evidence limits and remaining gaps
+## Candidate identity
 
-- R2 still has no verified outcome corpus or independent holdout. B1/B3 feedback remains `SHADOW`/`DISABLED`; no adaptive superiority is claimed.
-- B6 remains `NOT_CALIBRATED` until a real target-specific labelled corpus, independent validation and authorized activation exist.
-- GAP-06 (GraSP-like governor for full Fan & Lan §VI-E synthesis runtime), GAP-07 (full selected CoALA learning-action surface), GAP-08 (durable full application host/repeat-cycle ingress), GAP-09 (independent matched experiments/calibration/transfer) and GAP-10 (two uncompiled root-level Java shadow files) remain open.
-- Total paper conformance is **not** claimed. These are application-adapted realizations of the selected concepts and mechanism bundles, not literal reproductions of the historical architectures.
+- Candidate: `M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX1`
+- Code-tree SHA-256: `8f64c3765be2e2eefe0ed1b00ff018526860e188ef6bb446a10dd1d60ef27236`
+- Fingerprinted files: 674
+- Git commit / hosted CI run ID / URL: unavailable in the supplied log; CI status remains unknown pending rerun.
 
-## Independent experiment protocol
+## Validation
 
-The owner-confirmed CI-green source has a frozen implementation fingerprint and a preregistered B1/B2/B3/B4/B6 experiment protocol under `docs/research/`. The protocol reserves 280 training, 280 confirmatory holdout and 210 family-transfer episodes; the old 25 fixtures are regression-only. `M8ExperimentScenarioFactory-v1` and the TRAIN-only `M8FullGraphExperimentAdapter-v1` are now implemented with split guards and actual application-graph execution. The adapter increment is pending hosted CI. Its current output is graph telemetry only (`confirmatoryInferenceAllowed=false`), not independently verified outcome labels; do not open HOLDOUT/TRANSFER or report causal/confirmatory results until mechanism-specific interventions, independent outcome verifiers, and the artifact-freeze/statistical gates are implemented and accepted.
-
-## Build command
-
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean install
-```
-
-Hosted CI on the combined Fix 1–3 candidate was confirmed green by the owner; record the exact run/commit in the freeze manifest when available. See `VALIDATION_REPORT.md`, `docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md` and `docs/research/FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md`. Chapters 19 and 20 remain blocked pending owner approval of conformance.
+See `VALIDATION_REPORT.md`. Java 21 source compilation and focused B4 checks passed locally, as did the repository's static architecture/evidence/split guards. The full Maven reactor, Surefire engine and live PostgreSQL integration have not been run locally. Hosted CI must rerun the full command before this candidate is accepted.

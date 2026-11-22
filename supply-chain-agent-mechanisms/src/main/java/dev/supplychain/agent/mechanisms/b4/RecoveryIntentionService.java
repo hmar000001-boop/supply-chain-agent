@@ -56,7 +56,7 @@ public final class RecoveryIntentionService {
 
     public RecoveryIntention requestReconsideration(RecoveryIntentionId id, long version,
             ReconsiderationTrigger trigger, String actor, String reason, Instant at) {
-        return update(id, version, value -> value.requestReconsideration(trigger, actor, reason, at));
+        return update(id, version, actor, value -> value.requestReconsideration(trigger, actor, reason, at));
     }
 
     public RecoveryIntention changeMethod(RecoveryIntentionId id, long version, RecoveryMethodReference method,
@@ -66,12 +66,12 @@ public final class RecoveryIntentionService {
 
     public RecoveryIntention changeMethod(RecoveryIntentionId id, long version, RecoveryMethodReference method,
             String objectiveFingerprint, String actor, Instant at) {
-        return update(id, version, value -> value.changeMethod(method, objectiveFingerprint, actor, at));
+        return update(id, version, actor, value -> value.changeMethod(method, objectiveFingerprint, actor, at));
     }
 
     public RecoveryIntention bindActivePlan(RecoveryIntentionId id, long version, String planReference,
             String actor, Instant at) {
-        return update(id, version, value -> value.bindActivePlan(planReference, actor, at));
+        return update(id, version, actor, value -> value.bindActivePlan(planReference, actor, at));
     }
 
     public RecoveryIntention suspend(RecoveryIntentionId id, long version, String reason, Instant at) {
@@ -79,7 +79,7 @@ public final class RecoveryIntentionService {
     }
 
     public RecoveryIntention suspend(RecoveryIntentionId id, long version, String actor, String reason, Instant at) {
-        return update(id, version, value -> value.suspend(reason, actor, at));
+        return update(id, version, actor, value -> value.suspend(reason, actor, at));
     }
 
     public RecoveryIntention resume(RecoveryIntentionId id, long version, Instant at) {
@@ -87,7 +87,7 @@ public final class RecoveryIntentionService {
     }
 
     public RecoveryIntention resume(RecoveryIntentionId id, long version, String actor, Instant at) {
-        return update(id, version, value -> value.resume(actor, at));
+        return update(id, version, actor, value -> value.resume(actor, at));
     }
 
     public RecoveryIntention delegate(RecoveryIntentionId id, long version, String caseId, Instant at) {
@@ -95,7 +95,7 @@ public final class RecoveryIntentionService {
     }
 
     public RecoveryIntention delegate(RecoveryIntentionId id, long version, String actor, String caseId, Instant at) {
-        return update(id, version, value -> value.delegate(caseId, actor, at));
+        return update(id, version, actor, value -> value.delegate(caseId, actor, at));
     }
 
     public RecoveryIntention returnFromDelegation(RecoveryIntentionId id, long version, String caseId,
@@ -105,11 +105,11 @@ public final class RecoveryIntentionService {
 
     public RecoveryIntention returnFromDelegation(RecoveryIntentionId id, long version, String caseId,
             DelegationReturn result, String actor, Instant at) {
-        return update(id, version, value -> value.returnFromDelegation(caseId, result, actor, at));
+        return update(id, version, actor, value -> value.returnFromDelegation(caseId, result, actor, at));
     }
 
     public RecoveryIntention complete(RecoveryIntentionId id, long version, ObjectiveSatisfactionProof proof, Instant at) {
-        return update(id, version, value -> value.complete(proof, at));
+        return update(id, version, proof.verifier(), value -> value.complete(proof, at));
     }
 
     public RecoveryIntention terminate(RecoveryIntentionId id, long version, String actor, String reason, Instant at) {
@@ -118,21 +118,58 @@ public final class RecoveryIntentionService {
 
     public RecoveryIntention terminate(RecoveryIntentionId id, long version, String actor, String reason,
             IntentionTerminationReason terminationReason, Instant at) {
-        return update(id, version, value -> value.terminate(actor, reason, terminationReason, at));
+        return update(id, version, actor, value -> value.terminate(actor, reason, terminationReason, at));
     }
 
     /** Runtime-only path after its host authorization port has authenticated and authorized the actor. */
     public RecoveryIntention terminateAfterHostAuthorization(RecoveryIntentionId id, long version,
             String actor, String reason, IntentionTerminationReason terminationReason, Instant at) {
-        return update(id, version, value -> value.terminateAfterHostAuthorization(actor, reason, terminationReason, at));
+        return update(id, version, actor, value -> value.terminateAfterHostAuthorization(actor, reason, terminationReason, at));
     }
 
-    private RecoveryIntention update(RecoveryIntentionId id, long expected, UnaryOperator<RecoveryIntention> operation) {
+    private RecoveryIntention update(RecoveryIntentionId id, long expected, String actor,
+            UnaryOperator<RecoveryIntention> operation) {
+        String transitionActor = required(actor, "actor");
         RecoveryIntention current = get(Objects.requireNonNull(id, "id"));
         if (current.version() != expected) throw new IllegalStateException("intention version conflict");
         RecoveryIntention next = operation.apply(current);
+        RecoveryIntentionTransitionRecorder.TransitionKind kind = transitionKind(current, next);
         if (!repository.compareAndSet(id, expected, next)) throw new IllegalStateException("intention changed concurrently");
-        transitionRecorder.record(current, next, transitionKind(current, next));
+        transitionRecorder.record(current, next, kind, transitionActor);
         return next;
     }
+
+    /**
+     * Classifies the committed B4 state change for the append-only experiment/audit stream.
+     * Method changes take precedence over their accompanying active-plan-reference change;
+     * a transition into reconsideration-pending includes explicit requests and delegated
+     * investigation returns that require a new method decision.
+     */
+    private static RecoveryIntentionTransitionRecorder.TransitionKind transitionKind(
+            RecoveryIntention before, RecoveryIntention after) {
+        Objects.requireNonNull(before, "before");
+        Objects.requireNonNull(after, "after");
+        if (!before.id().equals(after.id()))
+            throw new IllegalArgumentException("cannot classify a transition between different intentions");
+        if (after.version() != before.version() + 1)
+            throw new IllegalArgumentException("B4 transition must advance exactly one intention version");
+        if (!before.objectiveFingerprint().equals(after.objectiveFingerprint()))
+            throw new SecurityException("B4 transition cannot change the committed objective fingerprint");
+
+        if (!before.currentMethod().equals(after.currentMethod()))
+            return RecoveryIntentionTransitionRecorder.TransitionKind.METHOD_CHANGED;
+        if (before.status() != IntentionStatus.RECONSIDERATION_PENDING
+                && after.status() == IntentionStatus.RECONSIDERATION_PENDING)
+            return RecoveryIntentionTransitionRecorder.TransitionKind.RECONSIDERATION_REQUESTED;
+        if (!Objects.equals(before.activePlanReference(), after.activePlanReference()))
+            return RecoveryIntentionTransitionRecorder.TransitionKind.ACTIVE_PLAN_BOUND;
+        return RecoveryIntentionTransitionRecorder.TransitionKind.OTHER;
+    }
+
+    private static String required(String value, String name) {
+        String result = Objects.requireNonNull(value, name).trim();
+        if (result.isEmpty()) throw new IllegalArgumentException(name + " cannot be blank");
+        return result;
+    }
+
 }

@@ -1,7 +1,7 @@
 {
-  "candidateId": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1",
+  "candidateId": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX1",
   "fingerprintAlgorithm": "SHA-256 over sorted UTF-8 path NUL file-SHA256 newline records",
-  "codeTreeSha256": "f16e581e617047874a57da2118eb029be23004d786a35f6939ccd319e89e1c42",
+  "codeTreeSha256": "8f64c3765be2e2eefe0ed1b00ff018526860e188ef6bb446a10dd1d60ef27236",
   "fileCount": 674,
   "gitCommit": "NOT_AVAILABLE",
   "gitWorkingTreeDirty": null,
@@ -84,7 +84,7 @@
     },
     {
       "path": "scripts/verify-m8-b5-architecture.py",
-      "sha256": "d9b9032b3e499442e9115802341f83c50284f28745811bb0dcb77361bd20cf28"
+      "sha256": "7cdbd80a9bff959be645a43b3bc866c853536e5c2d88ac5c2fc9d5005ffb4c36"
     },
     {
       "path": "scripts/verify-m8-experiment-scenario-register.py",
@@ -748,7 +748,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/B4IntentionRunEvidence.java",
-      "sha256": "e34740342a6c8259d1cdf372a3f35b5fc324fbdbbeed0182927d5902fc859e0b"
+      "sha256": "565aacc30542f70f4a2aad2f5c39e99d55082c1c3414964205d439d1fce54d00"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/B6CalibrationRunEvidence.java",
@@ -1692,7 +1692,7 @@
     },
     {
       "path": "supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b4/InMemoryRecoveryIntentionTransitionRecorder.java",
-      "sha256": "7aaa387d662214ec23b3ea9b1ad0cbba1feef448e2877546d93bdded227dd084"
+      "sha256": "30aae8c8269eb436cd78915ffeb07f0447112e6b94c96a9a569139b018ee0bef"
     },
     {
       "path": "supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b4/IntentionAuthorityPolicy.java",
@@ -1732,11 +1732,11 @@
     },
     {
       "path": "supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b4/RecoveryIntentionService.java",
-      "sha256": "47a159a19c8a472cb3734a53949c40da40626aeffd0fab91b8d42b42685c7b20"
+      "sha256": "56a4de14b190e922c1609958923220fcdab64449f135bf688b01c218f982dbd1"
     },
     {
       "path": "supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b4/RecoveryIntentionTransitionRecorder.java",
-      "sha256": "3d4032ecc22f297c1ca834e8e4390183652703233141228c4ba0fe949213b932"
+      "sha256": "5bd1fd367b749c965c45d33244c66d5dcbc50b22a89e0e637fa4a99cdc967eef"
     },
     {
       "path": "supply-chain-agent-mechanisms/src/main/java/dev/supplychain/agent/mechanisms/b4/RecoveryMethodReference.java",
@@ -1960,7 +1960,7 @@
     },
     {
       "path": "supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b4/RecoveryIntentionServiceTest.java",
-      "sha256": "5d02d6fbeaf559d9a6c2ee3c336be0916911c2d2d37258cd674d8a5941c8372b"
+      "sha256": "2d57d444765ab59c2fca8d79019968b867f6d785b1651b121ea7434adea9d142"
     },
     {
       "path": "supply-chain-agent-mechanisms/src/test/java/dev/supplychain/agent/mechanisms/b6/MetaControlGovernorTest.java",

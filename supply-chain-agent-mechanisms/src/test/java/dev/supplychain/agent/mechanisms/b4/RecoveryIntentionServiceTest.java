@@ -138,6 +138,42 @@ class RecoveryIntentionServiceTest {
         assertEquals("operator", i.terminatedBy());
     }
 
+    @Test void transitionRecorderClassifiesCommittedB4ChangesWithoutLosingOtherLifecycleEvents() {
+        var repository = new InMemoryRecoveryIntentionRepository();
+        var recorder = new InMemoryRecoveryIntentionTransitionRecorder();
+        var s = new RecoveryIntentionService(repository, recorder);
+        var i = s.create(objective(), SCOPE, "owner", method("cot"), NOW);
+
+        i = s.requestReconsideration(i.id(), i.version(), "new verified evidence", NOW.plusSeconds(1));
+        i = s.changeMethod(i.id(), i.version(), method("tot"), i.objectiveFingerprint(), NOW.plusSeconds(2));
+        i = s.bindActivePlan(i.id(), i.version(), "plan:tot:selected-v2", "owner", NOW.plusSeconds(3));
+        i = s.suspend(i.id(), i.version(), "awaiting supplier response", NOW.plusSeconds(4));
+        i = s.resume(i.id(), i.version(), NOW.plusSeconds(5));
+        i = s.delegate(i.id(), i.version(), "impasse-case-1", NOW.plusSeconds(6));
+        i = s.returnFromDelegation(i.id(), i.version(), "impasse-case-1",
+                DelegationReturn.METHOD_RECONSIDERATION_REQUIRED, NOW.plusSeconds(7));
+
+        var entries = recorder.entries();
+        assertEquals(List.of(
+                RecoveryIntentionTransitionRecorder.TransitionKind.RECONSIDERATION_REQUESTED,
+                RecoveryIntentionTransitionRecorder.TransitionKind.METHOD_CHANGED,
+                RecoveryIntentionTransitionRecorder.TransitionKind.ACTIVE_PLAN_BOUND,
+                RecoveryIntentionTransitionRecorder.TransitionKind.OTHER,
+                RecoveryIntentionTransitionRecorder.TransitionKind.OTHER,
+                RecoveryIntentionTransitionRecorder.TransitionKind.OTHER,
+                RecoveryIntentionTransitionRecorder.TransitionKind.RECONSIDERATION_REQUESTED),
+                entries.stream().map(InMemoryRecoveryIntentionTransitionRecorder.Entry::kind).toList());
+        assertEquals(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L),
+                entries.stream().map(InMemoryRecoveryIntentionTransitionRecorder.Entry::sequence).toList());
+        assertEquals(i.objectiveFingerprint(), entries.get(3).after().objectiveFingerprint());
+        assertEquals("plan:tot:selected-v2", entries.get(2).after().activePlanReference());
+        assertEquals("cot", entries.get(0).before().currentMethod().methodId());
+        assertEquals("tot", entries.get(1).after().currentMethod().methodId());
+        assertEquals(List.of("b4-governor", "b4-governor", "owner", "b4-governor",
+                        "b4-governor", "b4-governor", "b4-governor"),
+                entries.stream().map(InMemoryRecoveryIntentionTransitionRecorder.Entry::actor).toList());
+    }
+
     @Test void terminalIntentionCannotBeResumedOrChanged(){
         var s=service();var i=s.create(objective(),SCOPE,"owner",method("cot"),NOW);i=s.terminate(i.id(),i.version(),"operator","cancelled",NOW.plusSeconds(1));var terminal=i;
         assertEquals(IntentionStatus.TERMINATED,terminal.status());assertThrows(IllegalStateException.class,()->s.requestReconsideration(terminal.id(),terminal.version(),"later",NOW.plusSeconds(2)));
