@@ -1,7 +1,7 @@
 {
-  "candidateId": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX2",
+  "candidateId": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX3",
   "fingerprintAlgorithm": "SHA-256 over sorted UTF-8 path NUL file-SHA256 newline records",
-  "codeTreeSha256": "90d2b3263db8b8dd4aea28f8d03629053e6984c6554c38e3a8a7da416bdd9127",
+  "codeTreeSha256": "e9a52eff5493c0af0c9dc1912dc7aa1300c9e5c6f03f2d128e1f2c9677ec2d10",
   "fileCount": 676,
   "gitCommit": "NOT_AVAILABLE",
   "gitWorkingTreeDirty": null,
@@ -940,7 +940,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java",
-      "sha256": "d09c28565eb6851710d7e2db0af15a36feef80be65cf73523b3100ccf555b8f5"
+      "sha256": "cdad26e017fc8678065c5c6c60503136cd66d9be67e3fed89b2f875dc2ebba29"
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8EvaluationRunnerTest.java",

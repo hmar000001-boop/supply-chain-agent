@@ -229,6 +229,9 @@ class M8B4FullGraphWorkflowTest {
         assertTrue(pair.treatment().sideEffectDelta().isSideEffectFree());
         assertEquals(2, created.size());
         assertNotSame(created.get(0), created.get(1));
+        assertNotSame(created.get(0).ports.workspaceConsumers().get("planner"),
+                created.get(1).ports.workspaceConsumers().get("planner"),
+                "matched arms must receive independently constructed workspace consumer adapters");
         assertTrue(pair.toJsonLine().contains("fullGraphMatchedPair"));
     }
 
@@ -854,10 +857,19 @@ class M8B4FullGraphWorkflowTest {
             lifecycle = new LifecycleAdapter(fixture, clock, approvalMode, effectStore, worldStore, actionHandlers,
                     durableBudget, resolveB2);
             authority = new AuthorityAdapter(approvalMode, fixture);
-            var consumers = Map.<String, WorkspaceConsumer>of("planner", broadcast -> new WorkspaceConsumerReceipt(
-                    "planner", broadcast.snapshot().id(), ConsumerReceiptStatus.ACCEPTED,
-                    broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
-                    broadcast.broadcastAt(), "deterministic planner consumer accepted the admitted workspace"));
+            // Use an explicit fresh object per ScenarioRuntime. A stateless lambda at this call
+            // site may be JVM-cached and therefore shared by the matched baseline/treatment arms,
+            // violating the experiment adapter's per-arm consumer-isolation invariant.
+            WorkspaceConsumer plannerConsumer = new WorkspaceConsumer() {
+                @Override
+                public WorkspaceConsumerReceipt consume(dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcast broadcast) {
+                    return new WorkspaceConsumerReceipt("planner", broadcast.snapshot().id(),
+                            ConsumerReceiptStatus.ACCEPTED,
+                            broadcast.snapshot().entries().stream().map(entry -> entry.candidate().id()).toList(),
+                            broadcast.broadcastAt(), "deterministic planner consumer accepted the admitted workspace");
+                }
+            };
+            var consumers = Map.<String, WorkspaceConsumer>of("planner", plannerConsumer);
             if (r2Enabled) registry.register(new R2InventoryReadTestHandler());
             var strategies = new EvaluationPlannerFactory(world).strategiesForFullGraph(fixture).stream()
                     .map(delegate -> (PlanningStrategy) new PlanningStrategy() {
