@@ -83,6 +83,10 @@ import dev.supplychain.agent.evaluation.experiment.execution.ExperimentSandboxAu
 import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentAdapter;
 import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentSession;
 import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentTelemetry;
+import dev.supplychain.agent.evaluation.experiment.host.ComposedDeterministicTrainSessionFactory;
+import dev.supplychain.agent.evaluation.experiment.host.DeterministicTrainExecutionProfile;
+import dev.supplychain.agent.evaluation.experiment.host.DeterministicTrainPortsFactory;
+import dev.supplychain.agent.evaluation.experiment.host.DeterministicTrainSessionConfiguration;
 import dev.supplychain.agent.evaluation.experiment.scenario.ExperimentSplit;
 import dev.supplychain.agent.evaluation.experiment.scenario.M8ExperimentScenarioFactory;
 import dev.supplychain.agent.evaluation.host.R2WorkflowConfiguration;
@@ -196,19 +200,33 @@ class M8B4FullGraphWorkflowTest {
                 .findFirst().orElseThrow();
         var telemetry = new FullGraphExperimentTelemetry();
         var created = new CopyOnWriteArrayList<ScenarioRuntime>();
-        var adapter = new FullGraphExperimentAdapter((experimentUnit, mechanism, arm) -> {
-            ScenarioRuntime scenario = new ScenarioRuntime(experimentUnit.fixture(), ApprovalMode.APPROVED);
-            created.add(scenario);
-            String unique = experimentUnit.experimentUnitId() + ":" + mechanism + ":" + arm + ":" + UUID.randomUUID();
-            var attestation = new ExperimentSandboxAttestation("m8-test-in-memory-" + arm,
-                    true, true, true, true);
-            ExperimentSandboxAudit audit = () -> new ExperimentSandboxAudit.Snapshot(0, 0,
-                    scenario.effects.get(), 0);
-            return new FullGraphExperimentSession(experimentUnit, mechanism, arm, unique,
-                    "sandbox-namespace:" + unique, "checkpoint-thread:" + unique,
-                    "condition-config:" + arm, scenario.ports, scenario.fullGraphRuntime,
-                    scenario.config, scenario.input(), attestation, audit, telemetry);
-        });
+        var profile = new DeterministicTrainExecutionProfile(
+                "m8-test-deterministic-train-v1", "scripted-request-interpreter-v1",
+                "scripted-reasoning-v1", "deterministic-planner-set-v1",
+                "deterministic-supply-chain-simulator-v1",
+                DeterministicTrainExecutionProfile.ModelExecution.DISABLED,
+                true, true, true, true, true, true);
+        DeterministicTrainPortsFactory portsFactory = new DeterministicTrainPortsFactory() {
+            @Override public DeterministicTrainExecutionProfile executionProfile() { return profile; }
+
+            @Override
+            public DeterministicTrainSessionConfiguration create(ExperimentScenarioUnit experimentUnit,
+                    ExperimentMechanism mechanism, ExperimentArm arm) throws Exception {
+                ScenarioRuntime scenario = new ScenarioRuntime(experimentUnit.fixture(), ApprovalMode.APPROVED);
+                created.add(scenario);
+                String condition = sha256(experimentUnit.effectiveInputFingerprint() + "|" + mechanism + "|" + arm);
+                ExperimentSandboxAudit audit = () -> new ExperimentSandboxAudit.Snapshot(0, 0,
+                        scenario.effects.get(), 0);
+                return new DeterministicTrainSessionConfiguration(scenario.ports, condition, audit,
+                        (scenarioUnit, selectedMechanism, selectedArm, runtime, state) -> Map.of(
+                                "approvalBoundaryReached", state.text(CognitiveCycleState.APPROVAL_ID).isBlank() ? 0.0 : 1.0,
+                                "plannerInvocationCount", (double) scenario.plannerInvocations.size()),
+                        List.of(), dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeAdjustment.neutral(),
+                        List.of());
+            }
+        };
+        var sessionFactory = new ComposedDeterministicTrainSessionFactory(portsFactory);
+        var adapter = new FullGraphExperimentAdapter(sessionFactory);
 
         var pair = adapter.runTrainingPair(unit, ExperimentMechanism.B4_INTENTION_METHOD_AUTHORITY);
 
