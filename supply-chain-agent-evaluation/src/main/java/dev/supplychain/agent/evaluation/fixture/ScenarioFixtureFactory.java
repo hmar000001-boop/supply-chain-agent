@@ -49,6 +49,7 @@ import dev.supplychain.agent.domain.recovery.RecoveryObjectiveStatus;
 import dev.supplychain.agent.domain.world.SupplyChainSnapshot;
 import dev.supplychain.agent.evaluation.catalog.ScenarioCatalog;
 import dev.supplychain.agent.evaluation.catalog.ScenarioDefinition;
+import dev.supplychain.agent.evaluation.experiment.scenario.ExperimentScenarioParameters;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
 import dev.supplychain.agent.memory.working.WorkingMemorySnapshot;
@@ -114,6 +115,11 @@ public final class ScenarioFixtureFactory {
     }
 
     public ScenarioFixture create(ScenarioDefinition definition) {
+        return create(definition, null);
+    }
+
+    /** Builds a seeded parameterized fixture; null parameters preserve the frozen legacy fixtures. */
+    public ScenarioFixture create(ScenarioDefinition definition, ExperimentScenarioParameters variant) {
         java.util.Objects.requireNonNull(definition, "definition");
         String suffix = definition.scenarioId().replace('-', '_');
         ProductId productId = new ProductId("SKU-" + suffix);
@@ -132,9 +138,25 @@ public final class ScenarioFixtureFactory {
                     + definition.budgetProfile() + " but fixture profile " + profile.name()
                     + " requires " + expectedBudgetProfile);
         }
-        Quantity requested = Quantity.of(profile.requestedQuantity(), UnitOfMeasure.EACH);
-        Quantity primaryStock = Quantity.of(profile.primaryStock(), UnitOfMeasure.EACH);
-        Quantity secondaryStock = Quantity.of(profile.secondaryStock(), UnitOfMeasure.EACH);
+        String demandUnits = profile.requestedQuantity();
+        if (variant != null) {
+            java.math.BigDecimal demand = java.math.BigDecimal.valueOf(variant.demandQuantityUnits());
+            if (profile.name().equals("DEMAND_SURGE")) {
+                demand = demand.multiply(java.math.BigDecimal.valueOf(variant.demandSurgeMultiplierTenths(), 1));
+            }
+            demandUnits = demand.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString();
+        }
+        String primaryStockUnits = profile.primaryStock();
+        String secondaryStockUnits = profile.secondaryStock();
+        if (variant != null && !profile.name().equals("NO_FEASIBLE_CANDIDATE")) {
+            int inventoryRatioTenths = profile.name().equals("COMPETING_ALLOCATION")
+                    ? Math.max(8, variant.inventoryCapacityRatioTenths()) : variant.inventoryCapacityRatioTenths();
+            primaryStockUnits = scaleUnits(primaryStockUnits, inventoryRatioTenths);
+            secondaryStockUnits = scaleUnits(secondaryStockUnits, inventoryRatioTenths);
+        }
+        Quantity requested = Quantity.of(demandUnits, UnitOfMeasure.EACH);
+        Quantity primaryStock = Quantity.of(primaryStockUnits, UnitOfMeasure.EACH);
+        Quantity secondaryStock = Quantity.of(secondaryStockUnits, UnitOfMeasure.EACH);
         LotQualityStatus primaryQuality = profile.primaryQuality();
         LotQualityStatus secondaryQuality = profile.secondaryQuality();
         Instant target = FIXTURE_AS_OF.plus(profile.targetDays(), java.time.temporal.ChronoUnit.DAYS);
@@ -173,6 +195,12 @@ public final class ScenarioFixtureFactory {
             case "COMPOUND_RESOURCE_PRESSURE" -> 12;
             default -> 3;
         };
+        if (variant != null) {
+            supplierCapacity = profile.name().equals("SUPPLIER_OUTAGE")
+                    ? "0" : scaleUnits(supplierCapacity, variant.supplierCapacityRatioTenths());
+            supplierLeadDays = profile.name().equals("SUPPLIER_OUTAGE")
+                    ? 30 : variant.supplierOrRouteDelayDays();
+        }
         Supplier supplier = new Supplier(supplierId, "M8 deterministic supplier " + suffix, supplierStatus,
                 java.util.Map.of(productId, new SupplierProductCapability(productId,
                         Quantity.of(supplierCapacity, UnitOfMeasure.EACH), Duration.ofDays(supplierLeadDays), true)), 0);
@@ -183,25 +211,33 @@ public final class ScenarioFixtureFactory {
         disruptionFor(definition, profile).ifPresent(worldBuilder::disruption);
 
         if (profile.name().equals("COMPETING_ALLOCATION")) {
-            CustomerOrderId competingOrderId = new CustomerOrderId("SO-COMPETING-" + suffix);
-            OrderLineId competingLineId = new OrderLineId("LINE-COMPETING-" + suffix);
-            CustomerOrder competingOrder = new CustomerOrder(competingOrderId, "CUSTOMER-M8-COMPETING",
-                    OrderPriority.CRITICAL, OrderStatus.OPEN, target.plus(Duration.ofDays(1)),
-                    java.util.Map.of(competingLineId, new OrderLine(competingLineId, productId,
-                            Quantity.of("15", UnitOfMeasure.EACH), Quantity.zero(UnitOfMeasure.EACH))), 0);
-            worldBuilder.customerOrder(competingOrder);
-            worldBuilder.reservation(new InventoryReservation(new ReservationId("RSV-COMPETING-" + suffix),
-                    competingOrderId, competingLineId, primaryLotId, productId, null,
-                    Quantity.of("15", UnitOfMeasure.EACH), Quantity.of("15", UnitOfMeasure.EACH),
-                    ReservationStatus.ACTIVE, FIXTURE_AS_OF.minus(Duration.ofMinutes(5))));
+            int competingCount = variant == null ? 1 : variant.competingReservationCount();
+            for (int index = 1; index <= competingCount; index++) {
+                String competingSuffix = variant == null ? "" : "-" + index;
+                CustomerOrderId competingOrderId = new CustomerOrderId("SO-COMPETING-" + suffix + competingSuffix);
+                OrderLineId competingLineId = new OrderLineId("LINE-COMPETING-" + suffix + competingSuffix);
+                CustomerOrder competingOrder = new CustomerOrder(competingOrderId,
+                        variant == null ? "CUSTOMER-M8-COMPETING" : "CUSTOMER-M8-COMPETING-" + index,
+                        OrderPriority.CRITICAL, OrderStatus.OPEN, target.plus(Duration.ofDays(1)),
+                        java.util.Map.of(competingLineId, new OrderLine(competingLineId, productId,
+                                Quantity.of("15", UnitOfMeasure.EACH), Quantity.zero(UnitOfMeasure.EACH))), 0);
+                worldBuilder.customerOrder(competingOrder);
+                String reservationUnits = variant == null ? "15" : "3";
+                worldBuilder.reservation(new InventoryReservation(new ReservationId("RSV-COMPETING-" + suffix + competingSuffix),
+                        competingOrderId, competingLineId, primaryLotId, productId, null,
+                        Quantity.of(reservationUnits, UnitOfMeasure.EACH), Quantity.of(reservationUnits, UnitOfMeasure.EACH),
+                        ReservationStatus.ACTIVE, FIXTURE_AS_OF.minus(Duration.ofMinutes(5))));
+            }
         }
 
         if (profile.name().equals("BLOCKED_ROUTE")) {
             RouteId disruptedRouteId = new RouteId("ROUTE-BLOCKED-" + suffix);
             RouteId alternativeRouteId = new RouteId("ROUTE-ALT-" + suffix);
             CarrierId carrierId = new CarrierId("CARRIER-" + suffix);
-            worldBuilder.route(new Route(disruptedRouteId, "Quebec City", "Montreal", Duration.ofDays(2), false));
-            worldBuilder.route(new Route(alternativeRouteId, "Quebec City", "Montreal", Duration.ofDays(1), true));
+            int delayDays = variant == null ? 2 : Math.max(1, variant.supplierOrRouteDelayDays());
+            boolean alternativeAvailable = variant == null || variant.routeCapacityRatioTenths() > 0;
+            worldBuilder.route(new Route(disruptedRouteId, "Quebec City", "Montreal", Duration.ofDays(delayDays), false));
+            worldBuilder.route(new Route(alternativeRouteId, "Quebec City", "Montreal", Duration.ofDays(Math.max(1, delayDays / 2)), alternativeAvailable));
             worldBuilder.carrier(new Carrier(carrierId, "M8 deterministic carrier", Set.of(disruptedRouteId, alternativeRouteId), true));
             Quantity alreadyShipped = Quantity.of("10", UnitOfMeasure.EACH);
             worldBuilder.shipment(new Shipment(new ShipmentId("SHIPMENT-" + suffix), carrierId, disruptedRouteId,
@@ -222,6 +258,12 @@ public final class ScenarioFixtureFactory {
         int maxExpansions = profile.budgetExhaustion() ? 1 : 24;
         int maxEvaluations = profile.budgetExhaustion() ? 1 : 32;
         int maxRollouts = profile.budgetExhaustion() ? 1 : 12;
+        if (variant != null && !profile.budgetExhaustion()) {
+            maxDepth = scaleLimit(maxDepth, variant.budgetRemainingPercent());
+            maxExpansions = scaleLimit(maxExpansions, variant.budgetRemainingPercent());
+            maxEvaluations = scaleLimit(maxEvaluations, variant.budgetRemainingPercent());
+            maxRollouts = scaleLimit(maxRollouts, variant.budgetRemainingPercent());
+        }
         PlannerBudget budget = new PlannerBudget(maxDepth, maxExpansions, maxEvaluations, 0, maxRollouts,
                 8, Duration.ofSeconds(3), FIXTURE_AS_OF.plusSeconds(3));
         PlanningRequest request = new PlanningRequest(executionId, objective, world, workingMemory, evidence,
@@ -230,13 +272,15 @@ public final class ScenarioFixtureFactory {
                 new PlanningAuthorityPolicy("m8-evaluation-policy-v1",
                         profile.readOnly() ? Set.of() : Set.of(Capability.INVENTORY_RESERVE),
                         profile.readOnly() ? Set.of() : Set.of(Capability.INVENTORY_RESERVE)),
-                new PlanningComplexity(profile.branchingFactor(), profile.horizon(), profile.uncertainty(), profile.severity()),
+                new PlanningComplexity(variant != null && profile.name().equals("MULTI_ALTERNATIVE")
+                        ? variant.multiAlternativeCount() : profile.branchingFactor(),
+                        profile.horizon(), profile.uncertainty(), profile.severity()),
                 budget, FIXTURE_AS_OF, null);
 
         String worldFingerprint = sha256(canonicalWorld(world));
         String fixtureFingerprint = sha256(definition.fixtureVersion() + "|" + definition.scenarioId() + "|"
                 + request.fingerprint() + "|" + worldFingerprint + "|" + WORLD_MODEL_FINGERPRINT + "|" + definition.seed()
-                + "|" + definition.budgetProfile());
+                + "|" + definition.budgetProfile() + (variant == null ? "" : "|variant=" + variant));
         return new ScenarioFixture(definition, request, worldFingerprint, fixtureFingerprint);
     }
 
@@ -280,6 +324,20 @@ public final class ScenarioFixtureFactory {
         return List.copyOf(actions);
     }
 
+
+    private static String scaleUnits(String baseUnits, int ratioTenths) {
+        return new java.math.BigDecimal(baseUnits)
+                .multiply(java.math.BigDecimal.valueOf(ratioTenths, 1))
+                .setScale(1, java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
+    }
+
+    private static int scaleLimit(int base, int percent) {
+        return Math.max(1, java.math.BigDecimal.valueOf(base)
+                .multiply(java.math.BigDecimal.valueOf(percent))
+                .divide(java.math.BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP)
+                .intValueExact());
+    }
 
     private static Optional<Disruption> disruptionFor(ScenarioDefinition definition, FixtureProfile profile) {
         DisruptionType type = switch (profile.name()) {

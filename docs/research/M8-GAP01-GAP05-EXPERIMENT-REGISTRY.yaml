@@ -1,0 +1,154 @@
+protocol_id: M8-GAP01-05-IEP-1.0
+protocol_status: PREREGISTERED_LOCKED
+protocol_date: 2026-11-21
+candidate_id: M8-GAP01-GAP05-CI-GREEN-FIX3
+candidate_ci_status: OWNER_REPORTED_GREEN_AFTER_FIX3
+candidate_git_commit: NOT_PROVIDED
+candidate_ci_workflow_url: NOT_PROVIDED
+evidence_scope: DETERMINISTIC_SIMULATOR_ONLY
+real_world_outcome_corpus: ABSENT
+adaptive_activation_authorized: false
+
+splits:
+  legacy_development:
+    source: supply-chain-agent-evaluation/src/main/resources/scenarios/m8-scenario-register.csv
+    scenario_count: 25
+    seed_range: [88001, 88025]
+    permitted_use: [smoke, regression, debugging]
+    inferential_use: PROHIBITED
+  train:
+    family_count: 6
+    fixture_profile_count: 14
+    variants_per_profile: 20
+    target_episode_count: 280
+    seed_base: 1000000
+    permitted_use: [B1_learning, B2_procedure_training, B3_shadow_training, B6_calibration_training, training_only_tuning]
+  holdout:
+    family_count: 6
+    fixture_profile_count: 14
+    variants_per_profile: 20
+    target_episode_count: 280
+    seed_base: 2000000
+    permitted_use: [confirmatory_matched_evaluation, B6_independent_validation]
+    tuning_or_training_use: PROHIBITED
+  transfer:
+    family_count: 3
+    fixture_profile_count: 7
+    variants_per_profile: 30
+    target_episode_count: 210
+    seed_base: 3000000
+    permitted_use: [frozen_artifact_transfer_evaluation]
+    tuning_or_training_use: PROHIBITED
+
+variant_generator:
+  id: M8ExperimentScenarioFactory-v1
+  algorithm: SHA-256(protocolId|split|fixtureProfile|seed|parameterName) deterministic parameter selection
+  uses_ambient_clock_or_random_global_state: false
+  fixture_fingerprint_must_change_across_variants: true
+  numeric_domains:
+    demand_quantity_units: {min: 40, max: 240, step: 10}
+    inventory_capacity_ratio: {min: 0.0, max: 1.5, step: 0.1}
+    supplier_capacity_ratio: {min: 0.0, max: 1.5, step: 0.1}
+    route_capacity_ratio: {min: 0.0, max: 1.5, step: 0.1}
+    supplier_or_route_delay_days: {min: 0, max: 30, step: 1}
+    evidence_age_hours: {min: 0, max: 72, step: 1}
+    demand_surge_multiplier: {min: 1.2, max: 2.0, step: 0.1}
+    multi_alternative_count: {min: 2, max: 5, step: 1}
+    competing_reservation_count: {min: 2, max: 5, step: 1}
+    duplicate_delivery_count: {min: 2, max: 4, step: 1}
+    budget_remaining_percent: {min: 10, max: 100, step: 1}
+    approval_lifetime_hours: {min: 0, max: 48, step: 1}
+  profile_invariants_override_ranges: true
+  parameter_values_must_be_recorded: true
+  implementation_status: IMPLEMENTED_AWAITING_HOSTED_CI_TEST_ACCEPTANCE
+  qualification_test: dev.supplychain.agent.evaluation.experiment.scenario.M8ExperimentScenarioFactoryTest
+  runtime_resource: supply-chain-agent-evaluation/src/main/resources/experiment/m8-experiment-split-register.csv
+  implemented_parameter_dimensions: [demand_quantity_units, inventory_capacity_ratio, supplier_capacity_ratio, supplier_or_route_delay_days, budget_remaining_percent, demand_surge_multiplier_for_profile, multi_alternative_branching_estimate, competing_reservation_count, route_availability_zero_nonzero_gate]
+  deferred_parameter_dimensions: [quantitative_route_capacity_ratio, evidence_age_hours, duplicate_delivery_count, approval_lifetime_hours]
+  no_treatment_or_label_generation: true
+
+calibration:
+  target_id: supply-chain-recovery-v1
+  dimensions: [EVIDENCE, HYPOTHESIS, PLAN]
+  minimum_samples_per_dimension_in_code: 20
+  protocol_target_train_per_dimension: 100
+  protocol_target_holdout_per_dimension: 100
+  protocol_target_transfer_per_dimension: 60
+  maximum_holdout_ece: 0.15
+  maximum_dimension_regression: 0.02
+  required_relative_brier_improvement: 0.05
+  evidence_labels:
+    EVIDENCE: simulator_verified_evidence_assessment_error
+    HYPOTHESIS: simulator_verified_causal_hypothesis_error
+    PLAN: simulator_verified_objective_or_hard_constraint_failure
+
+analysis:
+  paired_unit: scenario_episode
+  bootstrap_resamples: 10000
+  confidence_level: 0.95
+  multiplicity_correction: HOLM
+  primary_hypothesis_count: 5
+  report_effect_sizes: true
+  report_negative_results: true
+  safety_gate_nonzero_is_failure: true
+
+experiments:
+  - id: H1-B1
+    treatment: verifier_attributed_B1_feature_learning
+    controls: [untrained_selector, utility_top_k, recency_only]
+    primary_metric: verified_downstream_utility_per_configured_context_budget
+    training_signal_mapping: {USEFUL: 1.0, NEUTRAL: 0.5, HARMFUL: 0.0}
+    utility_update: first_verified_outcome_uses_reward_then_0.2_EWMA
+    cue_update: {USEFUL: 0.1, NEUTRAL: 0.0, HARMFUL: -0.1, clamp: [0.0, 1.0]}
+    primary_episode_formula: sum(independent_verifier_score_times_candidate_context_units)_divided_by_configured_context_budget
+    strict_useful_rate_secondary: USEFUL_divided_by_all_independently_verified_selected_items
+    non_attributed_selected_item: excluded_from_verified_numerator_but_context_cost_remains_in_denominator
+    mpe: relative_improvement_ge_0.05
+    cost_guard: retrieval_and_maintenance_cost_increase_le_0.10
+  - id: H2-B2
+    treatment: activated_approved_procedure_in_later_cycle
+    controls: [no_active_procedure]
+    primary_metric: feasible_objective_preserving_recovery_success_rate
+    secondary_metric: median_search_cost_to_first_feasible_plan
+    mpe: success_plus_0.05_or_search_cost_reduction_ge_0.10_with_noninferior_success
+    negative_controls: [wrong_scope, wrong_condition, stale_evidence, expired_artifact, changed_action_descriptor, revoked_procedure]
+  - id: H3-B3
+    treatment: offline_shadow_coalition_preference
+    controls: [no_learned_preference, utility_top_k, singleton, global_workspace]
+    primary_metric: verified_useful_consumption_per_workspace_resource_unit
+    mpe: useful_consumption_rate_plus_0.05
+    resource_guard: workspace_resource_increase_le_0.10
+  - id: H4-B4
+    treatment: full_graph_governed_reconsideration_and_authorized_method_change
+    controls: [fixed_initial_method]
+    primary_metric: objective_satisfaction_at_episode_end
+    mpe: success_plus_0.05_or_objective_score_improvement_ge_0.05
+    invariants: [objective_drift_zero, unauthorized_method_change_zero, stale_candidate_use_zero]
+  - id: H5-B6
+    treatment: target_specific_calibration_and_shadow_directives
+    controls: [uncalibrated_assessment]
+    primary_metric: [holdout_brier_score, holdout_ece]
+    mpe: [ece_le_0.15, ece_improvement_ge_0.02, brier_relative_improvement_ge_0.05]
+    transfer: frozen_profile_on_unseen_families
+
+execution_gates:
+  - candidate_fingerprint_match
+  - seeded_variant_generator_qualified
+  - full_graph_mechanism_adapter_qualified
+  - train_holdout_transfer_disjointness
+  - duplicate_fixture_fingerprint_rejection
+  - deterministic_replay
+  - negative_control_pass
+  - no_external_dispatch
+  - raw_artifact_checksums
+
+existing_runner_status:
+  planner_comparison: EXPLORATORY_PLANNER_ONLY
+  mechanism_ablation: EXPLORATORY_COMPONENT_PROBES_ONLY
+  confirmatory_h1_h5_available: false
+  blocking_implementation:
+    - M8ExperimentScenarioFactory-v1 hosted CI qualification
+    - full_graph_B1_B2_B3_B4_B6_experiment_adapter
+    - offline_shadow_replay_adapter
+    - simulator_grounded_uncertainty_label_pipeline
+    - clustered_paired_analysis_and_integrity_report
