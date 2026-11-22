@@ -11,6 +11,15 @@
 - **Project files:** 556
 - **M7 status:** accepted and closed, based on the user's confirmation that the complete GitHub Actions workflow is green on 2026-11-19. The accepted workflow runs the Java 21 Maven reactor, PostgreSQL integration tests, and the conditional backup/isolated-restore smoke step.
 
+## GAP-01–GAP-05 experimental execution preparation (2026-11-21)
+
+- The owner confirmed hosted CI green for the GAP-01–GAP-05 implementation candidate after CI Fix 3. The preregistered experiment protocol and deterministic 280/280/210 split generator were then added; generator qualification is locally guard-validated and hosted CI remains the acceptance gate for the generator package.
+- Added `M8FullGraphExperimentAdapter-v1`: matched baseline/treatment execution of the actual LangGraph4j application graph, isolated per-arm mutable services, deterministic arm order, graph-event/state telemetry, sandbox attestation and zero-effect audit, JSONL pair records, and an atomic complete-TRAIN batch writer.
+- Adapter v1 is deliberately TRAIN-only. It rejects HOLDOUT/TRANSFER before constructing a graph session, does not resume approval/clarification interruptions, and writes `confirmatoryInferenceAllowed=false` because current output is telemetry, not independently verified outcome labels.
+- Added an actual full-graph matched-pair smoke test that must stop at the human-approval boundary in both arms with no approval input and zero state-changing effects. Added a holdout pre-session rejection test.
+- Current local source guards: architecture/test-inventory, R2 evidence, F-03/F-04, split-register and full-graph adapter guards pass. Java/Maven test execution remains pending hosted CI for this adapter increment.
+- Not implemented by this adapter: first-party mechanism-specific treatment composition for all five studies, independent outcome verifiers/labels, B2 cross-cycle transfer, B3 receipt/outcome creation in every fixture, B4 approved outcome endpoint, B6 labelled calibration and ECE/Brier scoring, training artifact freeze, holdout and transfer runners, and confirmatory statistical analysis. No experiment or result is claimed; B1/B3 remain SHADOW/DISABLED and B6 remains NOT_CALIBRATED.
+
 ## M8 delivery status
 
 | Delivery | Responsibility | Status |

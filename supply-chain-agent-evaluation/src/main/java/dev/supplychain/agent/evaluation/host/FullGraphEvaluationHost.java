@@ -40,6 +40,7 @@ import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastService;
 import dev.supplychain.agent.mechanisms.b4.InMemoryRecoveryIntentionRepository;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlGovernor;
+import dev.supplychain.agent.mechanisms.b6.UncertaintyCalibrationService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlPolicy;
 import dev.supplychain.agent.planning.api.CandidateEvaluator;
 import dev.supplychain.agent.planning.api.PlanEvaluation;
@@ -218,6 +219,16 @@ public final class FullGraphEvaluationHost {
      */
     public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory)
             throws Exception {
+        return compileFullRuntime(ports, saverFactory, null);
+    }
+
+    /**
+     * Evaluation-only overload that can bind a shadow calibration service to the exact B6
+     * assessment lifecycle. The caller must not activate the supplied profile; this overload
+     * exists so calibration behavior can be observed in a fresh, disposable graph instance.
+     */
+    public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory,
+            UncertaintyCalibrationService uncertaintyCalibration) throws Exception {
         Objects.requireNonNull(ports, "ports");
         Objects.requireNonNull(saverFactory, "saverFactory");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
@@ -235,7 +246,8 @@ public final class FullGraphEvaluationHost {
         var actionRegistry = ports.actionRegistry();
         var impasses = new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository());
         R2WorkflowConfiguration r2 = ports.r2Workflow();
-        var b1FeatureLearning = new B1MemoryFeatureLearningService(new InMemoryB1MemoryFeatureRepository());
+        var b1FeatureRepository = new InMemoryB1MemoryFeatureRepository();
+        var b1FeatureLearning = new B1MemoryFeatureLearningService(b1FeatureRepository);
         CandidateOutcomeAdjustment feedbackAdjustment = r2 == null || r2.activeFeedbackPolicy() == null
                 ? CandidateOutcomeAdjustment.neutral() : r2.activeFeedbackPolicy();
         var coalitionFeedbackAdjustment = r2 == null || r2.activeCoalitionFeedbackPolicy() == null
@@ -276,7 +288,7 @@ public final class FullGraphEvaluationHost {
                 new InMemoryAuthorizedActionPlanStore(), new InMemoryImpasseChildArtifactStore(),
                 new InMemoryActionExecutionBatchStore(), new InMemoryObservationStore(), null,
                 ports.resourceBudgetGuard(), ports.clock(), recoveryDraftService,
-                r2 == null ? null : r2.recoveryDraftRequestFactory());
+                r2 == null ? null : r2.recoveryDraftRequestFactory(), uncertaintyCalibration);
         StateGraph<CognitiveCycleState> graphBuilder = ports.resourceBudgetGuard() == null
                 ? CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices)
                 : CognitiveCycleApplicationGraph.buildFull(decisionServices, lifecycleServices,
@@ -288,7 +300,8 @@ public final class FullGraphEvaluationHost {
                 : CognitiveCycleApplicationGraph.compileFull(decisionServices, lifecycleServices, graphBuilder, saver,
                         ports.resourceBudgetGuard());
         return new FullGraphRuntime(graph, recoveryDraftService, recoveryProcedurePromotion, b3Evidence,
-                b1Selector, workspaceAdmission, workspaceBroadcast);
+                b1Selector, b1FeatureLearning, b1FeatureRepository, uncertaintyCalibration, r2,
+                workspaceAdmission, workspaceBroadcast);
     }
 
     @FunctionalInterface

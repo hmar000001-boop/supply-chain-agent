@@ -1,5 +1,17 @@
 # M8 changelog
 
+## 2026-11-21 — GAP-01–GAP-05 full-graph experiment adapter v1 prepared (hosted CI pending)
+
+- Added a TRAIN-only matched-pair adapter that executes the real `CognitiveCycleApplicationGraph` via `FullGraphEvaluationHost`, with separate per-arm graphs, ports, mutable repositories, planner instances, sandbox namespaces, audit counters and attestation IDs.
+- Matched arms are bound to the exact preregistered generated fixture/effective-input fingerprint and same request/graph input; execution order is deterministic from the unit ID and mechanism. The runner stops at the first terminal/interruption boundary, never resumes approval/clarification, and rejects observed external or state-changing effects.
+- Exposed graph-bound B1 feature services/repository and optional evaluation-only B6 calibration lifecycle instrumentation from `FullGraphRuntime`. Runs with an active calibration profile or persisted calibrated assessment are rejected; B6 remains shadow-only.
+- Added graph event/state telemetry, matched JSONL pair records and a complete 280-unit TRAIN batch writer. The envelope explicitly says `FULL_GRAPH_TELEMETRY_NO_VERIFIED_OUTCOME_LABELS` and `confirmatoryInferenceAllowed=false`; no outcome labels, trained artifact or confirmatory result is produced.
+- Added a full-graph matched-pair smoke test that requires both arms to stop at the human-approval boundary with zero side effects, plus a test proving HOLDOUT is rejected before graph-session construction.
+- Updated the evaluation module test inventory and adapter implementation/qualification documentation.
+- Local static guards PASS: M8-B5 architecture and inventory; R2 evidence; F-03/F-04; preregistered split register; and full-graph experiment adapter contract. Java 21/Maven/Surefire and hosted PostgreSQL tests were not run in this authoring session because the pinned Maven distribution is unavailable via the current network. Hosted GitHub Actions CI is the acceptance gate.
+- Remaining before mechanism experiments: first-party baseline/treatment wiring for each B1/B2/B3/B4/B6 study, independently verified outcome-label producers, safe B2 multi-cycle transfer, B3 downstream receipt/outcome episodes, B4 approved outcome observation, B6 labelled calibration/holdout scoring, training artifact freeze, then HOLDOUT/TRANSFER/statistics. This adapter is a runtime foundation, not proof of efficacy or total CoALA/Fan & Lan conformance.
+
+
 ## 2026-11-19 — M8-B0 baseline and evaluation specification
 
 - Frozen the exact M7-accepted source state as `M8-M7-ACCEPTED-2026-11-19`.

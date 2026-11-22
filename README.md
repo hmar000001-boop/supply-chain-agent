@@ -1,60 +1,48 @@
-# M8 Experiment Scenario Factory v1 — Change-only delivery
+# GAP-01–GAP-05 implementation candidate — changeset and frozen source
 
-## Purpose
+**Project:** Supply-Chain Disruption Management Agent  
+**Date:** 2026-11-21  
+**Base:** owner-confirmed F-01–F-04 hosted-CI-green stack  
+**Increment:** GAP-01 through GAP-05  
+**Hosted CI:** owner-confirmed green after CI Fix 3 (B6 graph assessment ordering, B4 planner-session preservation, B4 intention-version regression assertion). Exact workflow run URL and Git commit were not included in the confirmation.
 
-This changeset adds a deterministic, preregistered scenario-variant generator for the M8 GAP-01–GAP-05 experiment protocol. It creates simulator input fixtures for TRAIN, HOLDOUT and TRANSFER, records split/seed/profile provenance, and rejects malformed or overlapping split allocations.
+## Application order
 
-It does **not** execute treatments, run the agent graph, produce outcome labels, train B1/B3/B6 artifacts, or authorize adaptive activation. It is one prerequisite for the later full-graph experiment adapter, not a confirmatory experiment runner.
+The changeset is repository-root-relative. Apply it only over the source stack containing the accepted F-01/F-02 and F-03/F-04 increments. Do not apply it directly to the original base ZIP without those overlays. A complete source snapshot accompanies this delivery as a reproducible checkpoint.
 
-## Apply
+## What this increment implements
 
-1. Use the repository state that already contains the previously delivered `M8_GAP01_GAP05_EXPERIMENT_PROTOCOL_AND_FREEZE_CHANGESET_ONLY_2026-11-21` package and the CI-green GAP-01–05 candidate (including CI Fix 1, Fix 2 and Fix 3).
-2. Extract this ZIP at the repository root, preserving directory paths and overwriting the five listed existing files.
-3. Review `CHANGE_MANIFEST.csv` and `SHA256SUMS.txt`.
-4. Run the static checks and the complete Maven reactor command below.
-5. Treat hosted GitHub Actions CI as the acceptance gate for the Java/JUnit qualification tests.
+- **GAP-01 / B1:** durable exact-memory-revision retrieval-access and verified-use histories, cue associations and expected utility; only verifier-bound B3 outcomes update learned features; PostgreSQL V014.
+- **GAP-02 / B2:** approved recovery procedures are retrieved in later normal planning cycles by trusted condition keys, revalidated for scope/evidence/live action-descriptor identity, and supplied to M5 as typed non-executable planning knowledge and soft search priority. No capability or execution authority is granted.
+- **GAP-03 / B3:** exact coalition/proposal/member/receipt/outcome attribution; shadow preference trainer; disjoint paired holdout, resource/safety gates and separate activation approval; future admission can use an active coalition preference adjustment; PostgreSQL V015.
+- **GAP-04 / B4:** persisted rationale, plan reference, continuation condition, typed reconsideration triggers, authority and termination semantics; F-01's protected method-to-next-planner binding remains.
+- **GAP-05 / B6:** target-specific train/holdout/calibration/review/approval lifecycle; assessment/profile binding; directives for selected B1/B3/M5/plan-verification boundaries; PostgreSQL V013. F-02 downshift and the immutable execution-wide resource ceiling remain.
 
-Do not apply this package to an older source tree that omits the preceding experiment protocol and split register.
+## Local evidence
 
-## Change inventory
+- Eight framework-neutral production modules compile with Java 21, including changed runtime decision/lifecycle sources.
+- Thirty-seven PostgreSQL production Java sources compile locally; six classes requiring unavailable HikariCP/pgJDBC/LangGraph4j dependencies were excluded.
+- **140 targeted tests passed, zero failed:** 48 runtime, 83 mechanism/planning and 9 migration parser tests. Execution used a lightweight JUnit-compatible runner, not Maven Surefire/JUnit.
+- Three source/architecture guards pass: M8-B5 architecture, R2 evidence and F-03/F-04 integration.
+- The migration chain is registered through V015 (V001 in the memory module, V002–V015 in PostgreSQL infrastructure).
+- Full Maven reactor/Surefire, live PostgreSQL integration for V013–V015 and full LangGraph4j hosted graph tests were not run locally.
+- The predecessor F-01–F-04 stack and the combined GAP-01–GAP-05 + CI Fix 1–3 candidate are owner-confirmed hosted-CI green. The exact run URL and Git commit SHA were not supplied.
 
-- 9 added files.
-- 5 complete file replacements.
-- 0 deletions.
-- No production-domain, action authorization, runtime graph or PostgreSQL migration changes.
+## Evidence limits and remaining gaps
 
-## Static checks
+- R2 still has no verified outcome corpus or independent holdout. B1/B3 feedback remains `SHADOW`/`DISABLED`; no adaptive superiority is claimed.
+- B6 remains `NOT_CALIBRATED` until a real target-specific labelled corpus, independent validation and authorized activation exist.
+- GAP-06 (GraSP-like governor for full Fan & Lan §VI-E synthesis runtime), GAP-07 (full selected CoALA learning-action surface), GAP-08 (durable full application host/repeat-cycle ingress), GAP-09 (independent matched experiments/calibration/transfer) and GAP-10 (two uncompiled root-level Java shadow files) remain open.
+- Total paper conformance is **not** claimed. These are application-adapted realizations of the selected concepts and mechanism bundles, not literal reproductions of the historical architectures.
 
-```bash
-python scripts/verify-m8-experiment-scenario-register.py
-python scripts/verify-m8-b5-architecture.py
-python scripts/verify-m8-r2-evidence.py
-python scripts/verify-m8-preb7-f03-f04.py
-```
+## Independent experiment protocol
 
-## Full qualification command
+The owner-confirmed CI-green source has a frozen implementation fingerprint and a preregistered B1/B2/B3/B4/B6 experiment protocol under `docs/research/`. The protocol reserves 280 training, 280 confirmatory holdout and 210 family-transfer episodes; the old 25 fixtures are regression-only. `M8ExperimentScenarioFactory-v1` and the TRAIN-only `M8FullGraphExperimentAdapter-v1` are now implemented with split guards and actual application-graph execution. The adapter increment is pending hosted CI. Its current output is graph telemetry only (`confirmatoryInferenceAllowed=false`), not independently verified outcome labels; do not open HOLDOUT/TRANSFER or report causal/confirmatory results until mechanism-specific interventions, independent outcome verifiers, and the artifact-freeze/statistical gates are implemented and accepted.
+
+## Build command
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-The new JUnit suite is `M8ExperimentScenarioFactoryTest`. It builds all 770 fixtures in-memory for qualification and checks exact counts, distinct seeds and fingerprints, deterministic replay, profile invariants, and proposal-only authority. Java/JUnit tests were not executed in the packaging workspace because the pinned Maven distribution could not be downloaded due DNS resolution failures; a green hosted run is still required.
-
-## Optional provenance-manifest CLI
-
-After reactor dependencies are built/installed, emit one split's input manifest:
-
-```bash
-./mvnw -B -ntp -pl supply-chain-agent-evaluation \
-  org.codehaus.mojo:exec-maven-plugin:3.5.0:java \
-  -Dexec.mainClass=dev.supplychain.agent.evaluation.app.M8ExperimentScenarioFactoryCli \
-  -Dexec.args="--split TRAIN --output target/m8-experiment-scenarios/train.csv"
-```
-
-The CLI supports `TRAIN`, `HOLDOUT` and `TRANSFER`. It emits input provenance only and prints that no treatment or labels were produced. Follow the preregistered execution order; do not inspect/tune against confirmatory HOLDOUT outcomes.
-
-## Important evidence limitations
-
-The following dimensions are recorded but not fully modeled in v1: timestamped evidence ageing, duplicate-delivery event counts, approval lifetime, and quantitative route capacity (only a zero/nonzero alternative-route availability gate is represented). `MULTI_ALTERNATIVE` changes the planner branching-factor estimate; it does not create additional supplier entities. The profile-preserving overrides for outage, no-feasible-candidate, budget exhaustion and competing allocation are intentional. No conclusions may be attributed to a deferred parameter.
-
-No treatment or empirical result is claimed. B1/B3 remain shadow/disabled; B6 remains `NOT_CALIBRATED`. The full-graph B1/B2/B3/B4/B6 experiment adapter, isolated offline replay, simulator-grounded label pipeline, negative controls and paired integrity analysis remain later gates.
+Hosted CI on the combined Fix 1–3 candidate was confirmed green by the owner; record the exact run/commit in the freeze manifest when available. See `VALIDATION_REPORT.md`, `docs/research/PAPER-TO-CODE-CONFORMANCE-MATRIX.md` and `docs/research/FINAL-IMPLEMENTATION-GAPS-AND-ACCEPTANCE-PLAN.md`. Chapters 19 and 20 remain blocked pending owner approval of conformance.

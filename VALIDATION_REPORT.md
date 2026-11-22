@@ -1,56 +1,32 @@
-# Validation report — M8 Experiment Scenario Factory v1
+# Validation report — M8 Full-Graph Experiment Adapter v1
 
-## Delivery identity
+## Source-level checks
 
-- Change set: `M8ExperimentScenarioFactory-v1`
-- Protocol: `M8-GAP01-05-IEP-1.0`
-- Added project files: 9
-- Replaced project files: 5 (complete contents)
-- Deleted project files: 0
-- Production behavior/authorization changes: none outside deterministic evaluation fixture construction.
+All five repository guards passed:
 
-## Static validation — PASS
+- M8-B5 architecture and exact source/test inventory.
+- M8-PreB7 R2 evidence and B1/B3 activation boundaries.
+- F-03/F-04 implementation/evidence guard.
+- Preregistered scenario register parity, allocation and fingerprint checks.
+- Full-graph adapter source-contract checks (20 assertions).
 
-- Protocol split register and runtime classpath resource are byte-identical.
-- Exactly 25 `DEVELOPMENT_ONLY` rows are excluded from the generator.
-- Split register declares 280 TRAIN, 280 HOLDOUT and 210 TRANSFER units.
-- Split seed bands are disjoint; family/profile counts are 6/6/3 families and 14/14/7 profiles.
-- Every profile has 20/20/30 distinct effective parameter fingerprints.
-- SHA-256 parameter-selection formula matches the preregistration.
-- YAML experiment registry parses; all base scenario IDs listed in generated rows exist in the legacy scenario catalog.
-- Architecture guard passes: 11 modules, acyclic internal dependency graph, declared imports and inventory/CI mirror.
-- R2 evidence guard passes.
-- F-03 and F-04 integration guards pass.
-- Python static verifier compiles with `py_compile`.
-- ZIP integrity, source-file checksums and sidecar checksum verified after packaging.
+Java 21 compiler parser (`JavacTask.parse`) accepted 589 Java source files. This is syntax-only: it does not resolve imports, types or dependencies and is not a substitute for compilation.
 
-## Java test validation — NOT RUN LOCALLY
+## Maven limitation
 
-`M8ExperimentScenarioFactoryTest` was added and included in the evaluation-module inventory. It is designed to construct all 770 fixtures and exercise:
+Attempted:
 
-- exact split counts, seed bands and cross-split identity separation;
-- deterministic parameter derivation and fixture replay;
-- per-profile unique effective inputs;
-- no-feasible-candidate, outage, quality-hold, read-only and competing-reservation invariants;
-- action proposal scope and deferred parameter disclosure.
+`bash ./mvnw -B -ntp -Dphase0.postgres=true clean install`
 
-The pinned Maven Wrapper attempts to download Maven 3.9.16 from the configured Apache distribution hosts. DNS resolution for those hosts is unavailable in this execution environment. Therefore Java compilation, Surefire execution, and PostgreSQL-enabled Maven integration have **not** been verified locally. Do not infer a green build from static checks.
+The Maven wrapper attempted pinned Maven 3.9.16 downloads from `archive.apache.org` and `downloads.apache.org`; both failed with DNS resolution errors. The wrapper could not execute Maven. No Surefire, PostgreSQL integration or hosted CI result is claimed.
 
-## Hosted CI acceptance
+## Packaging checks
 
-Run:
+- Changed project files: {len(changed)} ({added} added, {replaced} replaced).
+- Deleted project files: 0.
+- Every project file in the archive is listed in `CHANGE_MANIFEST.csv` and `SHA256SUMS.txt`.
+- Archive integrity and file hashes are checked during packaging.
 
-```bash
-./mvnw -B -ntp -Dphase0.postgres=true clean install
-```
+## Research/evidence boundary
 
-Accept this generator only after the hosted CI run reports all reactor modules successful and `M8ExperimentScenarioFactoryTest` passes.
-
-## Research status
-
-- No treatment was executed.
-- No outcome labels were generated.
-- No B1/B3 learning artifact was trained or activated.
-- No B6 profile was calibrated or activated.
-- No confirmatory or transfer result is claimed.
-- Full-graph experiment adapter, offline isolated replay, simulator-grounded labels, negative controls, paired analysis and raw-artifact integrity remain open.
+No 280-unit batch was executed. No outcome labels, trained artifacts, holdout results, transfer results, causal estimates or mechanism efficacy claims exist from this increment. The adapter currently records full-graph telemetry only, and batch metadata forbids confirmatory inference.

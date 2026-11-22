@@ -76,6 +76,15 @@ import dev.supplychain.agent.mechanisms.feedback.FeedbackPolicyHoldoutEvaluator;
 import dev.supplychain.agent.mechanisms.feedback.OutcomeFeedbackPolicyTrainer;
 import dev.supplychain.agent.mechanisms.feedback.PolicyDisposition;
 import dev.supplychain.agent.evaluation.host.FullGraphRuntime;
+import dev.supplychain.agent.evaluation.experiment.execution.ExperimentArm;
+import dev.supplychain.agent.evaluation.experiment.execution.ExperimentMechanism;
+import dev.supplychain.agent.evaluation.experiment.execution.ExperimentSandboxAttestation;
+import dev.supplychain.agent.evaluation.experiment.execution.ExperimentSandboxAudit;
+import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentAdapter;
+import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentSession;
+import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentTelemetry;
+import dev.supplychain.agent.evaluation.experiment.scenario.ExperimentSplit;
+import dev.supplychain.agent.evaluation.experiment.scenario.M8ExperimentScenarioFactory;
 import dev.supplychain.agent.evaluation.host.R2WorkflowConfiguration;
 import dev.supplychain.agent.actions.api.ActionCategory;
 import dev.supplychain.agent.actions.api.ActionEffect;
@@ -170,6 +179,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -177,6 +188,62 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * adapters are deterministic, in-memory and explicitly limited to the disposable test process.
  */
 class M8B4FullGraphWorkflowTest {
+
+    @Test
+    void fullGraphExperimentAdapterRunsMatchedIsolatedTrainingArmsWithoutDispatch() throws Exception {
+        var unit = M8ExperimentScenarioFactory.loadDefault().generate(ExperimentSplit.TRAIN).stream()
+                .filter(candidate -> candidate.fixtureProfile().equals("MULTI_ALTERNATIVE"))
+                .findFirst().orElseThrow();
+        var telemetry = new FullGraphExperimentTelemetry();
+        var created = new CopyOnWriteArrayList<ScenarioRuntime>();
+        var adapter = new FullGraphExperimentAdapter((experimentUnit, mechanism, arm) -> {
+            ScenarioRuntime scenario = new ScenarioRuntime(experimentUnit.fixture(), ApprovalMode.APPROVED);
+            created.add(scenario);
+            String unique = experimentUnit.experimentUnitId() + ":" + mechanism + ":" + arm + ":" + UUID.randomUUID();
+            var attestation = new ExperimentSandboxAttestation("m8-test-in-memory-" + arm,
+                    true, true, true, true);
+            ExperimentSandboxAudit audit = () -> new ExperimentSandboxAudit.Snapshot(0, 0,
+                    scenario.effects.get(), 0);
+            return new FullGraphExperimentSession(experimentUnit, mechanism, arm, unique,
+                    "sandbox-namespace:" + unique, "checkpoint-thread:" + unique,
+                    "condition-config:" + arm, scenario.ports, scenario.fullGraphRuntime,
+                    scenario.config, scenario.input(), attestation, audit, telemetry);
+        });
+
+        var pair = adapter.runTrainingPair(unit, ExperimentMechanism.B4_INTENTION_METHOD_AUTHORITY);
+
+        assertEquals(unit.experimentUnitId(), pair.experimentUnitId());
+        assertEquals(unit.fixture().fixtureFingerprint(), pair.fixtureFingerprint());
+        assertEquals(ExperimentArm.BASELINE, pair.baseline().arm());
+        assertEquals(ExperimentArm.TREATMENT, pair.treatment().arm());
+        assertEquals("APPROVAL", pair.baseline().boundary().name(),
+                "the baseline must stop at the human-approval boundary without approval input");
+        assertEquals("APPROVAL", pair.treatment().boundary().name(),
+                "the treatment must stop at the human-approval boundary without approval input");
+        assertEquals(unit.fixture().planningRequest().fingerprint(), pair.baseline().requestFingerprint());
+        assertEquals(pair.baseline().requestFingerprint(), pair.treatment().requestFingerprint());
+        assertFalse(pair.baseline().sessionId().equals(pair.treatment().sessionId()));
+        assertFalse(pair.baseline().stateSignals().isEmpty());
+        assertFalse(pair.treatment().metrics().isEmpty());
+        assertTrue(pair.baseline().sideEffectDelta().isSideEffectFree());
+        assertTrue(pair.treatment().sideEffectDelta().isSideEffectFree());
+        assertEquals(2, created.size());
+        assertNotSame(created.get(0), created.get(1));
+        assertTrue(pair.toJsonLine().contains("fullGraphMatchedPair"));
+    }
+
+    @Test
+    void fullGraphExperimentAdapterRejectsHoldoutBeforeCreatingAnyGraphSession() {
+        var unit = M8ExperimentScenarioFactory.loadDefault().generate(ExperimentSplit.HOLDOUT).getFirst();
+        var factoryCalls = new AtomicInteger();
+        var adapter = new FullGraphExperimentAdapter((experimentUnit, mechanism, arm) -> {
+            factoryCalls.incrementAndGet();
+            throw new AssertionError("holdout factory must not be called before training-artifact freeze");
+        });
+        assertThrows(SecurityException.class,
+                () -> adapter.runTrainingPair(unit, ExperimentMechanism.B6_UNCERTAINTY_CALIBRATION));
+        assertEquals(0, factoryCalls.get());
+    }
 
     @Test
     @EnabledIfSystemProperty(named = "phase0.postgres", matches = "true")
@@ -819,13 +886,8 @@ class M8B4FullGraphWorkflowTest {
                     worldModel, evaluator, strategies, clock, registry, consumers, durableBudgetGuard, r2Configuration,
                     initialVerifiedEpisodes);
             if (checkpointDataSource == null) {
-                if (r2Enabled) {
-                    fullGraphRuntime = host.compileFullRuntime(ports, ignored -> new org.bsc.langgraph4j.checkpoint.MemorySaver());
-                    graph = fullGraphRuntime.graph();
-                } else {
-                    fullGraphRuntime = null;
-                    graph = host.compileFull(ports);
-                }
+                fullGraphRuntime = host.compileFullRuntime(ports, ignored -> new org.bsc.langgraph4j.checkpoint.MemorySaver());
+                graph = fullGraphRuntime.graph();
             } else {
                 fullGraphRuntime = null;
                 graph = host.compileFull(ports, builder ->

@@ -10,6 +10,13 @@ public final class InMemoryB1MemoryFeatureRepository implements B1MemoryFeatureR
     @Override public void saveNew(B1MemoryFeatureState state) {
         if (values.putIfAbsent(state.reference(), state) != null) throw new IllegalStateException("B1 feature state already exists");
     }
+    /** Immutable point-in-time view for evaluation evidence capture; never used for selection. */
+    public java.util.List<B1MemoryFeatureState> snapshot() {
+        return values.values().stream()
+                .sorted(java.util.Comparator.comparing(value -> value.reference().toString()))
+                .toList();
+    }
+
     @Override public boolean compareAndSet(B1MemoryCandidateReference reference, long expectedRevision, B1MemoryFeatureState replacement) {
         if (!reference.equals(replacement.reference())) throw new SecurityException("B1 feature CAS cannot change reference");
         final boolean[] changed = {false};
