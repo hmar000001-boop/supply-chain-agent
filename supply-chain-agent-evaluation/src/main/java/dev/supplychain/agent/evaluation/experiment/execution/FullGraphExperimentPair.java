@@ -41,7 +41,10 @@ public record FullGraphExperimentPair(
         if (!baseline.metrics().keySet().equals(treatment.metrics().keySet())) {
             throw new IllegalArgumentException("matched arms must emit the same metric keys");
         }
-        baseline.metrics().forEach((key, value) -> deltas.put(key, treatment.metrics().get(key) - value));
+        for (Map.Entry<String, Double> entry : baseline.metrics().entrySet()) {
+            double treatmentValue = treatment.metrics().get(entry.getKey());
+            deltas.put(entry.getKey(), treatmentValue - entry.getValue());
+        }
         treatmentMinusBaseline = Collections.unmodifiableMap(deltas);
         pairFingerprint = required(pairFingerprint, "pairFingerprint");
     }

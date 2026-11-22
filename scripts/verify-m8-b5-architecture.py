@@ -28,7 +28,7 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-runtime": (38, 11, 87, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (43, 15, 57, 13, 2),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
-    "supply-chain-agent-evaluation": (72, 10, 43, 10, 0),
+    "supply-chain-agent-evaluation": (72, 11, 45, 11, 0),
 }
 failures: list[str] = []
 

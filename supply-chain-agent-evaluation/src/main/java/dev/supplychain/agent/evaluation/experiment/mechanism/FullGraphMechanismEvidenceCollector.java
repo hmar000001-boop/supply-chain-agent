@@ -84,7 +84,7 @@ public final class FullGraphMechanismEvidenceCollector {
     private static String referenceKey(B1MemoryFeatureState state) {
         var reference = state.reference();
         return reference.scopeId().value() + "|" + reference.kind().name() + "|"
-                + reference.candidateId() + "|" + reference.version();
+                + reference.candidateId() + "|" + reference.itemVersion();
     }
 
     private static Set<String> eventKeys(List<B1MemoryFeatureState> states, boolean outcomes) {

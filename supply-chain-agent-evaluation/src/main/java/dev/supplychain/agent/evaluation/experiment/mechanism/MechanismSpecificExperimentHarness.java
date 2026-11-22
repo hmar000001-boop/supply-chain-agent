@@ -66,7 +66,7 @@ public final class MechanismSpecificExperimentHarness {
 
         Map<ExperimentArm, MechanismSpecificExperimentEvidence> mechanismEvidence = new EnumMap<>(ExperimentArm.class);
         Map<ExperimentArm, SimulatorPlanOutcomeEvidence> simulatorEvidence = new EnumMap<>(ExperimentArm.class);
-        MechanismSpecificExperimentSessionFactory plannedFactory = (scenario, selectedMechanism, arm) -> {
+        FullGraphExperimentSessionFactory graphFactory = (scenario, selectedMechanism, arm) -> {
             MechanismArmPlan plan = planFactory.create(scenario, selectedMechanism,
                     arm, trainingArtifacts);
             FullGraphExperimentSession session = sessionFactory.create(scenario, plan, trainingArtifacts);
@@ -81,8 +81,6 @@ public final class MechanismSpecificExperimentHarness {
             }
             return session;
         };
-        FullGraphExperimentSessionFactory graphFactory = (scenario, selectedMechanism, arm) ->
-                plannedFactory.create(scenario, selectedMechanism, arm);
         FullGraphExperimentAdapter adapter = FullGraphExperimentAdapter.forFrozenTrainingArtifactHoldout(
                 graphFactory, trainingArtifacts, trainingArtifactVerifier);
         FullGraphExperimentPair graphPair = adapter.runHoldoutPair(unit, mechanism,

@@ -139,11 +139,11 @@
     "inferential_analysis_available": false
   },
   "research_pipeline_candidate": {
-    "candidate_id": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX1",
-    "code_tree_sha256": "8f64c3765be2e2eefe0ed1b00ff018526860e188ef6bb446a10dd1d60ef27236",
-    "file_count": 674,
+    "candidate_id": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX2",
+    "code_tree_sha256": "90d2b3263db8b8dd4aea28f8d03629053e6984c6554c38e3a8a7da416bdd9127",
+    "file_count": 676,
     "git_commit": "NOT_AVAILABLE",
-    "hosted_ci_conclusion": "UNKNOWN",
+    "hosted_ci_conclusion": "PENDING_CI_FIX2_HOSTED_REVALIDATION",
     "parent_candidate_id": "M8-GAP01-GAP05-CI-GREEN-FIX3"
   }
 }
