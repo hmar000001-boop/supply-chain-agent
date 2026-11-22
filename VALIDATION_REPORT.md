@@ -1,32 +1,17 @@
-# Validation report — GAP-01–GAP-05 CI Fix 2
+# Validation report — CI Fix 3
 
-**Date:** 2026-11-21
-**Status:** Targeted source checks and static guards passed; hosted full Maven CI pending.
-
-## CI failure addressed
-The preceding hosted run passed the runtime (87 tests) and PostgreSQL infrastructure (57 tests) modules. Fourteen evaluation scenarios then errored at `CognitiveCycleDecisionServices.selectedCandidate` with planner identity/session provenance mismatch.
-
-The root cause was B4 active-plan binding: the intention version advanced, and the graph incorrectly cleared the planner session even though the authoritative method and objective were unchanged. Authorization retained the candidate-set ID but no longer had the matching session reference.
-
-## Changes
-- Preserve the planner session for version-only B4 active-plan binding.
-- Continue to invalidate it when intention identity, method ID, method candidate reference or objective fingerprint changes.
-- Explicit `RECONSIDER` and `CHANGE_METHOD` actions always invalidate the prior session.
-- Keep load-context's version-sensitive external/concurrent-change invalidation.
-- Keep candidate-set provenance validation fail-closed; separate planner-ID and session-ID error messages.
-- Add a full-graph regression assertion that session identity is retained at the approval breakpoint.
+## Findings
+- CI Fix 2 removed the prior 14 full-graph errors; the supplied log now shows 17 full-graph tests with one assertion failure and zero errors.
+- The sole failure compares the replacement planner's B4 version snapshot (3) with the graph's later version (4).
+- `RecoveryIntention.bindActivePlan` advances the B4 intention version by exactly one after candidate selection. The test now asserts that lifecycle relationship instead of equality across the two moments.
 
 ## Local checks
-| Check | Result |
-|---|---|
-| `scripts/verify-m8-b5-architecture.py` | PASS |
-| `scripts/verify-m8-r2-evidence.py` | PASS |
-| `scripts/verify-m8-preb7-f03-f04.py` | PASS |
-| Targeted source invariant checks | PASS |
-| Changeset file and archive integrity | PASS |
+- Confirmed the planner invocation still asserts the ToT planner, `tot` method ID, exact candidate-plan reference, stable intention ID, unchanged objective fingerprint, and absence of the previous planner resume session.
+- Confirmed the `bindActivePlan` implementation increments the intention version exactly once.
+- Confirmed the modified test and research note are the only project files in this changeset.
+- ZIP integrity, manifest paths, and SHA-256 checksums are verified.
 
-## Not run
-The Maven wrapper could not obtain Maven 3.9.16 because the runtime environment had no DNS/network access to the configured Apache distribution hosts. Therefore the full Maven/Surefire reactor, live PostgreSQL tests and the new full-graph regression assertion have **not** been executed locally. The exact hosted CI run is required to establish acceptance.
-
-## Scope
-Four project paths: three modified Java source files and one added research/validation note. Zero deletions. No POM, dependency, schema or workflow changes.
+## Not run / not claimed
+- Maven is not installed in this container. The Maven Wrapper attempt did not complete because it could not obtain the Maven distribution in the available environment.
+- No local Surefire/PostgreSQL test execution is claimed.
+- The full hosted CI command must be rerun after applying this changeset.

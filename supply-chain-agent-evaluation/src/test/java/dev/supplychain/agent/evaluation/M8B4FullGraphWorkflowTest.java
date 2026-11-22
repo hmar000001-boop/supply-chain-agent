@@ -273,8 +273,11 @@ class M8B4FullGraphWorkflowTest {
         assertEquals("candidate:verified-tot-method", override.candidatePlanReference());
         assertEquals(scenario.graph.getState(scenario.config).state().text(CognitiveCycleState.INTENTION_ID),
                 override.intentionId());
-        assertEquals(scenario.graph.getState(scenario.config).state().number(CognitiveCycleState.INTENTION_VERSION),
-                override.intentionVersion());
+        var finalState = scenario.graph.getState(scenario.config).state();
+        assertEquals(finalState.number(CognitiveCycleState.INTENTION_VERSION),
+                override.intentionVersion() + 1L,
+                "the planner override records the B4 intention version used to create the candidate; "
+                        + "the subsequent active-plan binding must advance the persisted intention exactly once");
         assertEquals(objectiveFingerprint, override.objectiveFingerprint());
         assertTrue(replacementInvocation.request().resumeSessionId() == null,
                 "a planner session created under the previous B4 intention version must not resume under the changed method");

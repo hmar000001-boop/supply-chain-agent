@@ -1,5 +1,3 @@
-operation,repository_relative_path,description
-modified,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/CognitiveCycleGraph.java,"Preserve planner session when B4 only records the active-plan binding; invalidate on authority change, reconsideration or method change."
-modified,supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/decision/CognitiveCycleDecisionServices.java,Split fail-closed planner identity and planner session provenance errors for exact diagnostics.
-modified,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,Assert that the planner session remains present at the approval breakpoint after B4 active-plan binding.
-added,docs/research/GAP01-GAP05-CI-FIX2-B4-PLANNER-SESSION-PRESERVATION.md,"Document root cause, corrected lifecycle semantics, regression coverage and validation boundary."
+change_type,path,description
+REPLACE,supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java,Assert exact one-version B4 increment from planner authority snapshot to post-selection active-plan binding
+ADD,docs/research/GAP01-GAP05-CI-FIX3-B4-PLANNER-AUTHORITY-VERSION-ASSERTION.md,Document CI failure root cause and why planner and final graph versions differ
