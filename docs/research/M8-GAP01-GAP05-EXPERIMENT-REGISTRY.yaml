@@ -2,11 +2,11 @@ protocol_id: M8-GAP01-05-IEP-1.1
 protocol_status: PREREGISTERED_LOCKED
 protocol_date: 2026-11-21
 protocol_amendment_date: 2026-11-22
-candidate_id: M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX2
-candidate_ci_status: PENDING_HOSTED_CI_FOR_CI_FIX2
-candidate_code_fingerprint: 90d2b3263db8b8dd4aea28f8d03629053e6984c6554c38e3a8a7da416bdd9127
+candidate_id: M8-GAP01-GAP05-EXPERIMENT-HOST-TRUSTED-VERIFIERS-CI-INVENTORY-FIX1
+candidate_ci_status: PENDING_HOSTED_CI_AFTER_INVENTORY_FIX1
+candidate_code_fingerprint: 773fa50a4930674f124cabeca6e22e67bee7df015438bc151b08c313d553183d
 candidate_fingerprint_file: docs/research/M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-CANDIDATE-FINGERPRINT.json
-parent_candidate_id: M8-GAP01-GAP05-CI-GREEN-FIX3
+parent_candidate_id: M8-CONCRETE-TRAIN-HOST-TRUST-VERIFIERS-V1
 candidate_git_commit: NOT_PROVIDED
 candidate_ci_workflow_url: NOT_PROVIDED
 evidence_scope: DETERMINISTIC_SIMULATOR_ONLY
