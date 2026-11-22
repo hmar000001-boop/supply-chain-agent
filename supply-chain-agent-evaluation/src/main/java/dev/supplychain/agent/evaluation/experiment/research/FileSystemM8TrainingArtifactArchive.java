@@ -31,9 +31,9 @@ public final class FileSystemM8TrainingArtifactArchive implements M8TrainingArti
         if (bytes.length == 0) throw new IOException("training bundle codec returned an empty archive");
         String archiveName = bundle.artifactFingerprint() + ".m8bundle";
         Path target = resolve(archiveName);
-        String byteHash = M8ExperimentArtifactIntegrityAuditor.sha256(bytes);
+        String byteHash = M8CandidateCodeFingerprint.sha256(bytes);
         if (Files.exists(target)) {
-            String existingHash = M8ExperimentArtifactIntegrityAuditor.sha256(Files.readAllBytes(target));
+            String existingHash = M8CandidateCodeFingerprint.sha256(Files.readAllBytes(target));
             if (!existingHash.equals(byteHash))
                 throw new SecurityException("content-addressed TRAIN archive already exists with different bytes");
         } else {
@@ -64,7 +64,7 @@ public final class FileSystemM8TrainingArtifactArchive implements M8TrainingArti
         Path path = resolve(stored.archiveName());
         byte[] bytes = Files.readAllBytes(path);
         if (bytes.length != stored.byteCount()
-                || !M8ExperimentArtifactIntegrityAuditor.sha256(bytes).equals(stored.contentSha256()))
+                || !M8CandidateCodeFingerprint.sha256(bytes).equals(stored.contentSha256()))
             throw new SecurityException("TRAIN archive bytes differ from their frozen content digest");
         MechanismTrainingArtifactBundle bundle = Objects.requireNonNull(codec.decode(bytes), "bundle codec decoded null");
         if (!bundle.artifactFingerprint().equals(stored.bundleFingerprint()))

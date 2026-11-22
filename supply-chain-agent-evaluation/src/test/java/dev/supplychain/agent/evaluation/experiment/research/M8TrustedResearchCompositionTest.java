@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -67,6 +68,65 @@ class M8TrustedResearchCompositionTest {
                 ExperimentSplit.HOLDOUT, "unit-1", "1".repeat(64), "profile-a", "family-a",
                 0.2, 0.5, "endpoint-v1", "2".repeat(64));
         assertThrows(SecurityException.class, () -> composition.endpointVerifier().verify(tampered));
+    }
+
+    @Test
+    void candidateFingerprintUsesTheSameExecutableTreeCanonicalizationAndExcludesItsOwnReport() throws Exception {
+        Path root = Files.createDirectory(temporary.resolve("fingerprint-root"));
+        Files.writeString(root.resolve("pom.xml"), "<project/>\n");
+        Path module = Files.createDirectories(root.resolve("supply-chain-agent-evaluation/src/main/java/example"));
+        Files.writeString(module.resolve("Candidate.java"), "record Candidate(int value) {}\n");
+        Path scripts = Files.createDirectories(root.resolve("scripts"));
+        Files.writeString(scripts.resolve("verify.py"), "print('verify')\n");
+        Path github = Files.createDirectories(root.resolve(".github/workflows"));
+        Files.writeString(github.resolve("ci.yml"), "name: ci\n");
+        Path docs = Files.createDirectories(root.resolve("docs/research"));
+        Path manifest = docs.resolve("candidate-fingerprint.json");
+        Files.writeString(manifest, "{\"fingerprint\":\"placeholder\"}\n");
+        Path shadow = Files.createDirectories(root.resolve("src/main/java/example"));
+        Files.writeString(shadow.resolve("Shadow.java"), "class Shadow {}\n");
+        Path target = Files.createDirectories(root.resolve("supply-chain-agent-evaluation/target"));
+        Files.writeString(target.resolve("generated.class"), "generated");
+
+        String actual = M8CandidateCodeFingerprint.compute(root);
+        String expected = canonicalFingerprint(root, List.of("pom.xml",
+                "supply-chain-agent-evaluation/src/main/java/example/Candidate.java",
+                "scripts/verify.py", ".github/workflows/ci.yml"));
+        assertEquals(expected, actual);
+        Files.writeString(manifest, "{\"fingerprint\":\"changed\"}\n");
+        assertEquals(actual, M8CandidateCodeFingerprint.compute(root));
+        Files.writeString(module.resolve("Candidate.java"), "record Candidate(int value) { int next() { return value + 1; } }\n");
+        assertNotEquals(actual, M8CandidateCodeFingerprint.compute(root));
+    }
+
+    private static String canonicalFingerprint(Path root, List<String> relativePaths) throws Exception {
+        var digest = java.security.MessageDigest.getInstance("SHA-256");
+        for (String relative : relativePaths.stream().sorted().toList()) {
+            String fileHash = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(Files.readAllBytes(root.resolve(relative))));
+            digest.update(relative.getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) 0);
+            digest.update(fileHash.getBytes(StandardCharsets.US_ASCII));
+            digest.update((byte) '\n');
+        }
+        return java.util.HexFormat.of().formatHex(digest.digest());
+    }
+
+    @Test
+    void bundleCodecRejectsClassesOutsideTheExplicitDataModelAllowList() throws Exception {
+        var bytes = new java.io.ByteArrayOutputStream();
+        try (var out = new java.io.DataOutputStream(bytes)) {
+            byte[] magic = "M8-TRAIN-BUNDLE-RECORD-GRAPH".getBytes(StandardCharsets.US_ASCII);
+            out.writeInt(magic.length);
+            out.write(magic);
+            out.writeInt(1);
+            out.writeByte(19); // record value
+            byte[] className = "java.lang.Runtime".getBytes(StandardCharsets.UTF_8);
+            out.writeInt(className.length);
+            out.write(className);
+        }
+        assertThrows(SecurityException.class,
+                () -> new ReflectiveM8TrainingArtifactBundleCodec().decode(bytes.toByteArray()));
     }
 
     @Test

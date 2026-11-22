@@ -47,12 +47,12 @@
         "scope": "Correct full-graph lifecycle test to expect post-binding intention version increment."
       }
     ],
-    "current_code_tree_sha256": "773fa50a4930674f124cabeca6e22e67bee7df015438bc151b08c313d553183d",
-    "current_code_tree_file_count": 708,
+    "current_code_tree_sha256": "63bb49db4265ef7a9aabd19cab3a78b9b591deb198635f19ead2ae432722bd04",
+    "current_code_tree_file_count": 719,
     "candidate_freeze_record": "docs/research/M8-GAP01-GAP05-CANDIDATE-FREEZE.md",
     "candidate_freeze_manifest": "docs/research/M8-GAP01-GAP05-CANDIDATE-FREEZE-MANIFEST.json",
-    "current_code_tree_candidate_id": "M8-GAP01-GAP05-EXPERIMENT-HOST-TRUSTED-VERIFIERS-CI-INVENTORY-FIX1",
-    "current_code_tree_ci_status": "PENDING_HOSTED_CI_AFTER_INVENTORY_FIX"
+    "current_code_tree_candidate_id": "M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1",
+    "current_code_tree_ci_status": "PENDING_HOSTED_CI_AFTER_TRUSTED_RESEARCH_COMPILE_FIX1"
   },
   "inventory": {
     "maven_modules": 11,
@@ -123,11 +123,11 @@
     "confirmatory_holdout_episodes_target": 280,
     "family_transfer_episodes_target": 210,
     "blocking_prerequisites": [
-      "hosted CI qualification of the research pipeline changeset",
-      "trusted host composition and actual TRAIN evidence collection",
-      "target-specific B6 simulator label producer and independent verifier",
-      "clustered paired bootstrap, Holm correction and experiment integrity report",
-      "separate frozen-artifact TRANSFER execution and acceptance gate"
+      "hosted Maven/PostgreSQL CI qualification of the trusted research compile repair",
+      "provision seven externally controlled Ed25519 public keys with separately governed private-key custody",
+      "one-unit deterministic TRAIN qualification and independently verified safety evidence",
+      "concrete B1/B2/B3 outcome sources and B6 simulator-label producer with independent attestations",
+      "complete typed TRAIN bundle codec read-back qualification and signed CI freeze attestation"
     ],
     "confirmatory_runs_executed": false,
     "training_artifact_builder_available": true,
@@ -141,11 +141,18 @@
     "inferential_analysis_available": false
   },
   "research_pipeline_candidate": {
-    "candidate_id": "M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1-CI-FIX2",
-    "code_tree_sha256": "90d2b3263db8b8dd4aea28f8d03629053e6984c6554c38e3a8a7da416bdd9127",
-    "file_count": 676,
+    "candidate_id": "M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1",
+    "code_tree_sha256": "63bb49db4265ef7a9aabd19cab3a78b9b591deb198635f19ead2ae432722bd04",
+    "file_count": 719,
     "git_commit": "NOT_AVAILABLE",
-    "hosted_ci_conclusion": "PENDING_CI_FIX2_HOSTED_REVALIDATION",
-    "parent_candidate_id": "M8-GAP01-GAP05-CI-GREEN-FIX3"
+    "hosted_ci_conclusion": "PENDING_HOSTED_CI_AFTER_TRUSTED_RESEARCH_COMPILE_FIX1",
+    "parent_candidate_id": "M8-GAP01-GAP05-EXPERIMENT-HOST-TRUSTED-VERIFIERS-CI-INVENTORY-FIX1",
+    "fingerprint_algorithm": "SHA-256 over sorted UTF-8 path NUL per-file SHA-256 newline records; Java and Python implementations are parity-tested",
+    "known_unverified_items": [
+      "Full Maven/Surefire reactor and PostgreSQL integration not run for this candidate",
+      "No real TRAIN evidence collected",
+      "No external issuer public keys provisioned for the project",
+      "A populated typed TRAIN bundle archive read-back has not yet been exercised"
+    ]
   }
 }

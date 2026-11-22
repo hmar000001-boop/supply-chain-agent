@@ -41,6 +41,9 @@ public record MechanismSpecificExperimentPair(
         if (!evidenceFingerprint.equals(expected)) throw new SecurityException("mechanism experiment pair fingerprint mismatch");
     }
 
+    /** Labels used for B6 validation on either HOLDOUT or TRANSFER; legacy component name retained for JSON compatibility. */
+    public List<B6SimulatorLabelEvidence> b6ValidationLabels() { return b6HoldoutLabels; }
+
     public static MechanismSpecificExperimentPair create(FullGraphExperimentPair graphPair,
             MechanismSpecificExperimentEvidence baselineMechanism,
             MechanismSpecificExperimentEvidence treatmentMechanism,

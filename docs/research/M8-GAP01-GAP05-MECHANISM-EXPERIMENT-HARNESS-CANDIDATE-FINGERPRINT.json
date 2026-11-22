@@ -1,8 +1,8 @@
 {
-  "candidateId": "M8-GAP01-GAP05-EXPERIMENT-HOST-TRUSTED-VERIFIERS-CI-INVENTORY-FIX1",
+  "candidateId": "M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1",
   "fingerprintAlgorithm": "SHA-256 over sorted UTF-8 path NUL file-SHA256 newline records",
-  "codeTreeSha256": "773fa50a4930674f124cabeca6e22e67bee7df015438bc151b08c313d553183d",
-  "fileCount": 708,
+  "codeTreeSha256": "63bb49db4265ef7a9aabd19cab3a78b9b591deb198635f19ead2ae432722bd04",
+  "fileCount": 719,
   "gitCommit": "NOT_AVAILABLE",
   "gitWorkingTreeDirty": null,
   "ci": {
@@ -56,7 +56,7 @@
     },
     {
       "path": "scripts/fingerprint-m8-experiment-candidate.py",
-      "sha256": "70dd857178dd27e14f67a9149b064f4b0f086bdec1d545d0c54828535a424e87"
+      "sha256": "32ec16325d10813d2aa8d8b3261b19eb04948322980d383b75465946c6ca30e9"
     },
     {
       "path": "scripts/postgres/backup.sh",
@@ -88,7 +88,7 @@
     },
     {
       "path": "scripts/verify-m8-b5-architecture.py",
-      "sha256": "1b790d681ed4b4d45ed3f865b0c8ad3a597ff2d881ba38a95c8df0eeba768038"
+      "sha256": "c44b1a1d7b8d9ef0f82378092ef8ba367dd90e883643d390d6e94c14dddf31b5"
     },
     {
       "path": "scripts/verify-m8-experiment-scenario-register.py",
@@ -752,7 +752,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/host/ScenarioFixtureDeterministicTrainPortsFactory.java",
-      "sha256": "31739d458a7cfa359754539fc2f7be74eca955481693b7090d7266af09d97848"
+      "sha256": "056e2c1c38d633a58526dde1c5f30bba7bfe6373551c97e6612ee9da4951d91b"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/B1MemoryRunEvidence.java",
@@ -803,6 +803,14 @@
       "sha256": "662da9a3742e56709f265eef92bc57f8fe3f00a2c7c9a750f5a51930e242f643"
     },
     {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/B6TransferEvaluationReport.java",
+      "sha256": "8f4a6e20fb16b50c68bb6bdc7ea2c054108fd3b2af625a7dd4e84e47b3206d77"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/Ed25519MechanismTrainingArtifactVerifierServices.java",
+      "sha256": "d18ff9533932dec749aebb6370662e206c27a6837392c17ad74253da6b695f51"
+    },
+    {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/ExperimentEvidenceFingerprint.java",
       "sha256": "a142168cce958d74ca767a2804591c25a0596c386262e76d9a79430ebada92a1"
     },
@@ -840,7 +848,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/MechanismSpecificExperimentPair.java",
-      "sha256": "09f5ba7eebf0b8411fb7aa992c907c44ff481deded3ec26fc8e9390a0fade4b0"
+      "sha256": "07cb6c3605bab6401d7bfa13aca290ca7f54f6dac9a4d447bde15a6981112495"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/MechanismSpecificExperimentRunVerifier.java",
@@ -879,12 +887,36 @@
       "sha256": "b10cbb7a9c54af78218b8fb563d0e9a2bb94bf509b16d40d14006467b657a3bd"
     },
     {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/Ed25519M8ExperimentSafetyEvidenceVerifier.java",
+      "sha256": "1b0a9b40e3178d3865fb3bc316cba58f4fa0965e465c2e3732345dfc2d52dcad"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/Ed25519M8VerifiedEndpointEvidenceVerifier.java",
+      "sha256": "9c11a74bac948fcda4c09a6cde8958512f4577b9158234482ea5daffb68b7a99"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/FileSystemM8SignedAttestationRepository.java",
+      "sha256": "99ee5526473775f8044a56e042237ab7c54fcbfc8bdbb61ad6cfe00a185eb8ce"
+    },
+    {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/FileSystemM8TrainingArtifactArchive.java",
-      "sha256": "35eb00c61789247ef8e212f0c38a71e1c4bd0533f8c55f28e6282e9c8d6d633d"
+      "sha256": "965fd6753d0cbd97769c8856206d5948c250d9f4f12eb90bd80e222e377dfd07"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/GitCiM8FreezePrerequisiteVerifier.java",
+      "sha256": "798242e6d9256f508a5576e07071b22d94921d1346bab3a00e3812fb63bb221f"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8CandidateCodeFingerprint.java",
+      "sha256": "474408f1de3ed42e0805e08ddcfd43a6358a468c6bbdef7975eec54a4e49a403"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8ConfirmatoryAnalysisEngine.java",
       "sha256": "c8618ae6cc8650c5a1a92391c79c72e592ae13d01c27eae142243b4536bb5335"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8Ed25519AttestationTrust.java",
+      "sha256": "169f8418aa5f20e0443ebd14f8ace7c6bbc5c0c335e529930cf6931f4a074fb8"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8ExperimentArtifactIntegrityAuditor.java",
@@ -915,6 +947,14 @@
       "sha256": "24c49c710e83a49aeba008968ee9c4675bc82420664501dec940ac335da0eed4"
     },
     {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8SignedAttestation.java",
+      "sha256": "c19634be1507287d8f106fb6731d477968d281b7bdc1063770410bf38be0ca8d"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8SignedAttestationRepository.java",
+      "sha256": "f4a3e40b6311be4f5cc8c81c60c30a1c58cc1979c28b3c86ded74e8bf06555b2"
+    },
+    {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8TrainingArtifactArchive.java",
       "sha256": "65d95b49127574a9b58b0373c1b480e18ee592b3c7dab893165046352baa0628"
     },
@@ -941,6 +981,10 @@
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/M8VerifiedEndpointEvidenceVerifier.java",
       "sha256": "af940238ac180fcbafa084ff8da807edb869158c40ff1d19311064d9eaa4c15f"
+    },
+    {
+      "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/research/ReflectiveM8TrainingArtifactBundleCodec.java",
+      "sha256": "481752e26d5e95ff94a50083ad55bcc936dc357a0c57d446e8a2b3e36c30ccb4"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/scenario/ExperimentScenarioParameters.java",
@@ -1092,7 +1136,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/research/M8TrustedResearchCompositionTest.java",
-      "sha256": "54e3529d4727f62da4c19b05e40f15c90b8fc2587f49dcd338782f10bea7b504"
+      "sha256": "17adf1d5a1ba08c172b2f2459fa22739bbdc25dc8831b3f6ce61715c15d53c1d"
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/research/M8VerifiedEndpointEvidenceTest.java",

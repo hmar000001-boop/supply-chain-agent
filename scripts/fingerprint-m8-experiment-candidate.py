@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PREFIX = "supply-chain-agent-"
 ROOT_FILES = {"pom.xml", "mvnw", "mvnw.cmd", ".gitignore", ".gitattributes", ".env.example"}
-EXCLUDED_PARTS = {".git", "target", ".idea", ".vscode", "node_modules", "__pycache__"}
+EXCLUDED_PARTS = {".git", "target", "build", ".gradle", ".idea", ".vscode", "out", "node_modules", "__pycache__"}
 
 
 def included(path: Path) -> bool:
@@ -52,7 +52,11 @@ def main() -> int:
 
     files = []
     for path in sorted(ROOT.rglob("*")):
-        if not path.is_file() or not included(path):
+        if not included(path):
+            continue
+        if path.is_symlink():
+            raise SystemExit(f"candidate source tree contains a symbolic link: {path.relative_to(ROOT)}")
+        if not path.is_file():
             continue
         rel = path.relative_to(ROOT).as_posix()
         content_hash = sha256(path.read_bytes())
