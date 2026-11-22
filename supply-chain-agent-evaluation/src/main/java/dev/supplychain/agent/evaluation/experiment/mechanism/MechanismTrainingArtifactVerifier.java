@@ -17,10 +17,21 @@ import java.util.Set;
 /** Revalidates TRAIN-only B1/B2/B3/B6 provenance before any graph session is constructed. */
 public final class MechanismTrainingArtifactVerifier {
     private final MechanismTrainingArtifactVerificationServices services;
+    private final String verifierId;
 
+    /** Compatibility constructor for ordinary verification; it is deliberately not freeze-eligible. */
     public MechanismTrainingArtifactVerifier(MechanismTrainingArtifactVerificationServices services) {
-        this.services = Objects.requireNonNull(services, "services");
+        this(services, "UNIDENTIFIED_HOST_VERIFIER");
     }
+
+    /** Stable host-provided identity recorded in immutable TRAIN freeze manifests. */
+    public MechanismTrainingArtifactVerifier(MechanismTrainingArtifactVerificationServices services, String verifierId) {
+        this.services = Objects.requireNonNull(services, "services");
+        this.verifierId = Objects.requireNonNull(verifierId, "verifierId").trim();
+        if (this.verifierId.isEmpty()) throw new IllegalArgumentException("verifierId cannot be blank");
+    }
+
+    public String verifierId() { return verifierId; }
 
     public void verify(MechanismTrainingArtifactBundle bundle) {
         Objects.requireNonNull(bundle, "bundle");
