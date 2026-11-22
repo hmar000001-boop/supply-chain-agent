@@ -2,7 +2,7 @@
 
 Date: 2026-11-22  
 Candidate: `M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1`  
-Candidate code-tree SHA-256: `69a50ad69345683fadd73182ee8c543a882547a715ccc61d94c7ca533ddfae43`
+Candidate code-tree SHA-256: `63bb49db4265ef7a9aabd19cab3a78b9b591deb198635f19ead2ae432722bd04`
 
 ## CI failure addressed
 
