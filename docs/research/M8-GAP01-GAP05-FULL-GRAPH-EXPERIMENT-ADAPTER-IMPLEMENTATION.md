@@ -1,9 +1,9 @@
 # M8 GAP-01–GAP-05 Full-Graph Experiment Adapter
 
 **Adapter:** `M8FullGraphExperimentAdapter-v1`  
-**Protocol:** `M8-GAP01-05-IEP-1.0`  
-**Status:** IMPLEMENTED — TRAIN-only execution gate; hosted CI required  
-**Evidence status:** One full-graph matched-pair smoke test has been added. No 280-unit mechanism batch, verified outcome labels, training artifacts, holdout run, or transfer run has been produced.
+**Protocol:** `M8-GAP01-05-IEP-1.1`  
+**Status:** TRAIN telemetry and verified HOLDOUT admission paths implemented; host composition and hosted CI required  
+**Evidence status:** No 280-unit TRAIN telemetry batch, typed TRAIN artifact bundle, HOLDOUT pair or TRANSFER run has been executed. See `M8-GAP01-GAP05-MECHANISM-EXPERIMENT-AND-INDEPENDENT-EVIDENCE-PIPELINE.md` for the mechanism-specific pipeline.
 
 ## 1. What this increment does
 
@@ -32,7 +32,7 @@ The attestation is an explicit trusted-harness contract, not a substitute for in
 
 The matched-arm identity checks are intentionally strict. A harness that reuses stateful adapters across arms is rejected instead of silently producing a contaminated pair.
 
-## 3. TRAIN-only gate
+## 3. TRAIN telemetry gate
 
 Adapter v1 accepts only `TRAIN` units. It rejects HOLDOUT and TRANSFER before calling the session factory. The adapter's authorized unit registry is generated from the exact preregistered split resource; a same-ID fixture with a different fixture/effective-input fingerprint is rejected.
 
@@ -44,7 +44,7 @@ No training artifact is produced by this batch writer. It stores paired graph ob
 
 `FullGraphExperimentTelemetry` supplies descriptive instrumentation signals for graph progress, B1 access/verified-use state, B2 draft presence, B3 verified outcome counts, B4 intention/method state, and B6 raw uncertainty references/values. These fields are useful for checking that the graph traversed the expected services, but they are **not** the preregistered primary endpoints.
 
-The primary endpoints still require mechanism-specific independent verifiers and outcome collection:
+The primary endpoints require mechanism-specific independent verifiers and outcome collection, now wired through the separate mechanism pipeline described in `M8-GAP01-GAP05-MECHANISM-EXPERIMENT-AND-INDEPENDENT-EVIDENCE-PIPELINE.md`:
 
 - B1 requires independently verified downstream usefulness tied to exact memory attribution.
 - B2 requires approved procedure activation, a later-cycle retrieval/transfer episode, fresh descriptor checks and verifier-confirmed feasible recovery.
@@ -78,15 +78,17 @@ python scripts/verify-m8-fullgraph-experiment-adapter.py
 
 Hosted CI must pass. The new full-graph pair smoke test is not proof that all five mechanisms have valid treatment implementations or outcome verifiers.
 
-## 7. Explicitly not implemented by this increment
+## 7. Remaining implementation and evidence gates
 
-1. A first-party production/test harness that maps all preregistered profiles to baseline/treatment `Ports` for each of B1–B6.
-2. The outcome-label collection and independent verifier pipeline.
-3. B2 cross-cycle artifact carryover and family-transfer replay.
-4. B3 downstream receipt/outcome creation for every generated experiment unit.
-5. B4 controlled method-switch episode endpoint collection through a separately approved simulation phase.
-6. B6 dimension-specific raw assessment export, simulator label generation, shadow calibrator scoring and ECE/Brier calculation.
-7. TRAIN artifact construction/freeze, complete HOLDOUT execution, HOLDOUT batch-integrity gate and TRANSFER gate.
-8. Inferential statistics, multiplicity correction, confidence intervals and MPE decisions.
+The following items are now implemented in the separate mechanism-specific pipeline document, but still require trusted host composition and/or execution: typed TRAIN artifact construction, independent B1/B2/B3/B6 artifact verification, B1/B2/B3/B4/B6 matched HOLDOUT execution, independent simulator replay, B6 label verification and exact-280 HOLDOUT JSONL writing. These capabilities are not evidence that a run has occurred.
 
-Until these are implemented and validated, no experiment result is claimed, B1/B3 remain SHADOW/DISABLED, B6 remains NOT_CALIBRATED, and the holdout/transfer datasets remain closed.
+Still open:
+
+1. Trusted host wiring for the exact planner, consumer, authority, repositories, fresh simulator, target-specific B6 label producer and independent verifiers.
+2. Actual 280-unit TRAIN collection and a frozen, independently verified TRAIN artifact bundle.
+3. Actual matched HOLDOUT runs and integrity acceptance for each mechanism.
+4. Profile-stratified clustered bootstrap, paired tests, Holm correction, confidence intervals and minimum-practical-effect decisions.
+5. Separate frozen-artifact TRANSFER execution and acceptance.
+6. Hosted CI acceptance for the complete research pipeline increment.
+
+No experiment result is claimed. B1/B3 remain SHADOW/DISABLED, B6 remains NOT_CALIBRATED, TRANSFER remains closed, and simulator replay must not be described as a real-world business outcome. See `M8-GAP01-GAP05-MECHANISM-EXPERIMENT-AND-INDEPENDENT-EVIDENCE-PIPELINE.md` for APIs, responsibilities and exact gate order.

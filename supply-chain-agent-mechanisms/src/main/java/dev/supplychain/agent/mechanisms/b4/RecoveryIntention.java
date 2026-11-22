@@ -138,7 +138,7 @@ public record RecoveryIntention(
         if (!reconsiderationTriggers.contains(trigger))
             throw new SecurityException("reconsideration trigger is not permitted by the intention contract: " + trigger);
         authorityPolicy.requireTransitionActor(actor);
-        return revise(IntentionStatus.RECONSIDERATION_PENDING, at, why + " [trigger=" + trigger + "]",
+        return revise(IntentionStatus.RECONSIDERATION_PENDING, at, why + " [trigger=" + trigger + "] [actor=" + actor + "]",
                 null, null, null, activePlanReference, null, null);
     }
 

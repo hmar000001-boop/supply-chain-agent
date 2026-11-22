@@ -68,6 +68,27 @@ public record UncertaintyAssessment(Reference reference, Instant assessedAt, Ins
                         profile.validationDatasetFingerprint(), profile.validationSampleCount()), calibratedSignals);
     }
 
+    /**
+     * Applies a TRAINED profile to a disposable research assessment without claiming calibrated
+     * status. The operational calibration metadata remains NOT_CALIBRATED; the shadow source is
+     * visible in each rationale and in the provenance reference for independent audit.
+     */
+    public UncertaintyAssessment shadowCalibratedBy(UncertaintyCalibrationProfile profile) {
+        Objects.requireNonNull(profile, "profile");
+        if (profile.status() != UncertaintyCalibrationProfile.Status.TRAINED
+                || !profile.scopeId().value().equals(reference.memoryScopeId())) {
+            throw new SecurityException("B6 shadow profile must be TRAINED and scoped to this assessment");
+        }
+        var shadowSignals = new EnumMap<UncertaintyDimension, UncertaintySignal>(UncertaintyDimension.class);
+        signals.forEach((dimension, signal) -> shadowSignals.put(dimension,
+                new UncertaintySignal(dimension, profile.calibrate(dimension, signal.uncertainty()),
+                        signal.rationale() + " [SHADOW calibration profile=" + profile.id() + "]",
+                        signal.evidenceCount())));
+        return new UncertaintyAssessment(reference, assessedAt, validUntil,
+                provenanceReference + "|shadow-profile=" + profile.id() + ":" + profile.version(),
+                Calibration.notCalibrated(), shadowSignals);
+    }
+
     public boolean isCurrentFor(String executionId, String memoryScopeId, Instant now) {
         Objects.requireNonNull(now, "now");
         return reference.executionId().equals(executionId)

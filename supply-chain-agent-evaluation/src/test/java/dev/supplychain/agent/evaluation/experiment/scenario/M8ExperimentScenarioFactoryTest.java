@@ -42,6 +42,10 @@ class M8ExperimentScenarioFactoryTest {
         assertEquals(770, allUnits.stream().map(ExperimentScenarioUnit::seed).distinct().count());
         assertEquals(770, allUnits.stream().map(unit -> unit.fixture().fixtureFingerprint()).distinct().count());
         assertEquals(770, allUnits.stream().map(unit -> unit.fixture().initialWorldFingerprint()).distinct().count());
+        assertEquals(1, allUnits.stream().map(unit -> unit.fixture().planningRequest().workingMemory().scopeId())
+                .distinct().count(), "learned B1/B2/B3/B6 artifacts require one synthetic research scope");
+        assertEquals(M8ExperimentScenarioFactory.EXPERIMENT_MEMORY_SCOPE_ID,
+                allUnits.getFirst().fixture().planningRequest().workingMemory().scopeId().value());
         assertTrue(training.stream().allMatch(unit -> unit.seed() >= 1_000_000 && unit.seed() < 2_000_000));
         assertTrue(holdout.stream().allMatch(unit -> unit.seed() >= 2_000_000 && unit.seed() < 3_000_000));
         assertTrue(transfer.stream().allMatch(unit -> unit.seed() >= 3_000_000 && unit.seed() < 4_000_000));
@@ -107,7 +111,7 @@ class M8ExperimentScenarioFactoryTest {
             PlanningRequest request = unit.fixture().planningRequest();
             assertTrue(request.availableActionDefinitions().stream().allMatch(action ->
                     request.authorityPolicy().proposalScope().contains(action.requiredCapability())));
-            assertEquals("M8ExperimentScenarioFactory-v1", unit.fixture().definition().fixtureVersion());
+            assertEquals(M8ExperimentScenarioFactory.GENERATOR_ID, unit.fixture().definition().fixtureVersion());
         }
     }
 

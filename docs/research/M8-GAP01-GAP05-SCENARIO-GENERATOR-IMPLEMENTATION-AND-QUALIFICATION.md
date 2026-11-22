@@ -1,7 +1,7 @@
 # M8-GAP01–GAP05 — Seeded scenario generator implementation and qualification
 
-**Generator:** `M8ExperimentScenarioFactory-v1`  
-**Protocol:** `M8-GAP01-05-IEP-1.0`  
+**Generator:** `M8ExperimentScenarioFactory-v2`  
+**Protocol:** `M8-GAP01-05-IEP-1.1`  
 **Status:** IMPLEMENTED — AWAITING HOSTED CI TEST ACCEPTANCE  
 **Evidence status:** No treatment, training, holdout evaluation, transfer evaluation, or outcome-label generation has run.
 

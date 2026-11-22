@@ -20,50 +20,102 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 /**
- * Matched-pair executor for the actual application LangGraph4j graph. Version 1 is TRAIN-only:
- * HOLDOUT and TRANSFER fail closed until the training-artifact freeze and holdout-completion gates
- * are implemented. Every arm gets a fresh host, fresh stateful ports, a unique checkpoint thread,
+ * Matched-pair executor for the actual application LangGraph4j graph. TRAIN execution and
+ * confirmatory HOLDOUT execution use separately constructed adapters; HOLDOUT can be opened only
+ * after the exact frozen TRAIN artifact bundle passes every independent verifier. TRANSFER remains
+ * closed. Every arm gets a fresh host, fresh stateful ports, a unique checkpoint thread,
  * and a runtime-audited sandbox. Runs stop at the first graph boundary and are never resumed.
  */
 public final class FullGraphExperimentAdapter {
     private final FullGraphExperimentSessionFactory sessionFactory;
-    private final Map<String, ExperimentScenarioUnit> preregisteredTrainingUnits;
+    private final Map<String, ExperimentScenarioUnit> preregisteredUnits;
+    private final ExperimentSplit authorizedSplit;
 
     public FullGraphExperimentAdapter(FullGraphExperimentSessionFactory sessionFactory) {
-        this(sessionFactory, M8ExperimentScenarioFactory.loadDefault().generate(ExperimentSplit.TRAIN));
+        this(sessionFactory, M8ExperimentScenarioFactory.loadDefault().generate(ExperimentSplit.TRAIN),
+                ExperimentSplit.TRAIN);
     }
 
     public FullGraphExperimentAdapter(FullGraphExperimentSessionFactory sessionFactory,
                                       List<ExperimentScenarioUnit> preregisteredTrainingUnits) {
+        this(sessionFactory, preregisteredTrainingUnits, ExperimentSplit.TRAIN);
+    }
+
+    private FullGraphExperimentAdapter(FullGraphExperimentSessionFactory sessionFactory,
+            List<ExperimentScenarioUnit> preregisteredUnits, ExperimentSplit authorizedSplit) {
         this.sessionFactory = Objects.requireNonNull(sessionFactory, "sessionFactory");
+        this.authorizedSplit = Objects.requireNonNull(authorizedSplit, "authorizedSplit");
         List<ExperimentScenarioUnit> authorized = List.copyOf(Objects.requireNonNull(
-                preregisteredTrainingUnits, "preregisteredTrainingUnits"));
-        if (authorized.size() != 280 || authorized.stream().anyMatch(unit -> unit.split() != ExperimentSplit.TRAIN
+                preregisteredUnits, "preregisteredUnits"));
+        int expected = authorizedSplit == ExperimentSplit.TRANSFER ? 210 : 280;
+        if (authorized.size() != expected || authorized.stream().anyMatch(unit -> unit.split() != authorizedSplit
                 || !M8ExperimentScenarioFactory.PROTOCOL_ID.equals(unit.protocolId()))) {
-            throw new SecurityException("adapter must be bound to the exact preregistered 280-unit TRAIN set");
+            throw new SecurityException("adapter must be bound to the exact preregistered " + expected
+                    + "-unit " + authorizedSplit + " set");
         }
         var byId = new java.util.TreeMap<String, ExperimentScenarioUnit>();
         for (ExperimentScenarioUnit unit : authorized) {
             if (byId.putIfAbsent(unit.experimentUnitId(), unit) != null)
-                throw new SecurityException("duplicate preregistered TRAIN unit ID");
+                throw new SecurityException("duplicate preregistered " + authorizedSplit + " unit ID");
         }
-        this.preregisteredTrainingUnits = Map.copyOf(byId);
+        this.preregisteredUnits = Map.copyOf(byId);
+    }
+
+    /** Opens HOLDOUT only after the exact TRAIN artifact bundle has passed every independent verifier. */
+    public static FullGraphExperimentAdapter forFrozenTrainingArtifactHoldout(
+            FullGraphExperimentSessionFactory sessionFactory,
+            dev.supplychain.agent.evaluation.experiment.mechanism.MechanismTrainingArtifactBundle bundle,
+            dev.supplychain.agent.evaluation.experiment.mechanism.MechanismTrainingArtifactVerifier verifier) {
+        Objects.requireNonNull(bundle, "bundle");
+        Objects.requireNonNull(verifier, "verifier").verify(bundle);
+        if (!bundle.trainUnitFingerprints().equals(
+                dev.supplychain.agent.evaluation.experiment.mechanism.MechanismTrainingArtifactBundle.exactTrainUnitFingerprints())) {
+            throw new SecurityException("HOLDOUT cannot open with an incomplete or modified TRAIN artifact unit set");
+        }
+        return new FullGraphExperimentAdapter(sessionFactory,
+                M8ExperimentScenarioFactory.loadDefault().generate(ExperimentSplit.HOLDOUT), ExperimentSplit.HOLDOUT);
     }
 
     public FullGraphExperimentPair runTrainingPair(ExperimentScenarioUnit unit, ExperimentMechanism mechanism)
             throws Exception {
+        return runTrainingPair(unit, mechanism, null);
+    }
+
+    /**
+     * Matched TRAIN execution with a read-only, in-session evidence observer. The observer sees
+     * the exact terminal state and session-owned mechanism services before resources are closed;
+     * it cannot resume the graph because no graph handle is exposed by this callback contract.
+     */
+    public FullGraphExperimentPair runTrainingPair(ExperimentScenarioUnit unit, ExperimentMechanism mechanism,
+            ExperimentRunObserver observer) throws Exception {
+        if (authorizedSplit != ExperimentSplit.TRAIN)
+            throw new SecurityException("this adapter instance is not authorized for TRAIN execution");
+        return runPair(unit, mechanism, observer, ExperimentSplit.TRAIN);
+    }
+
+    /** Confirmatory HOLDOUT pair; it is callable only on an adapter created after TRAIN verification. */
+    public FullGraphExperimentPair runHoldoutPair(ExperimentScenarioUnit unit, ExperimentMechanism mechanism,
+            ExperimentRunObserver observer) throws Exception {
+        if (authorizedSplit != ExperimentSplit.HOLDOUT)
+            throw new SecurityException("HOLDOUT adapter has not passed the frozen TRAIN artifact gate");
+        return runPair(unit, mechanism, observer, ExperimentSplit.HOLDOUT);
+    }
+
+    private FullGraphExperimentPair runPair(ExperimentScenarioUnit unit, ExperimentMechanism mechanism,
+            ExperimentRunObserver observer, ExperimentSplit requiredSplit) throws Exception {
         Objects.requireNonNull(unit, "unit");
         Objects.requireNonNull(mechanism, "mechanism");
         if (!M8ExperimentScenarioFactory.PROTOCOL_ID.equals(unit.protocolId()))
             throw new SecurityException("experiment unit protocol does not match the preregistered protocol");
-        if (unit.split() != ExperimentSplit.TRAIN)
-            throw new SecurityException("full-graph adapter v1 may execute TRAIN only; HOLDOUT/TRANSFER gates are not open");
-        ExperimentScenarioUnit registered = preregisteredTrainingUnits.get(unit.experimentUnitId());
+        if (unit.split() != requiredSplit || requiredSplit != authorizedSplit)
+            throw new SecurityException("full-graph adapter is not authorized for split " + unit.split());
+        ExperimentScenarioUnit registered = preregisteredUnits.get(unit.experimentUnitId());
         if (registered == null || !registered.fixture().fixtureFingerprint().equals(unit.fixture().fixtureFingerprint())
                 || !registered.effectiveInputFingerprint().equals(unit.effectiveInputFingerprint())
                 || registered.seed() != unit.seed() || !registered.fixtureProfile().equals(unit.fixtureProfile())
                 || !registered.scenarioFamily().equals(unit.scenarioFamily())) {
-            throw new SecurityException("experiment unit is not byte-for-byte equivalent to its preregistered TRAIN fixture identity");
+            throw new SecurityException("experiment unit is not byte-for-byte equivalent to its preregistered "
+                    + requiredSplit + " fixture identity");
         }
 
         FullGraphExperimentSession baseline = null;
@@ -80,7 +132,9 @@ public final class FullGraphExperimentAdapter {
             int position = 1;
             for (ExperimentArm arm : order) {
                 FullGraphExperimentSession session = arm == ExperimentArm.BASELINE ? baseline : treatment;
-                observations.put(arm, execute(session, position++));
+                ExecutedRun executed = execute(session, position++);
+                observations.put(arm, executed.observation());
+                if (observer != null) observer.completed(session, executed.terminalState(), executed.observation());
             }
             FullGraphExperimentRunObservation baselineResult = observations.get(ExperimentArm.BASELINE);
             FullGraphExperimentRunObservation treatmentResult = observations.get(ExperimentArm.TREATMENT);
@@ -96,7 +150,7 @@ public final class FullGraphExperimentAdapter {
         }
     }
 
-    private static FullGraphExperimentRunObservation execute(FullGraphExperimentSession session, int executionOrder)
+    private static ExecutedRun execute(FullGraphExperimentSession session, int executionOrder)
             throws Exception {
         var auditBefore = Objects.requireNonNull(session.sandboxAudit().snapshot(), "sandbox audit before run");
         var stream = session.runtime().graph().stream(GraphInput.args(session.graphInput()), session.config());
@@ -134,12 +188,15 @@ public final class FullGraphExperimentAdapter {
                 + "|" + executionOrder + "|" + boundary + "|" + state.text(CognitiveCycleState.DECISION_STATUS)
                 + "|" + eventFingerprint + "|" + new TreeMap<>(metrics);
         String fingerprint = FullGraphExperimentRunObservation.fingerprint(canonical);
-        return new FullGraphExperimentRunObservation(session.sessionId(), session.unit().experimentUnitId(),
+        FullGraphExperimentRunObservation observation = new FullGraphExperimentRunObservation(session.sessionId(), session.unit().experimentUnitId(),
                 session.unit().fixture().fixtureFingerprint(), session.unit().fixture().planningRequest().fingerprint(),
                 session.mechanism(), session.arm(), executionOrder, boundary,
                 state.text(CognitiveCycleState.DECISION_STATUS), state.text(CognitiveCycleState.LAST_REASON),
                 signals, events, eventFingerprint, metrics, auditDelta, fingerprint);
+        return new ExecutedRun(observation, state);
     }
+
+    private record ExecutedRun(FullGraphExperimentRunObservation observation, CognitiveCycleState terminalState) { }
 
     /**
      * Calibration profiles must remain shadow-only during this adapter phase. The graph may be

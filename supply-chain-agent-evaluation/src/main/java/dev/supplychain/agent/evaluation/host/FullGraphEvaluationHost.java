@@ -8,6 +8,8 @@ import dev.supplychain.agent.mechanisms.feedback.CandidateOutcomeAdjustment;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedureDraftService;
 import dev.supplychain.agent.mechanisms.b2.RecoveryProcedurePromotionService;
 import dev.supplychain.agent.mechanisms.b2.InMemoryRecoveryProcedureArtifactStore;
+import dev.supplychain.agent.mechanisms.b2.ReusableRecoveryProcedure;
+import dev.supplychain.agent.memory.procedural.ProcedureVersion;
 import dev.supplychain.agent.actions.api.ActionRegistry;
 import dev.supplychain.agent.actions.api.CapabilityAuthorizer;
 import dev.supplychain.agent.actions.api.InMemoryActionExecutionLedger;
@@ -38,7 +40,10 @@ import dev.supplychain.agent.mechanisms.b3.InMemoryWorkspaceRepository;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceAdmissionService;
 import dev.supplychain.agent.mechanisms.b3.WorkspaceBroadcastService;
 import dev.supplychain.agent.mechanisms.b4.InMemoryRecoveryIntentionRepository;
+import dev.supplychain.agent.mechanisms.b4.InMemoryRecoveryIntentionTransitionRecorder;
 import dev.supplychain.agent.mechanisms.b4.RecoveryIntentionService;
+import dev.supplychain.agent.mechanisms.b1.B1MemoryFeatureState;
+import dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeAdjustment;
 import dev.supplychain.agent.mechanisms.b6.MetaControlGovernor;
 import dev.supplychain.agent.mechanisms.b6.UncertaintyCalibrationService;
 import dev.supplychain.agent.mechanisms.b6.MetaControlPolicy;
@@ -229,7 +234,29 @@ public final class FullGraphEvaluationHost {
      */
     public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory,
             UncertaintyCalibrationService uncertaintyCalibration) throws Exception {
+        return compileFullRuntime(ports, saverFactory, uncertaintyCalibration, List.of(), null);
+    }
+
+    /** Evaluation-only composition hook for immutable TRAIN-derived B1 features and a B3 SHADOW overlay. */
+    public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory,
+            UncertaintyCalibrationService uncertaintyCalibration, List<B1MemoryFeatureState> b1FeatureSeeds,
+            WorkspaceCoalitionOutcomeAdjustment experimentShadowCoalitionFeedback) throws Exception {
+        return compileFullRuntime(ports, saverFactory, uncertaintyCalibration, b1FeatureSeeds,
+                experimentShadowCoalitionFeedback, List.of());
+    }
+
+    /**
+     * Evaluation-only composition hook for all four scope-bound research artifacts. B2 procedures
+     * are re-staged, independently revalidated and reactivated in the fresh per-arm repository;
+     * the immutable approved artifact bytes and lifecycle provenance are preserved. No operational
+     * repository or action dispatcher is shared with another run.
+     */
+    public FullGraphRuntime compileFullRuntime(Ports ports, CheckpointSaverFactory saverFactory,
+            UncertaintyCalibrationService uncertaintyCalibration, List<B1MemoryFeatureState> b1FeatureSeeds,
+            WorkspaceCoalitionOutcomeAdjustment experimentShadowCoalitionFeedback,
+            List<ReusableRecoveryProcedure> b2ReusableProcedureSeeds) throws Exception {
         Objects.requireNonNull(ports, "ports");
+        Objects.requireNonNull(b1FeatureSeeds, "b1FeatureSeeds");
         Objects.requireNonNull(saverFactory, "saverFactory");
         var workingMemoryRepository = new InMemoryWorkingMemoryRepository();
         var workingMemoryService = new WorkingMemoryService(workingMemoryRepository, Duration.ofDays(1));
@@ -241,18 +268,26 @@ public final class FullGraphEvaluationHost {
         var proceduralRepository = new InMemoryProceduralMemoryRepository();
         var proceduralMemory = new ProceduralMemoryService(proceduralRepository);
         var recoveryArtifactStore = new InMemoryRecoveryProcedureArtifactStore();
+        seedReusableRecoveryProcedures(proceduralMemory, recoveryArtifactStore,
+                Objects.requireNonNull(b2ReusableProcedureSeeds, "b2ReusableProcedureSeeds"));
         var retrieval = new MemoryRetrievalService(workingMemoryRepository, episodicRepository,
                 new InMemorySemanticFactRepository(), proceduralRepository);
         var actionRegistry = ports.actionRegistry();
         var impasses = new ImpasseResolutionService(new DeterministicImpasseDetector(), new InMemoryImpasseCaseRepository());
         R2WorkflowConfiguration r2 = ports.r2Workflow();
         var b1FeatureRepository = new InMemoryB1MemoryFeatureRepository();
+        for (B1MemoryFeatureState seed : b1FeatureSeeds) b1FeatureRepository.saveNew(Objects.requireNonNull(seed, "B1 feature seed"));
         var b1FeatureLearning = new B1MemoryFeatureLearningService(b1FeatureRepository);
         CandidateOutcomeAdjustment feedbackAdjustment = r2 == null || r2.activeFeedbackPolicy() == null
                 ? CandidateOutcomeAdjustment.neutral() : r2.activeFeedbackPolicy();
-        var coalitionFeedbackAdjustment = r2 == null || r2.activeCoalitionFeedbackPolicy() == null
-                ? dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeAdjustment.neutral()
-                : r2.activeCoalitionFeedbackPolicy();
+        WorkspaceCoalitionOutcomeAdjustment configuredCoalitionAdjustment = r2 == null
+                ? null : r2.activeCoalitionFeedbackPolicy() != null ? r2.activeCoalitionFeedbackPolicy()
+                : r2.experimentShadowCoalitionFeedbackAdjustment();
+        if (experimentShadowCoalitionFeedback != null && configuredCoalitionAdjustment != null)
+            throw new SecurityException("only one B3 feedback overlay may be wired into an evaluation graph");
+        WorkspaceCoalitionOutcomeAdjustment coalitionFeedbackAdjustment = experimentShadowCoalitionFeedback != null
+                ? experimentShadowCoalitionFeedback : configuredCoalitionAdjustment != null
+                    ? configuredCoalitionAdjustment : dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionOutcomeAdjustment.neutral();
         B3OutcomeEvidenceService b3Evidence = r2 == null ? null : new B3OutcomeEvidenceService(
                 r2.b3OutcomeEvidenceRepository(), r2.downstreamOutcomeEvidenceVerifier(),
                 r2.admissionPolicyVersion(), r2.outcomeVerifierId(), b1FeatureLearning);
@@ -265,21 +300,26 @@ public final class FullGraphEvaluationHost {
                         actionRegistry, r2.recoveryDraftEvidenceVerifier());
         var b1Selector = new B1RetrievalSelector(new RecencyFrequencyActivationEstimator(0.5, 1.0),
                 new ExponentialActivationLatencyModel(100, 0.5, 1, 10_000), feedbackAdjustment);
-        var workspaceAdmission = new WorkspaceAdmissionService(new InMemoryWorkspaceRepository(), feedbackAdjustment,
+        var workspaceRepository = new InMemoryWorkspaceRepository();
+        var workspaceAdmission = new WorkspaceAdmissionService(workspaceRepository, feedbackAdjustment,
                 dev.supplychain.agent.mechanisms.b3.WorkspaceCoalitionCompetitionPolicy.standard(), coalitionFeedbackAdjustment);
         var workspaceBroadcast = new WorkspaceBroadcastService(ports.workspaceConsumers(), receiptRecorder);
+        var planningArtifactStore = new InMemoryPlanningArtifactStore();
         var decisionServices = new CognitiveCycleDecisionServices(
                 retrieval, new B1MemoryCandidateFactory(), b1Selector, workspaceAdmission, workspaceBroadcast,
                 new PlannerRouter(ports.plannerStrategies(), new DefaultPlannerSelectionPolicy()),
-                ports.worldModel(), ports.candidateEvaluator(), new InMemoryPlanningArtifactStore(),
+                ports.worldModel(), ports.candidateEvaluator(), planningArtifactStore,
                 ports.decisionDomain(), ports.clock(), ports.resourceBudgetGuard(), workingMemoryService,
                 dev.supplychain.agent.planning.routing.PlannerMethodResolver.canonical(), recoveryProcedurePromotion,
                 b1FeatureLearning);
+        var intentionRepository = new InMemoryRecoveryIntentionRepository();
+        var intentionTransitionRecorder = new InMemoryRecoveryIntentionTransitionRecorder();
+        var intentionService = new RecoveryIntentionService(intentionRepository, intentionTransitionRecorder);
         var lifecycleServices = new CognitiveCycleLifecycleServices(
                 workingMemoryService,
                 new EpisodicMemoryService(episodicRepository, Duration.ofDays(7)),
                 impasses,
-                new RecoveryIntentionService(new InMemoryRecoveryIntentionRepository()),
+                intentionService,
                 new MetaControlGovernor(new MetaControlPolicy(0.4, 0.8, 0.2)),
                 new ActionDispatcher(actionRegistry, new CapabilityAuthorizer(), new InMemoryActionExecutionLedger(),
                         ports.resourceBudgetGuard() == null ? null
@@ -301,12 +341,47 @@ public final class FullGraphEvaluationHost {
                         ports.resourceBudgetGuard());
         return new FullGraphRuntime(graph, recoveryDraftService, recoveryProcedurePromotion, b3Evidence,
                 b1Selector, b1FeatureLearning, b1FeatureRepository, uncertaintyCalibration, r2,
-                workspaceAdmission, workspaceBroadcast);
+                workspaceAdmission, workspaceBroadcast, workspaceRepository, planningArtifactStore, proceduralMemory,
+                recoveryArtifactStore, intentionService, intentionTransitionRecorder, coalitionFeedbackAdjustment);
     }
 
     @FunctionalInterface
     public interface CheckpointSaverFactory {
         BaseCheckpointSaver create(StateGraph<CognitiveCycleState> graph) throws Exception;
+    }
+
+    private static void seedReusableRecoveryProcedures(ProceduralMemoryService proceduralMemory,
+            InMemoryRecoveryProcedureArtifactStore artifactStore, List<ReusableRecoveryProcedure> seeds) {
+        Objects.requireNonNull(proceduralMemory, "proceduralMemory");
+        Objects.requireNonNull(artifactStore, "artifactStore");
+        for (ReusableRecoveryProcedure seed : List.copyOf(Objects.requireNonNull(seeds, "seeds"))) {
+            Objects.requireNonNull(seed, "B2 procedure seed");
+            ProcedureVersion approved = seed.procedure();
+            var artifact = seed.artifact();
+            if (approved.status() != dev.supplychain.agent.memory.procedural.ProcedureStatus.ACTIVE
+                    || !approved.scopeId().equals(artifact.scopeId())
+                    || !approved.provenance().sourceId().equals(artifact.sourceDraftId())
+                    || !Objects.equals(approved.provenance().sourceVersion(), artifact.sourceFingerprint())
+                    || !approved.createdBy().equals(artifact.approvedBy())
+                    || !approved.activatedBy().equals(artifact.approvedBy())
+                    || !approved.activatedAt().equals(artifact.approvedAt())) {
+                throw new SecurityException("B2 experiment seed is not an exact approved ACTIVE procedure/artifact pair");
+            }
+            var reference = artifactStore.publish(artifact);
+            ProcedureVersion draft = ProcedureVersion.draft(approved.scopeId(), approved.procedureKey(),
+                    approved.versionNumber(), approved.kind(), approved.description(), reference,
+                    approved.provenance(), approved.createdAt(), approved.createdBy(), approved.predecessor());
+            proceduralMemory.stage(draft);
+            var validated = proceduralMemory.validate(draft.id(), draft.lifecycleRevision(),
+                    approved.validatedBy(), approved.validatedAt());
+            var active = proceduralMemory.activate(validated.id(), validated.lifecycleRevision(),
+                    approved.activatedBy(), approved.activatedAt());
+            if (active.status() != dev.supplychain.agent.memory.procedural.ProcedureStatus.ACTIVE
+                    || !active.scopeId().equals(artifact.scopeId())
+                    || !active.artifact().sha256().equals(reference.sha256())) {
+                throw new SecurityException("B2 procedure failed exact per-session rehydration");
+            }
+        }
     }
 
     private static Ports failClosedProbePorts() {

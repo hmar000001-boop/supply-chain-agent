@@ -53,7 +53,8 @@ public final class B3CoalitionFeedbackPolicyService {
             double normalized=(useful-harmful)/(double)events.size();
             adjustments.put(key,Math.max(-maximumAbsoluteAdjustment,Math.min(maximumAbsoluteAdjustment,normalized*maximumAbsoluteAdjustment)));
         });
-        String source=sha(scope.value()+"|"+policyId+"|"+version+"|"+evidence+"|"+new TreeMap<>(adjustments)+"|"+trainedAt);
+        String canonicalOutcomes=evidence.stream().map(B3CoalitionFeedbackPolicyService::canonicalOutcome).toList().toString();
+        String source=sha(scope.value()+"|"+policyId+"|"+version+"|"+canonicalOutcomes+"|"+new TreeMap<>(adjustments)+"|"+trainedAt);
         return new B3CoalitionFeedbackCandidate(policyId,version,scope,adjustments,
                 evidence.stream().map(WorkspaceCoalitionOutcomeEvidence::idempotencyKey).toList(),units,
                 minimumObservationsPerCoalition,maximumAbsoluteAdjustment,source,trainedAt,
@@ -111,6 +112,15 @@ public final class B3CoalitionFeedbackPolicyService {
         if(!authority.isAuthorized(candidate,report,approval.approverId(),approval.approvalReference(),now))
             throw new SecurityException("coalition policy activation approval is not authorized");
         return new ActiveB3CoalitionFeedbackPolicy(candidate,report,approval);
+    }
+
+    /** Stable source-ledger representation; avoids iteration-order dependence in Set-valued record fields. */
+    private static String canonicalOutcome(WorkspaceCoalitionOutcomeEvidence value) {
+        return value.idempotencyKey()+"|"+value.receiptId()+"|"+value.scopeId().value()+"|"+value.workspaceId()+"|"
+                +value.cycleId()+"|"+value.consumerId()+"|"+value.coalitionId()+"|"+value.proposalFingerprint()+"|"
+                +value.preferenceKey()+"|"+value.candidateIds().stream().sorted().toList()+"|"+value.signal()+"|"
+                +value.verifierId()+"|"+value.evidence().stream().map(e->e.evidenceType()+":"+e.evidenceId()).sorted().toList()+"|"
+                +value.experimentUnitFingerprint()+"|"+value.admissionPolicyVersion()+"|"+value.verifiedAt();
     }
 
     public static String candidateFingerprint(B3CoalitionFeedbackCandidate candidate) {

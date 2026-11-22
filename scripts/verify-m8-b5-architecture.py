@@ -23,12 +23,12 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
     "supply-chain-agent-actions": (58, 5, 28, 4, 1),
-    "supply-chain-agent-mechanisms": (163, 12, 124, 12, 0),
+    "supply-chain-agent-mechanisms": (166, 12, 124, 12, 0),
     "supply-chain-agent-planning": (54, 10, 43, 9, 1),
     "supply-chain-agent-runtime": (38, 11, 87, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (43, 15, 57, 13, 2),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
-    "supply-chain-agent-evaluation": (40, 9, 41, 9, 0),
+    "supply-chain-agent-evaluation": (72, 10, 43, 10, 0),
 }
 failures: list[str] = []
 
@@ -139,6 +139,8 @@ if active.exists() and mirror.exists():
     require(active.read_bytes() == mirror.read_bytes(), "workflows/ci.yml must be byte-identical to .github/workflows/ci.yml")
     workflow = active.read_text(encoding="utf-8")
     require("verify-m8-b5-architecture.py" in workflow, "Active CI workflow does not run the M8-B5 architecture guardrail")
+    require("verify-m8-mechanism-experimental-evidence.py" in workflow,
+            "Active CI workflow does not run the M8 mechanism-training and independent-evidence guardrail")
     require("-Dphase0.postgres=true clean install" in workflow, "Active CI workflow must clean-install the fully tested reactor before generating B2 outputs")
     require("M8ComparisonCli" in workflow and "target/m8-b2-results/**" in workflow,
             "Active CI workflow must generate and upload the three M8-B2 result artifacts")

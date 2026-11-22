@@ -27,8 +27,10 @@ import java.util.Objects;
  * simulator inputs only and never represent execution authorization.</p>
  */
 public final class M8ExperimentScenarioFactory {
-    public static final String PROTOCOL_ID = "M8-GAP01-05-IEP-1.0";
-    public static final String GENERATOR_ID = "M8ExperimentScenarioFactory-v1";
+    public static final String PROTOCOL_ID = "M8-GAP01-05-IEP-1.1";
+    public static final String GENERATOR_ID = "M8ExperimentScenarioFactory-v2";
+    /** Synthetic research tenant shared by frozen artifacts; session repositories remain isolated. */
+    public static final String EXPERIMENT_MEMORY_SCOPE_ID = "tenant:m8-experiment:shared-research-v2";
     public static final String SPLIT_REGISTER_RESOURCE = "/experiment/m8-experiment-split-register.csv";
 
     private final ScenarioCatalog catalog;
@@ -92,7 +94,8 @@ public final class M8ExperimentScenarioFactory {
                     base.expectedEffectBoundary(),
                     seed,
                     base.budgetProfile());
-            ScenarioFixture fixture = fixtureFactory.create(variantDefinition, parameters);
+            ScenarioFixture fixture = fixtureFactory.create(variantDefinition, parameters,
+                    new dev.supplychain.agent.memory.common.MemoryScopeId(EXPERIMENT_MEMORY_SCOPE_ID));
             String unitId = allocation.experimentUnitIdTemplate().replace("{seed}", Long.toString(seed));
             String effectiveFingerprint = effectiveInputFingerprint(allocation.fixtureProfile(), parameters);
             units.add(new ExperimentScenarioUnit(PROTOCOL_ID, allocation.split(), allocation.scenarioFamily(),
@@ -139,7 +142,7 @@ public final class M8ExperimentScenarioFactory {
         if (profile.equals("BLOCKED_ROUTE")) values.put("routeAvailabilityGate", p.routeCapacityRatioTenths() > 0 ? 1 : 0);
         String canonical = values.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue())
                 .collect(java.util.stream.Collectors.joining("|"));
-        return HexFormat.of().formatHex(sha256(canonical));
+        return HexFormat.of().formatHex(sha256("memoryScopeId=" + EXPERIMENT_MEMORY_SCOPE_ID + "|" + canonical));
     }
 
     private static byte[] sha256(String value) {

@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "docs/research/M8-GAP01-GAP05-EXPERIMENT-SPLIT-REGISTER.csv"
 RESOURCE = ROOT / "supply-chain-agent-evaluation/src/main/resources/experiment/m8-experiment-split-register.csv"
-PROTOCOL_ID = "M8-GAP01-05-IEP-1.0"
+PROTOCOL_ID = "M8-GAP01-05-IEP-1.1"
 
 
 def choose(prefix: str, name: str, minimum: int, maximum: int, step: int = 1) -> int:

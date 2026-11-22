@@ -10,9 +10,16 @@ import java.util.function.UnaryOperator;
 /** Versioned B4 intention lifecycle with explicit trigger and actor checks. */
 public final class RecoveryIntentionService {
     private final RecoveryIntentionRepository repository;
+    private final RecoveryIntentionTransitionRecorder transitionRecorder;
 
     public RecoveryIntentionService(RecoveryIntentionRepository repository) {
+        this(repository, RecoveryIntentionTransitionRecorder.noOp());
+    }
+
+    public RecoveryIntentionService(RecoveryIntentionRepository repository,
+            RecoveryIntentionTransitionRecorder transitionRecorder) {
         this.repository = Objects.requireNonNull(repository, "repository");
+        this.transitionRecorder = Objects.requireNonNull(transitionRecorder, "transitionRecorder");
     }
 
     public RecoveryIntention create(RecoveryObjective objective, MemoryScopeId scope, String owner,
@@ -125,6 +132,7 @@ public final class RecoveryIntentionService {
         if (current.version() != expected) throw new IllegalStateException("intention version conflict");
         RecoveryIntention next = operation.apply(current);
         if (!repository.compareAndSet(id, expected, next)) throw new IllegalStateException("intention changed concurrently");
+        transitionRecorder.record(current, next, transitionKind(current, next));
         return next;
     }
 }

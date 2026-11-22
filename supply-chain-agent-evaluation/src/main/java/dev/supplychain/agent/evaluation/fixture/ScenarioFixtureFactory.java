@@ -120,6 +120,17 @@ public final class ScenarioFixtureFactory {
 
     /** Builds a seeded parameterized fixture; null parameters preserve the frozen legacy fixtures. */
     public ScenarioFixture create(ScenarioDefinition definition, ExperimentScenarioParameters variant) {
+        return create(definition, variant, null);
+    }
+
+    /**
+     * Experiment-only overload that gives independently provisioned sessions a shared synthetic
+     * memory scope. Every graph session still owns fresh repositories/checkpoints; the stable scope
+     * is required because learned B1/B2/B3/B6 artifacts are intentionally scope-bound and must
+     * transfer to other generated units without crossing any persistent runtime boundary.
+     */
+    public ScenarioFixture create(ScenarioDefinition definition, ExperimentScenarioParameters variant,
+                                  MemoryScopeId experimentMemoryScope) {
         java.util.Objects.requireNonNull(definition, "definition");
         String suffix = definition.scenarioId().replace('-', '_');
         ProductId productId = new ProductId("SKU-" + suffix);
@@ -252,7 +263,9 @@ public final class ScenarioFixtureFactory {
                 ActionCategory.GROUNDING, ActionEffect.DOMAIN_WRITE, Capability.INVENTORY_RESERVE, true));
         var evidence = evidenceFor(definition);
         String executionId = "m8-eval:" + definition.scenarioId();
-        var workingMemory = WorkingMemorySnapshot.empty(new MemoryScopeId("tenant:m8-eval:" + suffix),
+        MemoryScopeId memoryScope = experimentMemoryScope == null
+                ? new MemoryScopeId("tenant:m8-eval:" + suffix) : experimentMemoryScope;
+        var workingMemory = WorkingMemorySnapshot.empty(memoryScope,
                 FIXTURE_AS_OF, FIXTURE_AS_OF.plus(Duration.ofDays(1)));
         int maxDepth = profile.budgetExhaustion() ? 1 : 3;
         int maxExpansions = profile.budgetExhaustion() ? 1 : 24;

@@ -51,6 +51,9 @@ public final class WorkspaceAdmissionService {
         this.coalitionOutcomeAdjustment = Objects.requireNonNull(coalitionOutcomeAdjustment,"coalitionOutcomeAdjustment");
     }
 
+    /** Exact feedback ports, exposed for isolated experiment wiring audits. */
+    public WorkspaceCoalitionOutcomeAdjustment coalitionOutcomeAdjustment() { return coalitionOutcomeAdjustment; }
+
     public WorkspaceAdmissionOutcome admit(WorkspaceAdmissionRequest request) {
         Objects.requireNonNull(request, "request");
         var selected = new ArrayList<WorkspaceEntry>();

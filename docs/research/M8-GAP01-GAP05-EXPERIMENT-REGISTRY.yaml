@@ -1,8 +1,12 @@
-protocol_id: M8-GAP01-05-IEP-1.0
+protocol_id: M8-GAP01-05-IEP-1.1
 protocol_status: PREREGISTERED_LOCKED
 protocol_date: 2026-11-21
-candidate_id: M8-GAP01-GAP05-CI-GREEN-FIX3
-candidate_ci_status: OWNER_REPORTED_GREEN_AFTER_FIX3
+protocol_amendment_date: 2026-11-22
+candidate_id: M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-V1
+candidate_ci_status: PENDING_HOSTED_CI_FOR_RESEARCH_PIPELINE_INCREMENT
+candidate_code_fingerprint: f16e581e617047874a57da2118eb029be23004d786a35f6939ccd319e89e1c42
+candidate_fingerprint_file: docs/research/M8-GAP01-GAP05-MECHANISM-EXPERIMENT-HARNESS-CANDIDATE-FINGERPRINT.json
+parent_candidate_id: M8-GAP01-GAP05-CI-GREEN-FIX3
 candidate_git_commit: NOT_PROVIDED
 candidate_ci_workflow_url: NOT_PROVIDED
 evidence_scope: DETERMINISTIC_SIMULATOR_ONLY
@@ -41,7 +45,9 @@ splits:
     tuning_or_training_use: PROHIBITED
 
 variant_generator:
-  id: M8ExperimentScenarioFactory-v1
+  id: M8ExperimentScenarioFactory-v2
+  research_memory_scope: tenant:m8-experiment:shared-research-v2
+  scope_semantics: synthetic-only; mutable repositories and checkpoint namespaces remain isolated per arm and session
   algorithm: SHA-256(protocolId|split|fixtureProfile|seed|parameterName) deterministic parameter selection
   uses_ambient_clock_or_random_global_state: false
   fixture_fingerprint_must_change_across_variants: true
@@ -145,10 +151,22 @@ execution_gates:
 existing_runner_status:
   planner_comparison: EXPLORATORY_PLANNER_ONLY
   mechanism_ablation: EXPLORATORY_COMPONENT_PROBES_ONLY
-  confirmatory_h1_h5_available: false
+  train_graph_telemetry_batch: IMPLEMENTED_EXACT_280_TRAIN_NO_OUTCOME_LABELS
+  mechanism_training_artifact_builder: IMPLEMENTED_CONTENT_ADDRESSED_EXACT_TRAIN_BUNDLE
+  independent_mechanism_training_artifact_verification: IMPLEMENTED_B1_B2_B3_B6_WITH_EXPLICIT_VERIFIERS
+  mechanism_specific_full_graph_harness: IMPLEMENTED_B1_B2_B3_B4_B6_REQUIRES_HOST_SUPPLIED_DOMAIN_PORTS
+  independent_simulator_plan_verification: IMPLEMENTED_FRESH_SIMULATOR_REPLAY_SIMULATOR_ONLY
+  b6_holdout_label_path: IMPLEMENTED_REQUIRES_TARGET_SPECIFIC_INDEPENDENT_LABEL_PRODUCER
+  mechanism_holdout_batch: IMPLEMENTED_EXACT_280_HOLDOUT_ATOMIC_JSONL
+  independent_mechanism_run_verification: IMPLEMENTED_B1_B2_B3_B4_B6
+  confirmatory_harness_api_available: true
+  confirmatory_runs_executed: false
+  empirical_effectiveness_claims_allowed: false
+  transfer_runner_available: false
+  inferential_analysis_available: false
   blocking_implementation:
-    - M8ExperimentScenarioFactory-v1 hosted CI qualification
-    - full_graph_B1_B2_B3_B4_B6_experiment_adapter
-    - offline_shadow_replay_adapter
-    - simulator_grounded_uncertainty_label_pipeline
-    - clustered_paired_analysis_and_integrity_report
+    - hosted_CI_qualification_of_current_research_pipeline_increment
+    - trusted_host_composition_and_actual_TRAIN_evidence_collection
+    - target_specific_B6_simulator_label_producer_and_independent_verifier
+    - clustered_paired_bootstrap_Holm_analysis_and_integrity_report
+    - separate_TRANSFER_execution_and_acceptance_gate
