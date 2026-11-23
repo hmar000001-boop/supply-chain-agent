@@ -1,44 +1,38 @@
-# M8 Trusted Research CI Fix 1 — changes-only package
+# M8 effective-input provenance CI Fix 2 — changes only
 
-**Date:** 2026-11-22  
-**Candidate:** `M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1`
+## Delivery format
 
-## Package contents
+This archive is a repository-root-relative changeset. Extract its contents at the root of the existing repository, preserving paths. It is **not** a full repository snapshot and contains no Git patch.
 
-This archive is a repository-root-relative changeset, **not a copy of the repository**. It contains only the 21 project files listed in `CHANGE_MANIFEST.csv`: 12 additions and 9 replacements. It contains no full source tree, no unchanged module files, no Maven wrapper, no POM replacement, and no dependency additions. It deletes no project files.
+- Project files: **8** (7 replacements, 1 addition)
+- Deleted project files: **0**
+- Maven POM/dependency changes: **0**
+- Project source files changed: 5 (3 production, 2 tests)
+- Candidate fingerprint: `62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64`
+- Candidate file count: 719
 
-The `CHANGESET_INFO/` directory contains only this package's README, manifest, validation report, and checksums. It is packaging metadata, not application source.
+The `CHANGESET_INFO/` folder contains only the manifest, validation report, README and checksums.
 
-## CI root cause
+## Root cause found in the hosted CI log
 
-The 2026-11-22 hosted Maven build reached `supply-chain-agent-evaluation` and failed during Java compilation with 32 diagnostics. The preceding 11 reactor modules had compiled. The failures were not a Maven dependency-resolution problem; the evaluation module had an incomplete trusted-research integration:
+The run at `2026-11-22T22:56:01Z` passed the first 11 Maven modules and compiled all 106 evaluation production sources. It then failed in evaluation `testCompile` with one reported compiler error: `M8B4FullGraphWorkflowTest.java:252` calls `FullGraphExperimentRunObservation.effectiveInputFingerprint()`, but the observation record did not expose that component.
 
-1. The composition and analysis code referenced implementation types that were absent from the candidate source set: the B6 TRANSFER report, attestation/trust/repository types, endpoint and safety verifiers, the Git/CI freeze verifier, candidate fingerprint support, and the TRAIN bundle codec/archive support.
-2. The deterministic TRAIN fixture factory imported B3 and request-interpretation APIs from incorrect packages, so several referenced types could not be resolved.
-3. The analysis engine expected `MechanismSpecificExperimentPair.b6ValidationLabels()`, but that accessor was missing.
-4. The trusted composition depended on a consistent candidate-code fingerprint, while the Java freeze verifier and Python fingerprint script had different canonicalization/scope rules.
-5. The architecture guard and checked-in inventory were stale relative to the source/test tree and needed to be reconciled.
+The scenario unit and matched-pair records already had this fingerprint, and the adapter already included it in the observation-fingerprint canonical input. However, the per-arm observation record and its JSONL serialization dropped it. This was an incomplete provenance-contract propagation. The pair constructor also did not assert that each arm was bound to the pair's exact effective input.
 
-## How the repair addresses it
+## Clean fix
 
-- Adds the missing B6 TRANSFER report and the expected `b6ValidationLabels()` accessor.
-- Adds the missing Ed25519 attestation model, public-key trust loader, filesystem repository, endpoint verifier, safety verifier, B1/B2/B3/B6 artifact verifiers, and Git/CI freeze prerequisite verifier.
-- Adds a versioned, size/depth/collection-bounded record-graph codec restricted to explicit M8 data-model package families. It does not use Java native object deserialization.
-- Corrects the TRAIN fixture factory's B3 and interpretation API imports.
-- Aligns Java and Python candidate fingerprint scope/canonicalization; the metadata and test inventory are updated, and the architecture guard is reconciled to 106 production sources, 20 test sources, and 70 test annotations.
+- Add required `effectiveInputFingerprint` to the run-observation record.
+- Serialize it as a first-class field in every `fullGraphRun` JSONL object.
+- Populate it from the exact registered `ExperimentScenarioUnit` in the adapter.
+- Require both matched arms to equal the pair's effective-input fingerprint.
+- Expand existing regression tests for per-arm JSONL and pair mismatch rejection. No new `@Test` annotation was added, so architecture inventory counts remain unchanged.
 
 ## Apply
 
-Extract the archive at the repository root, preserving the paths. Review `CHANGE_MANIFEST.csv` before overwriting existing files. No files are to be deleted.
-
-Then run:
+Extract at repository root. Then run:
 
 ```bash
 ./mvnw -B -ntp -Dphase0.postgres=true clean install
 ```
 
-## Validation status
-
-Local focused checks passed as recorded in `VALIDATION_REPORT.md`, including Java 21 compilation of the new implementation classes and typed dependency closure, five focused trust tests through a lightweight JUnit-compatible runner, Java/Python fingerprint parity, six static guards, ZIP integrity, and per-file hash checks. This is **not** a full Maven/Surefire/PostgreSQL run. Hosted CI remains the authoritative qualification for this candidate.
-
-No TRAIN data was collected. HOLDOUT and TRANSFER remain closed. The package does not provision private keys or claim independent custodianship merely from distinct key identities.
+Do not start TRAIN data collection based solely on this patch. The next complete hosted CI run must pass the evaluation test compilation and execution before proceeding.

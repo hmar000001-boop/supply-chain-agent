@@ -250,6 +250,7 @@ class M8B4FullGraphWorkflowTest {
         assertTrue(pair.baseline().sideEffectDelta().isSideEffectFree());
         assertTrue(pair.treatment().sideEffectDelta().isSideEffectFree());
         assertEquals(unit.effectiveInputFingerprint(), pair.baseline().effectiveInputFingerprint());
+        assertEquals(unit.effectiveInputFingerprint(), pair.treatment().effectiveInputFingerprint());
         assertEquals(pair.baseline().requestFingerprint(), pair.treatment().requestFingerprint());
         assertTrue(pair.baseline().metrics().containsKey("runtime.approval.request.count"));
         assertEquals(0.0, pair.baseline().metrics().get("runtime.action.dispatch.attempts"));

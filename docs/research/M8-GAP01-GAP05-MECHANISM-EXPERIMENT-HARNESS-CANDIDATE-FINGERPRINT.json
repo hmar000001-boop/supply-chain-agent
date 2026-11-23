@@ -1,7 +1,7 @@
 {
-  "candidateId": "M8-GAP01-GAP05-TRUSTED-RESEARCH-COMPILE-FIX1",
+  "candidateId": "M8-GAP01-GAP05-EFFECTIVE-INPUT-PROVENANCE-CI-FIX2",
   "fingerprintAlgorithm": "SHA-256 over sorted UTF-8 path NUL file-SHA256 newline records",
-  "codeTreeSha256": "63bb49db4265ef7a9aabd19cab3a78b9b591deb198635f19ead2ae432722bd04",
+  "codeTreeSha256": "62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64",
   "fileCount": 719,
   "gitCommit": "NOT_AVAILABLE",
   "gitWorkingTreeDirty": null,
@@ -700,15 +700,15 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/execution/FullGraphExperimentAdapter.java",
-      "sha256": "05240da00d1564977b7dffe82bb19f17754229dc3eece07e348b9f2e99d4d11a"
+      "sha256": "d009d41fa81e83fe71dd7a9b33acf489c6d9a16445b04340b677b675c3e20d2c"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/execution/FullGraphExperimentPair.java",
-      "sha256": "0ae78b320cee5865c7b628229ee2a189190aa61772619223972184c0955c1d16"
+      "sha256": "b829a328c2ac9ae66ad14500a091dc7dbaf6ad307563f40de24035f73407cd10"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/execution/FullGraphExperimentRunObservation.java",
-      "sha256": "f5f206d0f789eb3123d7d07b4c875277834c0831b4e11e952bb7e6b258ff26be"
+      "sha256": "193208e67a0641ea0ce59892404e71c0f6e104e6a5e73f0ea4fd4c717bd4c9c2"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/execution/FullGraphExperimentSession.java",
@@ -1076,7 +1076,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8B4FullGraphWorkflowTest.java",
-      "sha256": "d728d7a0721c90eff83ce963dd440eec03ac2c2f03695c91aa2d35376e4f4773"
+      "sha256": "e07f7d9fc9777eff4a99d4a6b1e7593b45be8482746eb67676b1c73837f0cf28"
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/M8EvaluationRunnerTest.java",
@@ -1108,7 +1108,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/mechanism/MechanismExperimentCompileRegressionTest.java",
-      "sha256": "8c08dd60723c3ba46eb34237f5d12e03af341627793c82a78419598ebb3ebd5e"
+      "sha256": "ffa9314b1e9bc22496aad94f25cfd6eeef999fe1b1889b233be0411c40320a7c"
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/mechanism/MechanismTrainingArtifactBuilderTest.java",

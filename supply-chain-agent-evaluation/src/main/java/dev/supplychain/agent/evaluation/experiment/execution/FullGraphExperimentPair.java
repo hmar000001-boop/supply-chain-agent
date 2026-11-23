@@ -34,6 +34,8 @@ public record FullGraphExperimentPair(
                 || !treatment.experimentUnitId().equals(experimentUnitId)
                 || !baseline.fixtureFingerprint().equals(fixtureFingerprint)
                 || !treatment.fixtureFingerprint().equals(fixtureFingerprint)
+                || !baseline.effectiveInputFingerprint().equals(effectiveInputFingerprint)
+                || !treatment.effectiveInputFingerprint().equals(effectiveInputFingerprint)
                 || !baseline.requestFingerprint().equals(treatment.requestFingerprint())) {
             throw new SecurityException("matched pair contains mismatched graph identity, condition or scenario input");
         }

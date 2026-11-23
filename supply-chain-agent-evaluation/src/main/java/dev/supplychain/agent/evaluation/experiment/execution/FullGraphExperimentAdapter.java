@@ -189,8 +189,8 @@ public final class FullGraphExperimentAdapter {
                 + "|" + eventFingerprint + "|" + new TreeMap<>(metrics);
         String fingerprint = FullGraphExperimentRunObservation.fingerprint(canonical);
         FullGraphExperimentRunObservation observation = new FullGraphExperimentRunObservation(session.sessionId(), session.unit().experimentUnitId(),
-                session.unit().fixture().fixtureFingerprint(), session.unit().fixture().planningRequest().fingerprint(),
-                session.mechanism(), session.arm(), executionOrder, boundary,
+                session.unit().fixture().fixtureFingerprint(), session.unit().effectiveInputFingerprint(),
+                session.unit().fixture().planningRequest().fingerprint(), session.mechanism(), session.arm(), executionOrder, boundary,
                 state.text(CognitiveCycleState.DECISION_STATUS), state.text(CognitiveCycleState.LAST_REASON),
                 signals, events, eventFingerprint, metrics, auditDelta, fingerprint);
         return new ExecutedRun(observation, state);

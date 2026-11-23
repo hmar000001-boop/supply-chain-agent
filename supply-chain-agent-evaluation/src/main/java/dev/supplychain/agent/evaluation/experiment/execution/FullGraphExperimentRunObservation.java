@@ -15,6 +15,7 @@ public record FullGraphExperimentRunObservation(
         String sessionId,
         String experimentUnitId,
         String fixtureFingerprint,
+        String effectiveInputFingerprint,
         String requestFingerprint,
         ExperimentMechanism mechanism,
         ExperimentArm arm,
@@ -34,6 +35,7 @@ public record FullGraphExperimentRunObservation(
         sessionId = required(sessionId, "sessionId");
         experimentUnitId = required(experimentUnitId, "experimentUnitId");
         fixtureFingerprint = required(fixtureFingerprint, "fixtureFingerprint");
+        effectiveInputFingerprint = required(effectiveInputFingerprint, "effectiveInputFingerprint");
         requestFingerprint = required(requestFingerprint, "requestFingerprint");
         mechanism = Objects.requireNonNull(mechanism, "mechanism");
         arm = Objects.requireNonNull(arm, "arm");
@@ -69,6 +71,7 @@ public record FullGraphExperimentRunObservation(
                 + "\"sessionId\":" + quote(sessionId) + ","
                 + "\"experimentUnitId\":" + quote(experimentUnitId) + ","
                 + "\"fixtureFingerprint\":" + quote(fixtureFingerprint) + ","
+                + "\"effectiveInputFingerprint\":" + quote(effectiveInputFingerprint) + ","
                 + "\"requestFingerprint\":" + quote(requestFingerprint) + ","
                 + "\"mechanism\":" + quote(mechanism.name()) + ","
                 + "\"arm\":" + quote(arm.name()) + ","
