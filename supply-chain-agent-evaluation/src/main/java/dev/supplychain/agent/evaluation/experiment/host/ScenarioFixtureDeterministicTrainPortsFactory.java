@@ -220,7 +220,7 @@ public final class ScenarioFixtureDeterministicTrainPortsFactory implements Dete
                 outcomeRepository,
                 (scope, receipt, candidate, signal, evidence, at) -> false,
                 "m8-deterministic-train-r2-v1", "m8-untrusted-outcome-rejected-v1",
-                null, null, WorkspaceCoalitionOutcomeAdjustment.neutral());
+                null, null, null);
         List<Episode> seedEpisodes = List.of(
                 verifiedScenarioEpisode(fixture, "candidate-a"),
                 verifiedScenarioEpisode(fixture, "candidate-b"));

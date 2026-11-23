@@ -1,30 +1,42 @@
-# Validation report — M8 effective-input provenance CI Fix 2
+# Validation report — M8 CI Fix 3
 
-## Evidence analyzed
+## Changes validated
 
-Hosted workflow started at `2026-11-22T22:56:01Z` with Temurin Java 21. The log shows:
+- Exactly one B3 experimental SHADOW overlay is supplied by the per-arm session configuration.
+- The deterministic TRAIN R2 workflow configuration no longer supplies a second overlay.
+- `FullGraphEvaluationHost`'s duplicate-overlay `SecurityException` guard is unchanged.
+- Existing factory test now asserts the single-overlay contract for both baseline and treatment.
+- No new test annotations were added; the test inventory remains unchanged.
+- Candidate fingerprint and conformance metadata agree.
 
-- Reactor modules 1–11 succeeded, including their compile/test/package/install stages.
-- 418 Surefire tests passed in those modules (14 domain, 44 memory, 20 simulator, 28 actions, 125 mechanisms, 43 planning, 87 runtime, 57 PostgreSQL). Core and app report no tests to run.
-- Evaluation production compilation succeeded for 106 Java source files.
-- Evaluation test compilation considered 20 test source files and reported one missing-symbol error. Evaluation Surefire tests did not run.
-- No dependency convergence, Maven Enforcer, PostgreSQL integration, upstream test, or production compilation failures appear in this log.
+## Static validation
 
-## Repair validation performed here
+All six repository static guard scripts passed:
 
-- Focused Java 21 compilation of `ExperimentArm`, `ExperimentMechanism`, `ExperimentSandboxAudit`, `FullGraphExperimentRunObservation`, and `FullGraphExperimentPair`: PASS.
-- Executable Java contract smoke: PASS — each run JSONL record contains the effective-input fingerprint, valid matched pair delta remains intact, and a mismatched treatment fingerprint is rejected.
-- Architecture/inventory guard: PASS.
-- R2 evidence guard: PASS.
-- F-03/F-04 guard: PASS.
-- Scenario split/register guard: PASS.
-- Full-graph adapter guard: PASS.
-- Mechanism-specific experimental evidence guard: PASS.
-- Candidate fingerprint regenerated and re-run for parity: PASS (`62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64`, 719 files).
-- ZIP integrity and per-file SHA-256 validation: recorded in `SHA256SUMS.txt` and verified after packaging.
+- `verify-m8-b5-architecture.py`
+- `verify-m8-r2-evidence.py`
+- `verify-m8-preb7-f03-f04.py`
+- `verify-m8-experiment-scenario-register.py`
+- `verify-m8-fullgraph-experiment-adapter.py`
+- `verify-m8-mechanism-experimental-evidence.py`
 
-## Not performed / still required
+The architecture guard reported 11 Maven modules, 581 production Java files, 86 test source files and 488 test annotations/factories, with the source/test inventory in sync.
 
-The Maven Wrapper required Maven 3.9.16, but this environment could not resolve Apache download hosts (DNS unavailable); therefore a full Maven/Surefire run could not be performed locally. The new regression test source and full application graph adapter were not compiled against the complete hosted dependency classpath here. Hosted CI must verify both.
+## Focused semantic checks
 
-No claim is made that CI is green. No TRAIN episodes, outcome labels, HOLDOUT, or TRANSFER experiments were run or authorized by this repair.
+The code-path inspection confirms `FullGraphExperimentSession.compile` passes the per-arm overlay to the host and the deterministic factory now leaves the R2-level optional overlay absent. The host's anti-double-wiring rejection remains active.
+
+## Not performed
+
+A full Maven/Surefire/PostgreSQL run was not performed in this delivery environment: Maven is not installed and the Maven Wrapper distribution is not cached. Therefore this report does not claim hosted CI success. The next hosted run must rerun all 12 reactor projects using the repository's full command.
+
+## Candidate identity
+
+- Candidate ID: `M8-GAP01-GAP05-B3-SHADOW-OVERLAY-CI-FIX3`
+- Source-tree SHA-256: `64c7b12fb41ef2093f94bf7815966259d62d351fe0472f9842b4e35953ca43cc`
+- Fingerprinted source files: `719`
+- Hosted CI: pending; not attested by this package.
+
+## Separate non-blocking warning
+
+The supplied CI log reports SLF4J API with no provider. This is not the cause of the build failure and does not fail tests, but it means logging falls back to NOP. This package intentionally does not add a logging backend; that should be a separate dependency/configuration decision.

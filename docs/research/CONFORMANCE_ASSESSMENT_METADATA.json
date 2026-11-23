@@ -1,6 +1,6 @@
 {
   "project": "Supply-Chain Disruption Management Agent",
-  "assessment": "As-built CoALA and Fan & Lan conformance candidate after GAP-01\u2013GAP-05 implementation, layered over owner-confirmed F-01\u2013F-04",
+  "assessment": "As-built CoALA and Fan & Lan conformance candidate after GAP-01–GAP-05 implementation, layered over owner-confirmed F-01–F-04",
   "assessment_date": "2026-11-21",
   "source_reconstruction": {
     "base_archive": {
@@ -19,7 +19,7 @@
         "scope": "F-03 governed B2 recovery procedure staging; F-04 B3 coalition competition"
       },
       {
-        "name": "GAP-01\u2013GAP-05 implementation candidate",
+        "name": "GAP-01–GAP-05 implementation candidate",
         "sha256": "see release changeset and full-source sidecars created with this delivery",
         "scope": "B1 verified-use learning; B2 future-cycle reuse; B3 coalition outcome learning; B4 full intention contract; B6 calibration and directives"
       }
@@ -28,7 +28,7 @@
     "source_tree_hash_definition": "SHA-256 over sorted repository-relative paths and per-file SHA-256 digests, excluding generated delivery/assessment records (root README.md, CHANGE_MANIFEST.csv, SHA256SUMS.txt, VALIDATION_REPORT.md, CONFORMANCE_SOURCE_BASELINE_MANIFEST.csv and CONFORMANCE_ASSESSMENT_METADATA.json), .git and build output.",
     "source_tree_file_count": 806,
     "git_commit_sha": "not supplied",
-    "hosted_ci_run_id_or_url": "not supplied; owner-confirmed green after combined GAP-01\u2013GAP-05 + CI Fix 1\u20133 candidate",
+    "hosted_ci_run_id_or_url": "not supplied; owner-confirmed green after combined GAP-01–GAP-05 + CI Fix 1–3 candidate",
     "manifest_file_count": 800,
     "ci_fix_overlays": [
       {
@@ -47,12 +47,13 @@
         "scope": "Correct full-graph lifecycle test to expect post-binding intention version increment."
       }
     ],
-    "current_code_tree_sha256": "62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64",
+    "current_code_tree_sha256": "64c7b12fb41ef2093f94bf7815966259d62d351fe0472f9842b4e35953ca43cc",
     "current_code_tree_file_count": 719,
     "candidate_freeze_record": "docs/research/M8-GAP01-GAP05-CANDIDATE-FREEZE.md",
     "candidate_freeze_manifest": "docs/research/M8-GAP01-GAP05-CANDIDATE-FREEZE-MANIFEST.json",
-    "current_code_tree_candidate_id": "M8-GAP01-GAP05-EFFECTIVE-INPUT-PROVENANCE-CI-FIX2",
-    "current_code_tree_ci_status": "PENDING_HOSTED_CI_AFTER_EFFECTIVE_INPUT_PROVENANCE_FIX2"
+    "current_code_tree_candidate_id": "M8-GAP01-GAP05-B3-SHADOW-OVERLAY-CI-FIX3",
+    "current_code_tree_ci_status": "PENDING_HOSTED_CI_AFTER_B3_SHADOW_OVERLAY_FIX3",
+    "blocking_prerequisites": []
   },
   "inventory": {
     "maven_modules": 11,
@@ -98,7 +99,7 @@
       "scripts/verify-m8-r2-evidence.py": "PASS",
       "scripts/verify-m8-preb7-f03-f04.py": "PASS"
     },
-    "postgresql_migrations": "V001\u2013V015; parser checks passed for added V013\u2013V015 and migration runner registration",
+    "postgresql_migrations": "V001–V015; parser checks passed for added V013–V015 and migration runner registration",
     "experimental_evidence": "No verified real-world outcome corpus; no confirmatory independent matched results yet; B1/B3 policy activation remains SHADOW/DISABLED",
     "uncertainty_calibration": "NOT_CALIBRATED; calibration lifecycle and controls exist, but no real labelled target corpus or active validated profile",
     "limitations": "Owner-confirmed hosted Maven CI green after CI Fix 3. This environment did not independently rerun the Maven reactor. No independent matched experiments, calibration or transfer evaluations have been run.",
@@ -119,7 +120,7 @@
   },
   "conformance_verdict": {
     "coala": "strong core architecture and selected learning/retrieval paths; complete selected-application learning-action surface and durable full-host/outer-cycle scope remain GAP-07/GAP-08",
-    "fan_lan": "integrated adapted B1/B2/B3/B4/B6 source/control paths; B1/B3 empirical activation and B6 calibrated runtime remain evidence-gated; B5 is closed as a residual but GraSP-like governor is required for full \u00a7VI-E synthesis-runtime claim",
+    "fan_lan": "integrated adapted B1/B2/B3/B4/B6 source/control paths; B1/B3 empirical activation and B6 calibrated runtime remain evidence-gated; B5 is closed as a residual but GraSP-like governor is required for full §VI-E synthesis-runtime claim",
     "gap01_gap05": "source/control-path implementation accepted for this increment after owner-confirmed hosted CI green; independent empirical acceptance remains open under GAP-09",
     "total_paper_conformance": "not claimed",
     "book_writing_authorized": false,
@@ -155,15 +156,15 @@
     "inferential_analysis_available": false
   },
   "research_pipeline_candidate": {
-    "candidate_id": "M8-GAP01-GAP05-EFFECTIVE-INPUT-PROVENANCE-CI-FIX2",
-    "code_tree_sha256": "62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64",
+    "candidate_id": "M8-GAP01-GAP05-B3-SHADOW-OVERLAY-CI-FIX3",
+    "code_tree_sha256": "64c7b12fb41ef2093f94bf7815966259d62d351fe0472f9842b4e35953ca43cc",
     "file_count": 719,
     "git_commit": "NOT_AVAILABLE",
-    "hosted_ci_conclusion": "PENDING_HOSTED_CI_AFTER_EFFECTIVE_INPUT_PROVENANCE_FIX2",
+    "hosted_ci_conclusion": "PENDING_HOSTED_CI_AFTER_B3_SHADOW_OVERLAY_FIX3",
     "parent_candidate_id": "M8-GAP01-GAP05-EXPERIMENT-HOST-TRUSTED-VERIFIERS-CI-INVENTORY-FIX1",
     "fingerprint_algorithm": "SHA-256 over sorted UTF-8 path NUL per-file SHA-256 newline records; Java and Python implementations are parity-tested",
     "known_unverified_items": [
-      "Full Maven/Surefire reactor and PostgreSQL integration not run for the effective-input provenance CI Fix 2 candidate",
+      "Full Maven/Surefire reactor and PostgreSQL integration not run for the B3 SHADOW overlay CI Fix 3 candidate",
       "No real TRAIN evidence collected",
       "No external issuer public keys provisioned for the project",
       "A populated typed TRAIN bundle archive read-back has not yet been exercised"

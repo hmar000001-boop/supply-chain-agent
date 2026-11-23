@@ -35,6 +35,12 @@ class ScenarioFixtureDeterministicTrainPortsFactoryTest {
         assertNotSame(baseline.sandboxAudit(), treatment.sandboxAudit());
         assertNotSame(baseline.metricCollector(), treatment.metricCollector());
         assertNotNull(baseline.ports().r2Workflow());
+        assertNull(baseline.ports().r2Workflow().experimentShadowCoalitionFeedbackAdjustment(),
+                "the R2 workflow must not carry a second experimental B3 overlay");
+        assertNull(treatment.ports().r2Workflow().experimentShadowCoalitionFeedbackAdjustment(),
+                "the treatment R2 workflow must not carry a second experimental B3 overlay");
+        assertNotNull(baseline.b3ShadowAdjustment(),
+                "the per-arm session configuration owns the single B3 SHADOW overlay");
         assertNotSame(baseline.ports().r2Workflow().recoveryDraftRepository(),
                 treatment.ports().r2Workflow().recoveryDraftRepository());
         assertNotSame(baseline.ports().r2Workflow().b3OutcomeEvidenceRepository(),

@@ -1,7 +1,7 @@
 {
-  "candidateId": "M8-GAP01-GAP05-EFFECTIVE-INPUT-PROVENANCE-CI-FIX2",
+  "candidateId": "M8-GAP01-GAP05-B3-SHADOW-OVERLAY-CI-FIX3",
   "fingerprintAlgorithm": "SHA-256 over sorted UTF-8 path NUL file-SHA256 newline records",
-  "codeTreeSha256": "62d1b39c75aab9a87b136a75d97c31b2371c0a396fc941581a5bbc614aa83b64",
+  "codeTreeSha256": "64c7b12fb41ef2093f94bf7815966259d62d351fe0472f9842b4e35953ca43cc",
   "fileCount": 719,
   "gitCommit": "NOT_AVAILABLE",
   "gitWorkingTreeDirty": null,
@@ -752,7 +752,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/host/ScenarioFixtureDeterministicTrainPortsFactory.java",
-      "sha256": "056e2c1c38d633a58526dde1c5f30bba7bfe6373551c97e6612ee9da4951d91b"
+      "sha256": "c3d8d2e691b06158e1753506d7e406d81271de98bc9106b1e95b9368e8027304"
     },
     {
       "path": "supply-chain-agent-evaluation/src/main/java/dev/supplychain/agent/evaluation/experiment/mechanism/B1MemoryRunEvidence.java",
@@ -1104,7 +1104,7 @@
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/host/ScenarioFixtureDeterministicTrainPortsFactoryTest.java",
-      "sha256": "09594067d7af857bb11d236bd308e690a2ac39f63d804bb763800469a142848c"
+      "sha256": "80357857af7b3f52f546624c515a1fd1245a6431a88226d910370d079cd47669"
     },
     {
       "path": "supply-chain-agent-evaluation/src/test/java/dev/supplychain/agent/evaluation/experiment/mechanism/MechanismExperimentCompileRegressionTest.java",
