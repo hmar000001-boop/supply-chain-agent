@@ -1,7 +1,2 @@
-repository_relative_path,operation,baseline_sha256,packaged_sha256,reason
-.github/workflows/m8-cleanup-legacy-root-sources.yml,ADD,,9507db707d135e70f23245fc761a9615d2f92e2520991891f8d99579fab724df,"Manual, SHA-guarded cleanup and post-cleanup CI dispatch"
-scripts/m8/remove-legacy-root-shadows.py,ADD,,0bb5233fd56507e476264818592111a6080f9c4abc6c6fe75ee886cb625d7533,Fail-closed deletion of two exact root shadows only
-scripts/m8/test_legacy_root_shadow_cleanup.py,ADD,,4053199280565e630d9580096b9fe654b0464f992760041821cec281efddfb34,"Five safety, idempotency and atomicity regression tests"
-scripts/verify-m8-b5-architecture.py,MODIFY,da068f0c80331519ec9a6aa02ab7afad398ef894225549d34cc0455963d86243,3ed722ecdeb5425798b9a31855756cef361c430eda131ae6f7e0384c683b56f3,Explicit diagnostic for missing active module-owned lifecycle files
-supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java,RESTORE,,04577ba12c96f8d89a553bf8558e30fbc1201f01e3f7d1b0445d086453607442,Restore authoritative module-owned production source missing from reported runtime inventory
-supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java,RESTORE,,c8be7b1b555c70d9333afcc3698e6d6d094a0b1814cec6dc71129946f7b8fddf,Restore authoritative module-owned test source; contains 24 test annotations missing from reported inventory
+operation,repository_path,sha256_before,sha256_after,purpose
+MODIFY,supply-chain-agent-actions/src/test/java/dev/supplychain/agent/actions/LearningActionCatalogTest.java,63f79870187e45cdf4d2f3d31beb07e1752252502ba89e419dfd51ccaa8a7408,ab4578ef67b639f08f1dd666f12cab0c2f5bd801e2de146ad4085c964153c46a,Import the public LearningActionCatalog from its actual internal.learning package so the new catalog test compiles
