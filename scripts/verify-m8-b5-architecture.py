@@ -22,12 +22,12 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-memory": (52, 7, 44, 6, 1),
     "supply-chain-agent-core": (4, 0, 0, 0, 0),
     "supply-chain-agent-simulator": (5, 2, 20, 1, 1),
-    "supply-chain-agent-actions": (58, 5, 28, 4, 1),
+    "supply-chain-agent-actions": (59, 6, 35, 5, 1),
     "supply-chain-agent-mechanisms": (166, 12, 125, 12, 0),
     "supply-chain-agent-planning": (54, 10, 43, 9, 1),
     "supply-chain-agent-runtime": (38, 11, 87, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (43, 15, 57, 13, 2),
-    "supply-chain-agent-app": (2, 0, 0, 0, 0),
+    "supply-chain-agent-app": (4, 1, 1, 1, 0),
     "supply-chain-agent-evaluation": (107, 20, 73, 20, 0),
 }
 failures: list[str] = []
@@ -108,6 +108,19 @@ for module in modules:
         require(not imports_langgraph and not imports_langchain,
                 f"Framework-neutral module {module} imports a framework API")
 
+# Every Java source must belong to one of the declared Maven module source roots.
+owned_roots = [
+    (ROOT / module / source_kind).resolve()
+    for module in modules
+    for source_kind in ("src/main/java", "src/test/java")
+]
+for java_file in ROOT.rglob("*.java"):
+    if any(part in {".git", "target", "build", ".cache"} for part in java_file.relative_to(ROOT).parts):
+        continue
+    resolved = java_file.resolve()
+    require(any(resolved == base or base in resolved.parents for base in owned_roots),
+            f"Unowned Java source outside Maven module roots: {java_file.relative_to(ROOT)}")
+
 # The tracked test inventory must stay synchronized with the source tree.
 inventory_path = ROOT / "docs/phase8/M8-TEST-INVENTORY.csv"
 rows = {}
@@ -139,6 +152,7 @@ if active.exists() and mirror.exists():
     require(active.read_bytes() == mirror.read_bytes(), "workflows/ci.yml must be byte-identical to .github/workflows/ci.yml")
     workflow = active.read_text(encoding="utf-8")
     require("verify-m8-b5-architecture.py" in workflow, "Active CI workflow does not run the M8-B5 architecture guardrail")
+    require("verify-m8-app-composition.py" in workflow, "Active CI workflow does not run the durable application composition guardrail")
     require("verify-m8-mechanism-experimental-evidence.py" in workflow,
             "Active CI workflow does not run the M8 mechanism-training and independent-evidence guardrail")
     require("-Dphase0.postgres=true clean install" in workflow, "Active CI workflow must clean-install the fully tested reactor before generating B2 outputs")

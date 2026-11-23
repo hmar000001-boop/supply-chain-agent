@@ -6,9 +6,10 @@ M3 adds an explicit action layer between CoALA memory/domain services and the la
 
 The action layer separates three categories:
 
-1. **Internal actions** operate on cognitive state or invoke reasoning: retrieval, working-memory update, episode recording and structured assessment.
-2. **Perception actions** are read-only. They return versioned observations with evidence references and provenance.
-3. **Grounding actions** request state transitions in the modeled supply-chain world. They require explicit capability grants, resource scope, preconditions and idempotency.
+1. **Internal actions** read/update active cognitive context and invoke structured reasoning.
+2. **Learning actions** expose versioned, scope-bound CoALA episodic, semantic and procedural memory operations. Recording/staging, review/verification and activation are separate actions with separate capabilities.
+3. **Perception actions** are read-only. They return versioned observations with evidence references and provenance.
+4. **Grounding actions** request state transitions in the modeled supply-chain world. They require explicit capability grants, resource scope, preconditions and idempotency.
 
 The reference perception/grounding adapters read or mutate the immutable M1 simulator snapshot. They are not production ERP/WMS/carrier integrations and must not be represented as real external execution.
 
@@ -16,15 +17,22 @@ The reference perception/grounding adapters read or mutate the immutable M1 simu
 
 `supply-chain-agent-actions` depends on the framework-neutral application/domain/memory/simulator modules. It has no LangGraph4j or LangChain4j imports. The runtime module depends on the action contracts and contains the `LangChain4jReasoningProvider` adapter. The domain and simulator remain independent of both agent frameworks.
 
-The action catalog is assembled through `SupplyChainActionCatalog.create(...)`. It registers 14 actions:
+`SupplyChainActionCatalog.create(...)` retains a backward-compatible compact fixture overload. The complete durable application overload registers 23 actions:
 
-| Category | Actions |
-|---|---|
-| Internal (4) | memory retrieval; working-memory update; episode record; structured reasoning assessment |
-| Perception (6) | supplier; inventory lot; customer order; shipment; available inventory; lot-level quality disposition |
-| Grounding (4) | reserve inventory; release reservation; place purchase order; reroute shipment |
+| Category | Count | Actions |
+|---|---:|---|
+| Internal | 3 | memory retrieval; working-memory update; structured reasoning assessment |
+| Learning | 10 | episodic record/verify/reject; semantic propose/approve/reject; procedural stage/validate/activate/reject |
+| Perception | 6 | supplier; inventory lot; customer order; shipment; available inventory; lot-level quality disposition |
+| Grounding | 4 | reserve inventory; release reservation; place purchase order; reroute shipment |
 
-The catalog has no LangGraph4j types. A later graph node will depend on the dispatcher/catalog boundary rather than owning business logic.
+The ten learning actions use contract version 1, typed inputs/outputs, explicit capabilities, resource scope, idempotency and stable result references. The durable catalog binds them to one host `MemoryScopeId`, and the handler checks that binding even when an action principal holds an all-resource grant. Episodes are recorded unverified; model-derived episodes require caller-supplied evidence. Semantic facts remain PROPOSED until separate review. Procedures move DRAFT → VALIDATED → ACTIVE with distinct author, validator and approver identities. Procedure activation does not grant a domain-action capability.
+
+The `Episode` and `SemanticFact` records do not persist the proposer identity. Their reviewer capabilities must therefore be separately issued by trusted authorization policy; their data models do not independently prove proposer/reviewer separation. The procedure lifecycle does persist and enforce this separation. Automatic model-weight adaptation and autonomous source-code modification are outside the learning-action contract.
+
+The complete PostgreSQL/LangGraph4j application composition is `DurableCognitiveApplicationHost`; `Phase0Application` remains a small intake smoke app. The durable host owns PostgreSQL repositories and checkpoints, while B3's immutable workspace is deliberately ephemeral and cycle-scoped. See `docs/application/DURABLE-APPLICATION-HOST.md` for the startup, scope, persistence, learning and repeat-cycle contracts.
+
+The action catalog has no LangGraph4j types. Graph services depend on the dispatcher/catalog boundary rather than embedding domain logic in graph nodes.
 
 ## Typed action contract
 
@@ -63,9 +71,13 @@ Known domain failures are translated to typed failure codes. Authorization failu
 
 `WorkingMemoryUpdateAction` requires a scope reference and expected version. Scope, version and expiry are checked before the idempotency claim; the M2 service performs the authoritative optimistic update. A stale or cross-scope request is rejected without consuming its idempotency key.
 
-### Episode learning
+### CoALA learning actions
 
-`EpisodeLearningAction` appends an episode with provenance/evidence. It does not verify, promote or certify the episode. Verification remains a separate trusted review operation in the M2 memory lifecycle.
+The durable catalog registers ten versioned actions. Episodic experience is recorded as `RECORDED` and remains excluded from verified retrieval until a separate verify/reject action with review evidence. Semantic facts are staged as `PROPOSED` and only become active after a separately authorized approve/reject action. Immutable procedural artifacts are staged as `DRAFT`, independently validated, and separately activated or rejected; author, validator and approver must be distinct. Activation makes a procedure available to governed future retrieval, but does not grant permission to execute its actions.
+
+All learning payloads carry a version and memory scope; action dispatch requires capability, scope coverage, preconditions and idempotency. The durable catalog additionally binds every learning handler to the host's fixed scope. Episodic and semantic reviewer identities are recorded, but their current domain records do not store their original proposer identity, so separation depends on trusted capability issuance rather than a model-level author/reviewer comparison. Procedure records persist all three actors and enforce separation.
+
+The older `EpisodeLearningAction` remains only in the backwards-compatible compact fixture catalog; it is not registered alongside the ten governed actions by the full durable catalog.
 
 ### Reasoning
 
@@ -95,11 +107,9 @@ Shipment rerouting is restricted to planned or delayed shipments, an active targ
 
 These are modeled effects only. A future real carrier/ERP adapter must implement provider-specific idempotency, transaction/outbox/reconciliation and authorization semantics before it is enabled for production.
 
-## Production limitations retained for later milestones
+## Runtime/application limitations
 
-- `InMemoryActionExecutionLedger` is not durable and does not coordinate across JVM instances. M7 must implement a persistent ledger whose claim is atomic under concurrent transactions.
-- `InMemorySupplyChainSimulationWorld` is a reference/test adapter, not a production repository or external connector.
-- M2 memory repositories remain in-memory; durable PostgreSQL memory/action adapters are M7 work.
-- The operation receipt stores a stable result reference, not the full result payload. A duplicate currently returns `ALREADY_COMPLETED` plus the receipt; callers resolve the authoritative result from its referenced domain snapshot/store. M7 must make that lookup durable.
-- Approval records and human authorization workflows are not implemented in M3. Grounding capabilities are trusted pre-authorized grants; B4/M6/M7 will integrate plan-bound approval, checkpoint interruption and revalidation.
-- B1 activation-based retrieval, B2 impasse management, B3 workspace control, B4 intention governance and B6 meta-control are not implemented by this action package; they remain M4 mechanisms.
+- `InMemoryActionExecutionLedger` and `InMemorySupplyChainSimulationWorld` remain reference/test adapters. The durable application uses the PostgreSQL operation ledger and the supplied deterministic world adapter; live ERP/WMS/TMS/supplier integrations are outside this reference system.
+- The durable full-graph host is `DurableCognitiveApplicationHost`. A deployment supplies authenticated domain/lifecycle/approval/evidence-verification ports and JSON codecs; these are not permissive defaults and are not created from LLM output.
+- B3 workspace snapshots are intentionally ephemeral and per-cycle; consumer receipts and separately verified outcomes are durable.
+- A green CI run alone does not establish empirical B1/B3 policy advantage, B6 calibration or B2 transfer. Keep B1/B3 feedback neutral/shadow and B6 `NOT_CALIBRATED` until independent evidence and approval exist.

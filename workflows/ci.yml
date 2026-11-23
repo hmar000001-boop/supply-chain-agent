@@ -40,6 +40,9 @@ jobs:
       - name: Verify M8 architecture and direct framework dependencies
         run: python3 scripts/verify-m8-b5-architecture.py
 
+      - name: Verify durable application composition and CoALA learning actions
+        run: python3 scripts/verify-m8-app-composition.py
+
       - name: Verify M8-R2 outcome-feedback and evidence guardrails
         run: python3 scripts/verify-m8-r2-evidence.py
 

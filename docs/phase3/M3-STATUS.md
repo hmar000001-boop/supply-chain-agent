@@ -12,7 +12,7 @@
 - Perception actions for supplier, inventory lot, available inventory, customer order, shipment and lot-level quality disposition, each returning versioned observations with evidence and provenance.
 - Simulator-backed grounding actions for inventory reservation/release, purchase-order placement and shipment rerouting.
 - Shipment rerouting transition in the deterministic simulator with status, route, carrier and transit-time validation plus an explicit `SHIPMENT_REROUTED` effect.
-- Action catalog registers 14 actions: 4 internal, 6 perception and 4 grounding.
+- The compact compatibility catalog registers 14 legacy actions (4 internal, 6 perception, 4 grounding). The complete durable application catalog registers 23 actions (3 internal, 10 versioned learning, 6 perception, 4 grounding); see `docs/architecture/COALA-ACTION-ARCHITECTURE.md`.
 - Architecture documentation and ADR-0003 describing action, authority, effect, provenance, idempotency and adapter boundaries.
 
 ## Validation record

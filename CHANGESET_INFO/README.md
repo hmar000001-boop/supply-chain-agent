@@ -1,43 +1,26 @@
-# M8 CI evidence-capture repair — changes-only package
-
-**Target repository:** `hmar000001-boop/supply-chain-agent`  
-**Inspected workflow source revision:** `c49c543`  
-**Purpose:** repair the post-build M8-C1 evidence-capture failure caused by tool-generated runner files being treated as source changes.
+# M8 application-completion changeset — GAP-07 / GAP-08 / GAP-10
 
 ## Apply
 
-Copy the three repository-relative files in this archive into the repository root, preserving their paths, and commit them to the branch that triggers the existing Java CI workflow.
+This is a **changes-only** archive. Extract its contents at the root of the existing `supply-chain-agent` repository so that each repository-relative path is preserved. Do not replace the repository with this archive; it is not a full-source snapshot.
 
-No local build, terminal command, Maven invocation, or artifact download is required. The existing workflow already discovers `scripts/m8/test_*.py`; the new regression suite therefore runs automatically in GitHub Actions.
+The two obsolete source shadows listed in `DELETE_FILES.txt` must also be deleted from the repository. ZIP extraction does not delete existing files. Delete those exact paths through the GitHub repository UI after uploading the archive.
 
-## What changes
+Then commit/publish the changeset and let the existing GitHub Actions workflow run. The new PostgreSQL integration test is enabled by the existing CI property `-Dphase0.postgres=true`; no local PC, Maven or terminal is required.
 
-1. `scripts/fingerprint-m8-experiment-candidate.py`
-   - hashes only source files committed in `HEAD` using Git object data;
-   - excludes runner-generated files from the candidate fingerprint;
-   - rejects unexpected tracked changes and untracked candidate-source files;
-   - permits only the known Maven launcher worktree drift (`mvnw`, `mvnw.cmd`) when used independently, while recording it.
+## Scope
 
-2. `scripts/m8/capture-ci-evidence.py`
-   - records the observed launcher drift;
-   - restores only those two launcher paths from `HEAD`;
-   - removes only the generated paths evidenced in the failing run: `.cache/trivy`, `.mvn/wrapper/maven-wrapper.jar`, and Python `__pycache__` below `scripts/`;
-   - then requires `git status --porcelain --untracked-files=all` to be empty;
-   - creates the same M8-C1 evidence schema with the committed source fingerprint, Surefire summary, reactor inventory and PostgreSQL V001–V015 ledger.
+- GAP-07: a versioned, typed CoALA learning-action surface for episodic, semantic and procedural memory, with scope-bound handlers, explicit capabilities and review/activation boundaries.
+- GAP-08: a durable application composition root wiring the full cognitive-cycle graph, PostgreSQL persistence, checkpoint saver and one shared B6 execution guard; adds top-level cycle, typed resume and PostgreSQL restart/repeated-cycle integration coverage.
+- GAP-10: deletes two obsolete unowned root-level Java shadows, extends the architecture guard and updates the reactor source/test inventory.
 
-3. `scripts/m8/test_source_fingerprint.py`
-   - adds five regression tests, including a full capture-path test using a temporary Git repository and fixture Surefire/PostgreSQL data.
+## Deliberate boundaries
 
-## Integrity properties retained
+- B3's global workspace snapshot is cycle-scoped and intentionally ephemeral; consumer receipts and outcome evidence are durable.
+- Each host instance is bound to one `MemoryScopeId`.
+- B1/B3 feedback policies remain neutral/shadow unless explicitly supplied by trusted configuration; B6 remains not calibrated without an approved calibration service.
+- This remains a deterministic simulator-backed research/reference application, not a live ERP/WMS/TMS or supplier integration.
+- This changeset adds the durable host's PostgreSQL startup, working-memory persistence, checkpoint resume after host restart and second-cycle ingress test. The combined full host-level plan approval → dispatch → reconciliation → restart journey is not yet exercised through this new host; existing full-graph/effect-boundary tests cover those runtime semantics through the evaluation composition.
+- Do not claim empirical mechanism superiority, calibrated uncertainty or real-world operational performance from CI success.
 
-- This does not suppress the clean-checkout requirement.
-- Only the two observed Maven launcher paths are restored; any other tracked mutation fails.
-- Untracked source files in candidate roots fail.
-- The candidate fingerprint uses committed Git blobs, not the mutable CI workspace.
-- The cleanup list is intentionally narrow; unknown untracked files remain visible and cause failure.
-
-## Expected next action
-
-After the commit, GitHub Actions runs the existing workflow plus the five new Python regression tests. The M8-C1 evidence step should then proceed past the prior `Git working tree is not clean` error. The full Maven/PostgreSQL CI result still has to be confirmed by that hosted run.
-
-**Scope note:** this package repairs the evidence-capture failure only. It does not claim that the durable full-graph application host (GAP-08), complete learning-action contract (GAP-07), or source-inventory cleanup (GAP-10) have been completed.
+See `docs/application/DURABLE-APPLICATION-HOST.md` for the contracts and known limitations.
