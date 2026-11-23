@@ -1,0 +1,9 @@
+Package: M8-CI-EVIDENCE-CAPTURE-REPAIR
+Repository: hmar000001-boop/supply-chain-agent
+Base inspected revision: c49c543
+Format: changes-only ZIP with repository-relative paths
+Changed files:
+  M scripts/fingerprint-m8-experiment-candidate.py
+  M scripts/m8/capture-ci-evidence.py
+  A scripts/m8/test_source_fingerprint.py
+No Maven/Java source or workflow YAML changes.

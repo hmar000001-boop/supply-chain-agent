@@ -3,6 +3,10 @@
 
 This is deliberately not a CI attestation. The completed GitHub run must be independently
 queried after completion and signed by the separate M8 CI issuer.
+
+The candidate fingerprint is calculated from committed Git blobs. Runner-generated caches
+are not source, and are excluded by the fingerprint policy; tracked project-source mutation
+and untracked candidate-source injection still fail closed.
 """
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -56,9 +61,13 @@ def collect_surefire(root: Path) -> dict:
         try:
             document = ET.parse(report).getroot()
         except ET.ParseError as failure:
-            raise RuntimeError(f"invalid Surefire XML report {report.relative_to(root)}: {failure}") from failure
+            raise RuntimeError(
+                f"invalid Surefire XML report {report.relative_to(root)}: {failure}"
+            ) from failure
         module = report.relative_to(root).parts[0]
-        module_totals = by_module.setdefault(module, {"reports": 0, **{key: 0 for key in totals}})
+        module_totals = by_module.setdefault(
+            module, {"reports": 0, **{key: 0 for key in totals}}
+        )
         suites = [document] if document.tag == "testsuite" else list(document.iter("testsuite"))
         if not suites:
             raise RuntimeError(f"Surefire XML report has no testsuite: {report.relative_to(root)}")
@@ -78,10 +87,16 @@ def parse_migration_ledger(output: str) -> dict:
     if len(fields) != 4:
         raise RuntimeError(f"unexpected PostgreSQL migration ledger response: {output!r}")
     minimum, head, count, distinct = map(int, fields)
-    state = {"firstVersion": minimum, "latestVersion": head, "appliedRows": count,
-             "distinctVersions": distinct, "expectedVersionRange": "V001-V015"}
-    if (minimum, head, count, distinct) != (1, EXPECTED_MIGRATION_HEAD,
-                                             EXPECTED_MIGRATION_HEAD, EXPECTED_MIGRATION_HEAD):
+    state = {
+        "firstVersion": minimum,
+        "latestVersion": head,
+        "appliedRows": count,
+        "distinctVersions": distinct,
+        "expectedVersionRange": "V001-V015",
+    }
+    if (minimum, head, count, distinct) != (
+        1, EXPECTED_MIGRATION_HEAD, EXPECTED_MIGRATION_HEAD, EXPECTED_MIGRATION_HEAD
+    ):
         raise RuntimeError(f"PostgreSQL migration history is incomplete or dirty: {state}")
     return state
 
@@ -101,7 +116,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
     root = args.root.resolve()
-    output = (args.output or root / "target/m8-c1/ci-build-evidence.json").resolve()
+    requested_output = args.output or Path("target/m8-c1/ci-build-evidence.json")
+    output = (requested_output if requested_output.is_absolute() else root / requested_output).resolve()
     if not output.is_relative_to(root / "target"):
         raise RuntimeError("CI build-evidence output must be under the ignored repository target/ directory")
 
@@ -109,23 +125,85 @@ def main() -> int:
     expected_sha = os.environ.get("GITHUB_SHA", "").strip()
     if not expected_sha or expected_sha != commit:
         raise RuntimeError(f"GITHUB_SHA does not match checkout HEAD: env={expected_sha!r}, head={commit!r}")
+
+    # The current workflow runs `chmod +x ./mvnw`; the supplied CI log also shows
+    # mvnw.cmd as modified. These launcher-only worktree mutations are not source changes.
+    # Record and restore just those two known paths, then require the tracked checkout to
+    # be clean. Any other tracked mutation fails closed. Untracked generated runner data
+    # is handled separately by the committed-tree fingerprint policy.
+    changed_raw = subprocess.check_output(
+        ["git", "diff", "--name-only", "-z", "HEAD", "--"], cwd=root
+    )
+    tracked_workspace_changes = [
+        item.decode("utf-8", "surrogateescape")
+        for item in changed_raw.split(b"\0") if item
+    ]
+    launcher_allowlist = {"mvnw", "mvnw.cmd"}
+    unexpected_changes = sorted(set(tracked_workspace_changes) - launcher_allowlist)
+    if unexpected_changes:
+        raise RuntimeError(
+            "tracked project source changed during CI: " + ", ".join(unexpected_changes[:30])
+        )
+    if tracked_workspace_changes:
+        run(root, "git", "restore", "--source=HEAD", "--worktree", "--", *tracked_workspace_changes)
+
+    # Remove only generated artifacts explicitly observed in this CI failure. This restores
+    # the strict clean-checkout invariant rather than silently accepting an arbitrarily dirty
+    # runner. The Maven distribution itself is cached under ~/.m2 and is not removed.
+    generated_artifacts_removed: list[str] = []
+    trivy_cache = root / ".cache/trivy"
+    if trivy_cache.is_symlink():
+        raise RuntimeError("refusing to clean a symlink at .cache/trivy")
+    if trivy_cache.is_dir():
+        shutil.rmtree(trivy_cache)
+        generated_artifacts_removed.append(".cache/trivy")
+    wrapper_jar = root / ".mvn/wrapper/maven-wrapper.jar"
+    if wrapper_jar.is_symlink():
+        raise RuntimeError("refusing to clean a symlink at .mvn/wrapper/maven-wrapper.jar")
+    if wrapper_jar.exists():
+        if not wrapper_jar.is_file():
+            raise RuntimeError("unexpected non-file at .mvn/wrapper/maven-wrapper.jar")
+        wrapper_jar.unlink()
+        generated_artifacts_removed.append(".mvn/wrapper/maven-wrapper.jar")
+    scripts_root = root / "scripts"
+    if scripts_root.is_dir():
+        for cache_dir in scripts_root.rglob("__pycache__"):
+            if cache_dir.is_symlink():
+                raise RuntimeError(f"refusing to clean Python cache symlink: {cache_dir.relative_to(root)}")
+            if cache_dir.is_dir():
+                shutil.rmtree(cache_dir)
+                generated_artifacts_removed.append(cache_dir.relative_to(root).as_posix())
+
+    # Any remaining modification, including an unexpected untracked file, is an actual
+    # checkout-integrity failure and must not be papered over.
     status = run(root, "git", "status", "--porcelain", "--untracked-files=all")
     if status:
-        raise RuntimeError(f"Git working tree is not clean at CI evidence capture: {status}")
-    git_tree = run(root, "git", "rev-parse", "HEAD^{tree}")
+        raise RuntimeError("Git working tree remains dirty after known CI artifacts were cleaned: " + status)
 
+    # This computes the candidate over committed Git blobs. It also checks that there are
+    # no untracked files in candidate-source locations. It intentionally does not reject
+    # runner caches such as .cache/trivy, __pycache__, target/, or the downloaded Maven
+    # wrapper JAR; none of those are committed candidate source.
     fingerprint_script = root / "scripts/fingerprint-m8-experiment-candidate.py"
     fingerprint_output = root / "target/m8-c1/candidate-fingerprint.json"
     fingerprint_output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([sys.executable, str(fingerprint_script), "--output", str(fingerprint_output),
-                    "--candidate-id", "M8-C1-C2-TRUSTED-RESEARCH-HOST"],
-                   cwd=root, check=True, text=True, capture_output=True)
+    subprocess.run(
+        [sys.executable, str(fingerprint_script), "--root", str(root),
+         "--output", str(fingerprint_output),
+         "--candidate-id", "M8-C1-C2-TRUSTED-RESEARCH-HOST"],
+        cwd=root, check=True, text=True, capture_output=True,
+    )
     candidate = json.loads(fingerprint_output.read_text(encoding="utf-8"))
     if candidate.get("gitCommit") != commit or candidate.get("gitWorkingTreeDirty") is not False:
-        raise RuntimeError("canonical candidate fingerprint did not bind to the clean CI checkout")
+        raise RuntimeError("candidate fingerprint is not bound to the committed source tree")
+    git_tree = run(root, "git", "rev-parse", "HEAD^{tree}")
+    if candidate.get("gitTree") != git_tree:
+        raise RuntimeError("candidate fingerprint Git tree does not match checkout HEAD")
 
     pom = ET.parse(root / "pom.xml").getroot()
     modules_node = pom.find("m:modules", NS)
+    if modules_node is None:
+        raise RuntimeError("root POM does not declare a Maven reactor modules element")
     modules = [node.text.strip() for node in modules_node.findall("m:module", NS) if node.text]
     if len(modules) + 1 != EXPECTED_REACTOR_MODULES:
         raise RuntimeError(f"expected root parent + eleven modules, found {len(modules) + 1}")
@@ -138,14 +216,18 @@ def main() -> int:
     workflow_url = f"https://github.com/{repository}/actions/runs/{run_id}"
     surefire = collect_surefire(root)
     postgres = collect_postgres_migration_state(root)
-
     evidence = {
         "schemaVersion": "M8-C1-CI-BUILD-EVIDENCE-V1",
         "capturedAtUtc": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "repository": repository,
         "gitCommit": commit,
         "gitTree": git_tree,
+        # Retained for the current finalizer's schema compatibility. This flag now means
+        # committed project source integrity, not absence of disposable runner caches.
         "gitWorkingTreeClean": True,
+        "gitTrackedWorkspaceChanges": tracked_workspace_changes,
+        "generatedRunnerArtifactsRemoved": generated_artifacts_removed,
+        "candidateFingerprintSource": "committed Git HEAD blobs; generated runner files removed before strict clean-tree verification",
         "candidateCodeFingerprint": candidate["codeTreeSha256"],
         "candidateFileCount": candidate["fileCount"],
         "dependencyManifestFingerprint": dependency_manifest_fingerprint(root),
@@ -168,10 +250,17 @@ def main() -> int:
     if output.exists():
         raise RuntimeError(f"refusing to overwrite CI evidence file: {output}")
     output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"output": str(output), "gitCommit": commit,
-                      "candidateCodeFingerprint": candidate["codeTreeSha256"],
-                      "reactorEntryCount": evidence["reactorEntryCount"],
-                      "surefire": surefire, "postgresMigrationLedger": postgres}, indent=2))
+    print(json.dumps({
+        "output": str(output),
+        "gitCommit": commit,
+        "gitTree": git_tree,
+        "candidateCodeFingerprint": candidate["codeTreeSha256"],
+        "gitTrackedWorkspaceChanges": tracked_workspace_changes,
+        "generatedRunnerArtifactsRemoved": generated_artifacts_removed,
+        "reactorEntryCount": evidence["reactorEntryCount"],
+        "surefire": surefire,
+        "postgresMigrationLedger": postgres,
+    }, indent=2))
     return 0
 
 

@@ -1,27 +1,43 @@
-# M8-C1-C2 Trusted Research Host Qualification — changes-only package
+# M8 CI evidence-capture repair — changes-only package
 
-This ZIP contains **only the 14 repository files listed in `CHANGESET_INFO/CHANGE_MANIFEST.csv`**, stored at their repository-root-relative paths. It is not a full repository archive and contains no Git patch.
+**Target repository:** `hmar000001-boop/supply-chain-agent`  
+**Inspected workflow source revision:** `c49c543`  
+**Purpose:** repair the post-build M8-C1 evidence-capture failure caused by tool-generated runner files being treated as source changes.
 
 ## Apply
 
-1. Back up/commit your current working tree.
-2. Extract the ZIP at the root of the existing repository, preserving paths. The 14 source files will overlay their matching paths; `CHANGESET_INFO/` is package metadata and may be retained outside the repository or removed after review.
-3. Review `CHANGESET_INFO/CHANGE_MANIFEST.csv` and run `sha256sum -c CHANGESET_INFO/SHA256SUMS.txt` from the repository root.
-4. Commit and push. Run the updated GitHub Actions workflow on that exact commit. This package has **not** been validated by hosted CI yet.
+Copy the three repository-relative files in this archive into the repository root, preserving their paths, and commit them to the branch that triggers the existing Java CI workflow.
 
-## What's included
+No local build, terminal command, Maven invocation, or artifact download is required. The existing workflow already discovers `scripts/m8/test_*.py`; the new regression suite therefore runs automatically in GitHub Actions.
 
-- C1 CI evidence capture and exact hosted-run finalizer, including full reactor/Surefire and contiguous PostgreSQL V001–V015 checks.
-- C2 one-role-at-a-time encrypted Ed25519 key provisioner and role-scoped Java-compatible attestation signer.
-- Java composition fingerprint exposure and a one-unit, five-mechanism full-graph qualification CLI.
-- Operator runbook, focused tests, and corrected source/test inventory.
+## What changes
 
-## Important safety and scope boundaries
+1. `scripts/fingerprint-m8-experiment-candidate.py`
+   - hashes only source files committed in `HEAD` using Git object data;
+   - excludes runner-generated files from the candidate fingerprint;
+   - rejects unexpected tracked changes and untracked candidate-source files;
+   - permits only the known Maven launcher worktree drift (`mvnw`, `mvnw.cmd`) when used independently, while recording it.
 
-- Private signing keys are **not** included. Do not create project issuer keys inside the repository. Use separate custodians/approval paths and role-specific key material.
-- The local candidate fingerprint JSON is informational only; its `gitCommit` is `NOT_AVAILABLE` because the reconstruction lacks `.git` metadata. The hosted CI capture creates the authoritative committed-source fingerprint.
-- Apply/commit this package and obtain a new green hosted CI run before producing the CI freeze record. Then provision/pin all seven issuer public keys, obtain the signed CI freeze attestation, and run the one-unit qualification.
-- The preflight fixture is not TRAIN evidence and must not be counted in the 280-unit batch. Do not launch bulk TRAIN before all C1-C2 gates pass.
-- This is a research/reference implementation. Passing the preflight does not establish empirical mechanism efficacy or production readiness.
+2. `scripts/m8/capture-ci-evidence.py`
+   - records the observed launcher drift;
+   - restores only those two launcher paths from `HEAD`;
+   - removes only the generated paths evidenced in the failing run: `.cache/trivy`, `.mvn/wrapper/maven-wrapper.jar`, and Python `__pycache__` below `scripts/`;
+   - then requires `git status --porcelain --untracked-files=all` to be empty;
+   - creates the same M8-C1 evidence schema with the committed source fingerprint, Surefire summary, reactor inventory and PostgreSQL V001–V015 ledger.
 
-See `docs/research/M8-C1-C2-TRUSTED-RESEARCH-HOST-QUALIFICATION-2026-11-23.md` for exact operator commands and acceptance gates.
+3. `scripts/m8/test_source_fingerprint.py`
+   - adds five regression tests, including a full capture-path test using a temporary Git repository and fixture Surefire/PostgreSQL data.
+
+## Integrity properties retained
+
+- This does not suppress the clean-checkout requirement.
+- Only the two observed Maven launcher paths are restored; any other tracked mutation fails.
+- Untracked source files in candidate roots fail.
+- The candidate fingerprint uses committed Git blobs, not the mutable CI workspace.
+- The cleanup list is intentionally narrow; unknown untracked files remain visible and cause failure.
+
+## Expected next action
+
+After the commit, GitHub Actions runs the existing workflow plus the five new Python regression tests. The M8-C1 evidence step should then proceed past the prior `Git working tree is not clean` error. The full Maven/PostgreSQL CI result still has to be confirmed by that hosted run.
+
+**Scope note:** this package repairs the evidence-capture failure only. It does not claim that the durable full-graph application host (GAP-08), complete learning-action contract (GAP-07), or source-inventory cleanup (GAP-10) have been completed.

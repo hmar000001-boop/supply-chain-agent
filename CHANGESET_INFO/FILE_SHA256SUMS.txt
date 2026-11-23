@@ -1,0 +1,3 @@
+f27ca03055ddd2fbe9f24c799d71c18a934be2d9d48946ee065d6498b00ffc1d  scripts/fingerprint-m8-experiment-candidate.py
+3542883012fa49759b35d862c519fa7110308c3992f6a7aa524db3ab8c87a98b  scripts/m8/capture-ci-evidence.py
+5b34e9eeb5451014293c6b5ce5987ca25755e5d0f37278202b324d2d0e70b7e9  scripts/m8/test_source_fingerprint.py
