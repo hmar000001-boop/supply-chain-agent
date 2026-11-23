@@ -28,7 +28,7 @@ EXPECTED_INVENTORY = {
     "supply-chain-agent-runtime": (38, 11, 87, 11, 0),
     "supply-chain-agent-infrastructure-postgres": (43, 15, 57, 13, 2),
     "supply-chain-agent-app": (2, 0, 0, 0, 0),
-    "supply-chain-agent-evaluation": (106, 20, 70, 20, 0),
+    "supply-chain-agent-evaluation": (107, 20, 73, 20, 0),
 }
 failures: list[str] = []
 
@@ -154,6 +154,10 @@ if active.exists() and mirror.exists():
             "Active CI must produce CodeQL source-analysis evidence")
     require("aquasecurity/trivy-action@v0.36.0" in workflow and "trivy-fs.sarif" in workflow,
             "Active CI must produce Trivy filesystem SCA/secret/misconfiguration evidence")
+    require("scripts/m8/capture-ci-evidence.py" in workflow and "target/m8-c1/**" in workflow,
+            "Active CI must capture and upload the M8-C1 source/Surefire/PostgreSQL freeze evidence")
+    require("python3 -m unittest discover -s scripts/m8" in workflow,
+            "Active CI must qualify the M8-C1/C2 operator tooling")
 
 if failures:
     print("M8-B5 architecture verification: FAILED", file=sys.stderr)

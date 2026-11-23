@@ -49,6 +49,11 @@ jobs:
       - name: Verify M8 mechanism-specific TRAIN artifacts and independent experiment evidence
         run: python3 scripts/verify-m8-mechanism-experimental-evidence.py
 
+      - name: Verify M8-C1/C2 trusted research operator tooling
+        run: |
+          python3 -m unittest discover -s scripts/m8 -p 'test_*.py' -v
+          bash -n scripts/m8/provision-m8-issuer-key.sh
+
       - name: Prepare security evidence directory
         run: mkdir -p target/security
 
@@ -248,6 +253,10 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         run: ./mvnw -B -ntp dependency:tree -DoutputFile=target/dependency-tree.txt
 
+      - name: Capture M8-C1 source, Surefire and PostgreSQL freeze evidence
+        if: success() && steps.build.outcome == 'success'
+        run: python3 scripts/m8/capture-ci-evidence.py --output target/m8-c1/ci-build-evidence.json
+
       - name: Upload test, evaluation, security and R2 evidence reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -260,4 +269,5 @@ jobs:
             target/m8-b3-results/**
             target/m8-r2-results/**
             target/security/**
+            target/m8-c1/**
           if-no-files-found: warn

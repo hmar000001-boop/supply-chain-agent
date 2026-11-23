@@ -27,6 +27,7 @@ public final class M8TrustedResearchComposition {
     private final SimulatorUncertaintyLabelVerifier simulatorLabelVerifier;
     private final M8TrainingArtifactBundleCodec bundleCodec;
     private final M8TrainingArtifactArchive trainingArtifactArchive;
+    private final Map<String, String> pinnedIssuerKeyFingerprints;
 
     private M8TrustedResearchComposition(M8Ed25519AttestationTrust trust,
             Ed25519M8VerifiedEndpointEvidenceVerifier endpointVerifier,
@@ -35,7 +36,8 @@ public final class M8TrustedResearchComposition {
             MechanismTrainingArtifactVerifier trainingArtifactVerifier,
             SimulatorUncertaintyLabelVerifier simulatorLabelVerifier,
             M8TrainingArtifactBundleCodec bundleCodec,
-            M8TrainingArtifactArchive trainingArtifactArchive) {
+            M8TrainingArtifactArchive trainingArtifactArchive,
+            Map<String, String> pinnedIssuerKeyFingerprints) {
         this.trust = trust;
         this.endpointVerifier = endpointVerifier;
         this.safetyVerifier = safetyVerifier;
@@ -44,6 +46,8 @@ public final class M8TrustedResearchComposition {
         this.simulatorLabelVerifier = simulatorLabelVerifier;
         this.bundleCodec = bundleCodec;
         this.trainingArtifactArchive = trainingArtifactArchive;
+        this.pinnedIssuerKeyFingerprints = Map.copyOf(Objects.requireNonNull(
+                pinnedIssuerKeyFingerprints, "pinnedIssuerKeyFingerprints"));
     }
 
     public static M8TrustedResearchComposition open(Configuration configuration) throws IOException {
@@ -55,10 +59,12 @@ public final class M8TrustedResearchComposition {
             throw new IllegalArgumentException("endpoint, safety, CI, B1, B2, B3 and B6 issuers must be distinct identities");
         Map<String, PublicKey> keys = M8PinnedEd25519PublicKeyLoader.load(configuration.pinnedPublicKeyDirectory(), issuerIds);
         var uniqueKeyFingerprints = new java.util.HashSet<String>();
+        var keyFingerprints = new java.util.TreeMap<String, String>();
         for (Map.Entry<String, PublicKey> entry : keys.entrySet()) {
             String fingerprint = M8CandidateCodeFingerprint.sha256(entry.getValue().getEncoded());
             if (!uniqueKeyFingerprints.add(fingerprint))
                 throw new SecurityException("independent M8 issuer identities must not share the same Ed25519 public key: " + entry.getKey());
+            keyFingerprints.put(entry.getKey(), fingerprint);
         }
         var repository = new FileSystemM8SignedAttestationRepository(configuration.attestationDirectory());
         var trust = new M8Ed25519AttestationTrust(repository, keys, configuration.clock(), configuration.maximumAttestationAge());
@@ -73,7 +79,7 @@ public final class M8TrustedResearchComposition {
         var codec = new ReflectiveM8TrainingArtifactBundleCodec();
         var archive = new FileSystemM8TrainingArtifactArchive(configuration.trainingArchiveDirectory(), codec);
         return new M8TrustedResearchComposition(trust, endpoint, safety, freeze, bundleVerifier,
-                services.b6LabelVerifier(), codec, archive);
+                services.b6LabelVerifier(), codec, archive, keyFingerprints);
     }
 
     public M8Ed25519AttestationTrust trust() { return trust; }
@@ -84,6 +90,8 @@ public final class M8TrustedResearchComposition {
     public SimulatorUncertaintyLabelVerifier simulatorLabelVerifier() { return simulatorLabelVerifier; }
     public M8TrainingArtifactBundleCodec bundleCodec() { return bundleCodec; }
     public M8TrainingArtifactArchive trainingArtifactArchive() { return trainingArtifactArchive; }
+    /** SHA-256 fingerprints of the exact Ed25519 SubjectPublicKeyInfo pins loaded by this composition. */
+    public Map<String, String> pinnedIssuerKeyFingerprints() { return pinnedIssuerKeyFingerprints; }
 
     public M8TrainingArtifactFreezeService freezeService(M8ExperimentArtifactIntegrityAuditor auditor) {
         return new M8TrainingArtifactFreezeService(Objects.requireNonNull(auditor, "auditor"),

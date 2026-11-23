@@ -1,42 +1,33 @@
-# Validation report — M8 CI Fix 3
+# M8-C1-C2 validation report
 
-## Changes validated
+**Validation date:** 2026-11-23  
+**Package:** `M8_C1_C2_TRUSTED_RESEARCH_HOST_QUALIFICATION_CHANGES_ONLY_2026-11-23.zip`
 
-- Exactly one B3 experimental SHADOW overlay is supplied by the per-arm session configuration.
-- The deterministic TRAIN R2 workflow configuration no longer supplies a second overlay.
-- `FullGraphEvaluationHost`'s duplicate-overlay `SecurityException` guard is unchanged.
-- Existing factory test now asserts the single-overlay contract for both baseline and treatment.
-- No new test annotations were added; the test inventory remains unchanged.
-- Candidate fingerprint and conformance metadata agree.
+## Passed checks
 
-## Static validation
+- Python syntax compilation: all `scripts/m8/*.py` files.
+- Operator tooling unit tests: **7 passed, 0 failed**.
+  - Java-compatible Ed25519 record/payload interoperability verified by OpenSSL using a disposable encrypted test key.
+  - Role-scoped evidence-type policy and exact contiguous PostgreSQL migration range V001–V015 tested.
+  - Provisioner rejection of repository-local destinations tested before directory creation.
+- Issuer provisioner shell syntax: `bash -n` passed.
+- Issuer provisioner smoke test: disposable encrypted Ed25519 key generated; private mode `0600`, public mode `0644`, DER SHA-256 checked; temporary key files deleted.
+- M8 architecture/dependency/source inventory guard: passed (11 modules, acyclic internal dependency graph, framework dependency and source/test inventory checks).
+- M8-R2 evidence guard: passed.
+- M8 pre-B7 F-03/F-04 procedural-memory and coalition guard: passed.
+- M8 scenario register/split guard: passed (280 TRAIN, 280 HOLDOUT, 210 TRANSFER; development-only fixtures excluded).
+- M8 full-graph experiment adapter guard: passed (pair matching, graph isolation, approval/effect and split gates).
+- M8 mechanism-specific experimental evidence guard: passed.
+- Canonical and mirrored CI workflow YAML parse: passed; both workflow files are byte-identical.
+- Local candidate fingerprint manifest generated and structurally checked. It is informational only: this reconstructed directory has no `.git` metadata, so `gitCommit=NOT_AVAILABLE` and `gitWorkingTreeDirty=null`.
 
-All six repository static guard scripts passed:
+## Not run / pending
 
-- `verify-m8-b5-architecture.py`
-- `verify-m8-r2-evidence.py`
-- `verify-m8-preb7-f03-f04.py`
-- `verify-m8-experiment-scenario-register.py`
-- `verify-m8-fullgraph-experiment-adapter.py`
-- `verify-m8-mechanism-experimental-evidence.py`
+- **Maven compile, Java unit tests and PostgreSQL-backed reactor build were not run locally.** Maven is not installed in this execution environment; only Java 21 is available. The Maven Wrapper previously could not resolve the Apache distribution host from this environment. The first required post-application validation is the repository's hosted CI run for the exact commit containing this package.
+- The prior Fix3 CI-green report predates this package. It does not validate these changes.
+- No real project issuer keys, signatures, freeze context or qualification report were generated. Only temporary test keys were used and deleted.
+- C1-C2 remain operationally pending until hosted CI evidence is finalized, seven externally governed public keys are provisioned/pinned, the CI issuer signs the exact freeze subject, and the one-unit full-graph qualification CLI passes.
 
-The architecture guard reported 11 Maven modules, 581 production Java files, 86 test source files and 488 test annotations/factories, with the source/test inventory in sync.
+## Interpretation
 
-## Focused semantic checks
-
-The code-path inspection confirms `FullGraphExperimentSession.compile` passes the per-arm overlay to the host and the deterministic factory now leaves the R2-level optional overlay absent. The host's anti-double-wiring rejection remains active.
-
-## Not performed
-
-A full Maven/Surefire/PostgreSQL run was not performed in this delivery environment: Maven is not installed and the Maven Wrapper distribution is not cached. Therefore this report does not claim hosted CI success. The next hosted run must rerun all 12 reactor projects using the repository's full command.
-
-## Candidate identity
-
-- Candidate ID: `M8-GAP01-GAP05-B3-SHADOW-OVERLAY-CI-FIX3`
-- Source-tree SHA-256: `64c7b12fb41ef2093f94bf7815966259d62d351fe0472f9842b4e35953ca43cc`
-- Fingerprinted source files: `719`
-- Hosted CI: pending; not attested by this package.
-
-## Separate non-blocking warning
-
-The supplied CI log reports SLF4J API with no provider. This is not the cause of the build failure and does not fail tests, but it means logging falls back to NOP. This package intentionally does not add a logging backend; that should be a separate dependency/configuration decision.
+These checks establish static guard consistency and the operator-side Python/OpenSSL tooling behavior. They do **not** establish Java compilation, full-host runtime qualification, empirical mechanism effectiveness, calibrated uncertainty, or production readiness. Do not start the bulk 280-unit TRAIN run based on this package alone.

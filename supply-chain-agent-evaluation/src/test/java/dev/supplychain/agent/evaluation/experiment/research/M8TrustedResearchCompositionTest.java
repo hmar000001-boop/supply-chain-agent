@@ -1,6 +1,7 @@
 package dev.supplychain.agent.evaluation.experiment.research;
 
 import dev.supplychain.agent.evaluation.experiment.execution.ExperimentMechanism;
+import dev.supplychain.agent.evaluation.experiment.execution.FullGraphExperimentRunObservation;
 import dev.supplychain.agent.evaluation.experiment.research.M8VerifiedEndpointEvidence.EndpointId;
 import dev.supplychain.agent.evaluation.experiment.scenario.ExperimentSplit;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,13 @@ class M8TrustedResearchCompositionTest {
 
         assertEquals("freeze-verifier-v1", composition.freezePrerequisiteVerifier().verifierId());
         assertEquals("bundle-verifier-v1", composition.trainingArtifactVerifier().verifierId());
+        assertEquals(Set.copyOf(java.util.Arrays.asList(issuers)), composition.pinnedIssuerKeyFingerprints().keySet());
+        assertEquals(7, composition.pinnedIssuerKeyFingerprints().values().stream().distinct().count());
+        assertTrue(composition.pinnedIssuerKeyFingerprints().values().stream().allMatch(value -> value.matches("[0-9a-f]{64}")));
+        for (String issuer : issuers) {
+            assertEquals(M8CandidateCodeFingerprint.sha256(keyPairs.get(issuer).getPublic().getEncoded()),
+                    composition.pinnedIssuerKeyFingerprints().get(issuer));
+        }
         assertEquals("m8-record-graph-v1", composition.bundleCodec().codecId());
         assertNotNull(composition.trainingArtifactArchive());
 
@@ -152,6 +160,51 @@ class M8TrustedResearchCompositionTest {
     void rejectsMissingOrUnexpectedPinnedPublicKeys() throws Exception {
         Path keys = Files.createDirectory(temporary.resolve("keys-empty"));
         assertThrows(SecurityException.class, () -> M8PinnedEd25519PublicKeyLoader.load(keys, Set.of("missing-v1")));
+    }
+
+
+    @Test
+    void singleUnitHostQualificationAcceptsApprovalBoundaryWithExactZeroEffectMetrics() {
+        var observation = qualificationObservation(
+                FullGraphExperimentRunObservation.Boundary.APPROVAL,
+                Map.of("runtime.action.dispatch.attempts", 0.0,
+                        "runtime.simulated.state.effects", 0.0,
+                        "runtime.approval.request.count", 1.0));
+        assertDoesNotThrow(() -> M8SingleUnitHostQualificationCli.validateObservation(
+                observation, "qualification-unit", "b".repeat(64)));
+    }
+
+    @Test
+    void singleUnitHostQualificationRejectsAnyBoundaryOtherThanApproval() {
+        var observation = qualificationObservation(
+                FullGraphExperimentRunObservation.Boundary.TERMINAL,
+                Map.of("runtime.action.dispatch.attempts", 0.0,
+                        "runtime.simulated.state.effects", 0.0,
+                        "runtime.approval.request.count", 1.0));
+        assertThrows(SecurityException.class, () -> M8SingleUnitHostQualificationCli.validateObservation(
+                observation, "qualification-unit", "b".repeat(64)));
+    }
+
+    @Test
+    void singleUnitHostQualificationRejectsDispatchOrSimulatedStateEffects() {
+        var observation = qualificationObservation(
+                FullGraphExperimentRunObservation.Boundary.APPROVAL,
+                Map.of("runtime.action.dispatch.attempts", 1.0,
+                        "runtime.simulated.state.effects", 0.0,
+                        "runtime.approval.request.count", 1.0));
+        assertThrows(SecurityException.class, () -> M8SingleUnitHostQualificationCli.validateObservation(
+                observation, "qualification-unit", "b".repeat(64)));
+    }
+
+    private static FullGraphExperimentRunObservation qualificationObservation(
+            FullGraphExperimentRunObservation.Boundary boundary, Map<String, Double> metrics) {
+        var noEffects = new dev.supplychain.agent.evaluation.experiment.execution.ExperimentSandboxAudit.Snapshot(
+                0, 0, 0, 0);
+        return new FullGraphExperimentRunObservation("session-1", "qualification-unit", "a".repeat(64),
+                "b".repeat(64), "c".repeat(64), ExperimentMechanism.B1_MEMORY_LEARNING,
+                dev.supplychain.agent.evaluation.experiment.execution.ExperimentArm.BASELINE, 1, boundary,
+                "AWAITING_APPROVAL", "approval is required", Map.of("approvalIdPresent", "true"),
+                List.of("approval-requested"), "d".repeat(64), metrics, noEffects, "e".repeat(64));
     }
 
     private static void writeSigned(Path root, KeyPair keyPair, String type, String subject, String issuer) throws Exception {
