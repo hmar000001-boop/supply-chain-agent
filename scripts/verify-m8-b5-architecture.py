@@ -108,6 +108,18 @@ for module in modules:
         require(not imports_langgraph and not imports_langchain,
                 f"Framework-neutral module {module} imports a framework API")
 
+# These two runtime sources are authoritative module-owned files. The older
+# repository-root copies are intentionally not substitutes for these paths.
+REQUIRED_RUNTIME_OWNED_SOURCES = (
+    "supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java",
+    "supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java",
+)
+for relative in REQUIRED_RUNTIME_OWNED_SOURCES:
+    required_path = ROOT / relative
+    require(required_path.is_file() and not required_path.is_symlink(),
+            f"Missing active runtime module source: {relative}; restore this module-owned file. "
+            "Do not delete it when removing the obsolete repository-root src/ shadow copy.")
+
 # Every Java source must belong to one of the declared Maven module source roots.
 owned_roots = [
     (ROOT / module / source_kind).resolve()

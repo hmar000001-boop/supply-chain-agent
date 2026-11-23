@@ -1,26 +1,53 @@
-# M8 application-completion changeset — GAP-07 / GAP-08 / GAP-10
+# M8 runtime inventory and legacy-shadow cleanup repair
 
-## Apply
+## Purpose
 
-This is a **changes-only** archive. Extract its contents at the root of the existing `supply-chain-agent` repository so that each repository-relative path is preserved. Do not replace the repository with this archive; it is not a full-source snapshot.
+This repair addresses the two distinct causes shown by the 2026-11-23 hosted CI log:
 
-The two obsolete source shadows listed in `DELETE_FILES.txt` must also be deleted from the repository. ZIP extraction does not delete existing files. Delete those exact paths through the GitHub repository UI after uploading the archive.
+1. The active module-owned `CognitiveCycleLifecycleServices.java` and its test were absent from `supply-chain-agent-runtime`. Their absence explains the exact inventory delta: one production source, one test source, and 24 annotated test methods/factories (`38/11/87` expected versus `37/10/63` found).
+2. The two older shadow copies still existed under repository-root `src/`, outside every Maven module. Those are the files GAP-10 requires removing.
 
-Then commit/publish the changeset and let the existing GitHub Actions workflow run. The new PostgreSQL integration test is enabled by the existing CI property `-Dphase0.postgres=true`; no local PC, Maven or terminal is required.
+## What this changeset does
+
+- Restores the authoritative module-owned production source and test at their Maven source-root paths.
+- Adds a more explicit architecture-guard diagnostic if either active module-owned file is missing.
+- Adds a fail-closed cleanup script which verifies the SHA-256 digests of the active module files and the two exact legacy root files. It refuses to remove changed/unrecognized files or any additional root-level Java sources.
+- Adds five unit tests covering exact deletion, idempotency, missing active sources, altered legacy content and unexpected root Java sources.
+- Adds a manually dispatched GitHub Actions workflow, **M8 Remove Legacy Root Source Shadows**. Run it once on `main` from the GitHub Actions UI. It will:
+  1. Verify the module-owned active source/test against their expected SHA-256.
+  2. Remove only the two audited root-level shadow files, if their exact SHA-256 matches.
+  3. Run the architecture and durable-application static guards and the cleanup unit tests.
+  4. Commit only those two root-file deletions using `GITHUB_TOKEN`.
+  5. Dispatch the normal `ci.yml` workflow against the cleaned `main` revision.
+
+## Important path distinction
+
+**Keep these active module-owned files:**
+
+- `supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java`
+- `supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java`
+
+**Remove only these older repository-root shadows:**
+
+- `src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java`
+- `src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java`
+
+The files share the same class names but are not identical. The root copies are older and must not replace the active module copies.
+
+## What you do
+
+1. Publish/extract this changes-only ZIP at the repository root using the same GitHub workflow you normally use.
+2. Open **Actions** in GitHub (mobile is sufficient).
+3. Select **M8 Remove Legacy Root Source Shadows**.
+4. Select branch `main` and tap **Run workflow**.
+5. That workflow will perform the guarded deletions, create the cleanup commit and start the normal Java CI workflow. Send the resulting Java CI run link for review.
+
+No local Git, Java, Maven, Python, OpenSSL or artifact download is required.
+
+## Fail-safe behavior
+
+The cleanup script removes no files if the active module source/test are missing or differ from the audited files, if either root shadow has changed, or if any unexpected Java file exists under root `src/`. It never deletes files by basename or wildcard. If repository branch protection or Actions token permissions prevent the workflow commit, the workflow fails without force-pushing; resolve the repository permission/branch-protection requirement or delete only the two exact root-level paths through GitHub's file UI.
 
 ## Scope
 
-- GAP-07: a versioned, typed CoALA learning-action surface for episodic, semantic and procedural memory, with scope-bound handlers, explicit capabilities and review/activation boundaries.
-- GAP-08: a durable application composition root wiring the full cognitive-cycle graph, PostgreSQL persistence, checkpoint saver and one shared B6 execution guard; adds top-level cycle, typed resume and PostgreSQL restart/repeated-cycle integration coverage.
-- GAP-10: deletes two obsolete unowned root-level Java shadows, extends the architecture guard and updates the reactor source/test inventory.
-
-## Deliberate boundaries
-
-- B3's global workspace snapshot is cycle-scoped and intentionally ephemeral; consumer receipts and outcome evidence are durable.
-- Each host instance is bound to one `MemoryScopeId`.
-- B1/B3 feedback policies remain neutral/shadow unless explicitly supplied by trusted configuration; B6 remains not calibrated without an approved calibration service.
-- This remains a deterministic simulator-backed research/reference application, not a live ERP/WMS/TMS or supplier integration.
-- This changeset adds the durable host's PostgreSQL startup, working-memory persistence, checkpoint resume after host restart and second-cycle ingress test. The combined full host-level plan approval → dispatch → reconciliation → restart journey is not yet exercised through this new host; existing full-graph/effect-boundary tests cover those runtime semantics through the evaluation composition.
-- Do not claim empirical mechanism superiority, calibrated uncertainty or real-world operational performance from CI success.
-
-See `docs/application/DURABLE-APPLICATION-HOST.md` for the contracts and known limitations.
+This is a targeted CI/source-hygiene correction. It does not change the cognitive graph, PostgreSQL schema, mechanism policies, experimental evidence, signing identities or application behavior.

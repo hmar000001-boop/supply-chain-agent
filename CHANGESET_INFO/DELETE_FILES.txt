@@ -1,3 +1,9 @@
-# Delete these exact obsolete files from the repository; extraction alone will not remove them.
+These are the ONLY files to delete. The GitHub Actions workflow in this changeset performs the deletion after SHA-256 preflight.
+
+DELETE repository-root shadows:
 src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java
 src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java
+
+DO NOT DELETE these authoritative Maven module files; this changeset restores them:
+supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java
+supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java

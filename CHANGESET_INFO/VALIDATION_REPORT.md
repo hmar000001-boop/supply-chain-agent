@@ -1,29 +1,25 @@
-# Validation report — M8 GAP-07 / GAP-08 / GAP-10
+# Validation report
 
-Date: 2026-11-23
-Source reconstruction: frozen GAP-01–GAP-05 source plus accepted F-01/F-02, F-03/F-04, subsequent mechanism/research CI fixes, B3 overlay CI Fix 3, C1/C2 package and the CI evidence-capture repair. The user reports CI is green after the evidence-capture repair; no run URL/commit SHA was provided with this instruction.
+## Root cause resolution
 
-## Completed in this environment
+The failing CI tuple was `found (37, 10, 63, 10, 0)` versus the accepted inventory `(38, 11, 87, 11, 0)`. The restored runtime test source contributes exactly 24 JUnit annotations; together the restored production/test files reconcile all three deltas.
 
-- `scripts/verify-m8-app-composition.py`: PASS.
-- `scripts/verify-m8-b5-architecture.py`: PASS — 11 reactor modules; acyclic internal dependency graph; direct framework dependency checks; source/test inventory; CI mirror and source-root hygiene.
-- `scripts/verify-m8-r2-evidence.py`: PASS.
-- `scripts/verify-m8-preb7-f03-f04.py`: PASS.
-- `scripts/verify-m8-mechanism-experimental-evidence.py`: PASS — 25 protocol/integrity invariants.
-- All 12 Maven POM files parse as XML: PASS.
-- `.github/workflows/ci.yml` and `workflows/ci.yml` are byte-identical: PASS.
-- Full production source set of `supply-chain-agent-actions` compiled with `javac --release 21`: PASS.
-- Repository delta checked against the reconstructed baseline: 11 modified, 7 added, 2 deleted; no `.class`, `.pyc` or `__pycache__` output included.
-- Archive path/content/hash verification: performed when package was created.
+## Executed validations
 
-## Must be confirmed by hosted GitHub Actions
+- Restored production source SHA-256: `04577ba12c96f8d89a553bf8558e30fbc1201f01e3f7d1b0445d086453607442`.
+- Restored test source SHA-256: `c8be7b1b555c70d9333afcc3698e6d6d094a0b1814cec6dc71129946f7b8fddf`.
+- Legacy root production SHA-256 precondition: `32373e86f96846469f057da25b25886bd2e2b6e0aab13a1d2e2c9e88df74d26f`.
+- Legacy root test SHA-256 precondition: `e2a2a025604812c3be393428a72a3d392cc785a9436793d1a0a84c9dd3734b1f`.
+- Cleanup unit tests: **5 passed**.
+- Simulated cleanup on reconstructed repository: removed only the two root-level files; active module copies remained present.
+- `verify-m8-b5-architecture.py`: PASS (11 modules, dependency DAG, direct framework dependencies, module source/test inventory, source ownership and workflow mirror).
+- `verify-m8-app-composition.py`: PASS.
+- `verify-m8-r2-evidence.py`: PASS.
+- `verify-m8-preb7-f03-f04.py`: PASS.
+- `verify-m8-mechanism-experimental-evidence.py`: PASS (25 invariants).
+- The cleanup workflow YAML passed structural parsing and its references were checked against repository workflow/script paths.
+- ZIP integrity, repository-relative paths, manifest and SHA-256 checksums: PASS.
 
-- Full Maven 12-POM reactor compilation and all JUnit/Surefire tests.
-- The new `DurableCognitiveApplicationHostPostgresIntegrationTest` against the CI PostgreSQL service, including migrations, durable working memory, graph interrupt, restart, typed resume and second top-level cycle.
-- Java compilation of the new `supply-chain-agent-app` host and integration test against the pinned LangGraph4j/LangChain4j/PostgreSQL dependencies.
+## Not run here
 
-Maven was not available in this environment and the wrapper distribution host could not be resolved, so no full Maven build or JUnit execution is claimed here.
-
-## Explicit remaining acceptance boundary
-
-The new app-host integration test verifies durable app composition, working memory across host close/reopen, PostgreSQL graph-checkpoint resume after host restart, and a second top-level cycle. It intentionally pauses at a clarification boundary. It does not yet combine, through this new app host in one test, context/retrieval/planning, plan-bound approval, simulator dispatch, outcome reconciliation, restart around an in-flight effect and a subsequent cycle consuming the reconciled observation. Existing full-graph tests cover significant parts of those runtime/effect semantics through the evaluation composition. That remaining host-level combined acceptance test must not be represented as already passed.
+The full Maven reactor/JUnit/PostgreSQL integration workflow was not run locally. Maven is not installed in this environment and external Maven distribution downloads are unavailable. The new manual cleanup workflow dispatches the repository's existing full Java/PostgreSQL CI after the cleanup commit; that hosted run is the authoritative final validation.
