@@ -12,9 +12,6 @@ import dev.supplychain.agent.core.interpretation.RequestInterpreter;
 import dev.supplychain.agent.infrastructure.postgres.PostgresAgentPersistence;
 import dev.supplychain.agent.infrastructure.postgres.PostgresMemoryPersistence;
 import dev.supplychain.agent.infrastructure.postgres.checkpoint.PostgresLangGraph4jCheckpointSaverFactory;
-import dev.supplychain.agent.infrastructure.postgres.config.PostgresDatabaseConfig;
-import dev.supplychain.agent.infrastructure.postgres.config.PostgresPoolSettings;
-import dev.supplychain.agent.infrastructure.postgres.config.PostgresPooledDataSourceFactory;
 import dev.supplychain.agent.infrastructure.postgres.memory.PostgresRecoveryProcedureArtifactStore;
 import dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec;
 import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresB1MemoryFeatureRepository;
@@ -419,7 +416,21 @@ public final class DurableCognitiveApplicationHost implements AutoCloseable {
         String lastExecutedNode = "graph-start";
         for (var output : stream) lastExecutedNode = output.node();
         boolean interrupted = GraphResult.from(stream).isInterruptionMetadata();
-        var snapshot = graph.getState(config);
+
+        // LangGraph4j 1.8.20 clears checkPointId inside its stream generator when resuming,
+        // then persists each newly executed node against the thread. The caller's RunnableConfig
+        // is immutable and still points at the checkpoint used to begin the resume. Reading
+        // graph.getState(config) here therefore returns that pre-resume checkpoint (for example,
+        // UNKNOWN_OUTCOME), even when the resumed graph has reconciled and completed successfully.
+        // Read the newest persisted checkpoint for this thread after the stream has been consumed.
+        RunnableConfig latestCheckpointConfig = RunnableConfig.builder(config)
+                .checkPointId(null)
+                .nextNode(null)
+                .build();
+        var snapshot = graph.lastStateOf(latestCheckpointConfig)
+                .orElseThrow(() -> new IllegalStateException(
+                        "cognitive-cycle graph produced no persisted checkpoint for thread: "
+                                + config.threadId().orElse("<unknown>")));
         return Optional.of(new CycleRunResult(lastExecutedNode, interrupted, snapshot.state()));
     }
 
