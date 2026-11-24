@@ -35,7 +35,6 @@ import dev.supplychain.agent.evaluation.fixture.ScenarioFixtureFactory;
 import dev.supplychain.agent.evaluation.planner.EvaluationPlannerFactory;
 import dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec;
 import dev.supplychain.agent.infrastructure.postgres.runtime.ObservationProvenanceResolver;
-import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresJsonArtifactRepository;
 import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimeCodecs;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
@@ -118,6 +117,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -148,7 +148,7 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
 
     @Test
     void durableHostApprovesDispatchesReconcilesRestartsAndConsumesPriorCycleMemory() throws Exception {
-        assertRegistryCodecIsDeterministic();
+        assertRegistryCodecRoundTripIsStable();
         MemoryScopeId scope = new MemoryScopeId("m8-gap08-e2e-" + UUID.randomUUID());
         ScenarioCatalog catalog = ScenarioCatalog.loadDefault();
         ScenarioDefinition authorizedWrite = catalog.require("REQ-09");
@@ -431,29 +431,45 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
                 registryCodec(), registryCodec(), registryCodec(), registryCodec(), r2);
     }
 
-    private static void assertRegistryCodecIsDeterministic() {
-        JsonCodec<String> codec = registryCodec();
-        String firstEncoding = codec.encode("same logical test value");
-        String secondEncoding = codec.encode(new String("same logical test value"));
-        assertEquals(firstEncoding, secondEncoding,
-                "a persistence codec must produce the same payload for the same logical value");
-        assertEquals("same logical test value", codec.decode(firstEncoding));
+    private static void assertRegistryCodecRoundTripIsStable() {
+        JsonCodec<StringBuilder> codec = registryCodec();
+        StringBuilder value = new StringBuilder("same logical test value");
+        String firstEncoding = codec.encode(value);
+        assertEquals(firstEncoding, codec.encode(value),
+                "re-encoding the same persisted object must retain its opaque registry token");
+        assertSame(value, codec.decode(firstEncoding),
+                "the same-process test codec must resolve the token to the exact registered object");
+        assertEquals(firstEncoding, codec.encode(codec.decode(firstEncoding)),
+                "the PostgreSQL read/verify round trip must reproduce the exact payload fingerprint");
     }
 
     /**
-     * Same-process test codec with deterministic content tokens. Runtime persistence adapters
-     * decode a stored payload and re-encode the value before validating its content fingerprint;
-     * random UUID tokens violate the JsonCodec deterministic-encoding contract and make every
-     * valid read look tampered. This follows the established M7 PostgreSQL integration-test
-     * codec convention while deliberately remaining a test-only, same-process codec.
+     * Opaque same-process registry adapter for this PostgreSQL integration test only. The
+     * production JsonCodec contract requires an allow-listed typed JSON mapper with deterministic
+     * field ordering. This test adapter deliberately does not claim cross-process serialization:
+     * it assigns one opaque token per object identity and resolves that token to the same object.
+     *
+     * Runtime artifact stores decode and re-encode payloads before validating their fingerprints.
+     * A token derived from Object.toString() is not a canonical representation of a planning
+     * artifact graph: nested snapshots, collections and mutable test values do not have a stable
+     * JSON field-order contract. Assigning the token once per object identity makes the test
+     * adapter's encode(decode(encode(value))) operation stable without weakening store checks.
      */
     private static <T> JsonCodec<T> registryCodec() {
         Map<String, T> registry = new ConcurrentHashMap<>();
+        Map<T, String> tokenByIdentity = new IdentityHashMap<>();
         return new JsonCodec<>() {
             @Override public String encode(T value) {
                 java.util.Objects.requireNonNull(value, "codec value");
-                String token = PostgresJsonArtifactRepository.sha256(value.getClass().getName() + "|" + value);
-                registry.put(token, value);
+                String token;
+                synchronized (tokenByIdentity) {
+                    token = tokenByIdentity.get(value);
+                    if (token == null) {
+                        token = UUID.randomUUID().toString().replace("-", "");
+                        tokenByIdentity.put(value, token);
+                        registry.put(token, value);
+                    }
+                }
                 return "{\"token\":\"" + token + "\"}";
             }
             @Override public T decode(String json) {

@@ -114,15 +114,30 @@ public final class PostgresPlanningArtifactStore implements PlanningArtifactStor
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) return Optional.empty();
                 PlanningArtifacts value = codec.decode(rows.getString(8));
-                if (!id.equals(value.candidateSetId()) || !rows.getString(1).equals(value.executionId())
-                        || !rows.getString(2).trim().equals(value.request().fingerprint())
-                        || !rows.getString(3).equals(value.result().plannerId().name())
-                        || !rows.getString(4).equals(value.result().sessionId())
-                        || !rows.getString(5).equals(value.request().workingMemory().id().value())
-                        || rows.getLong(6) != value.request().workingMemory().version()
-                        || !rows.getString(7).trim().equals(PostgresJsonArtifactRepository.sha256(
-                                PostgresJsonArtifactRepository.validJson(codec.encode(value))))) {
-                    throw new SecurityException("stored planning artifact failed its ownership or content fingerprint checks");
+                if (!id.equals(value.candidateSetId())) {
+                    throw new SecurityException("stored planning artifact candidate_set_id does not match its decoded payload");
+                }
+                if (!rows.getString(1).equals(value.executionId())) {
+                    throw new SecurityException("stored planning artifact execution_id does not match its decoded payload");
+                }
+                if (!rows.getString(2).trim().equals(value.request().fingerprint())) {
+                    throw new SecurityException("stored planning artifact request_fingerprint does not match its decoded payload");
+                }
+                if (!rows.getString(3).equals(value.result().plannerId().name())) {
+                    throw new SecurityException("stored planning artifact planner_id does not match its decoded payload");
+                }
+                if (!rows.getString(4).equals(value.result().sessionId())) {
+                    throw new SecurityException("stored planning artifact planner_session_id does not match its decoded payload");
+                }
+                if (!rows.getString(5).equals(value.request().workingMemory().id().value())) {
+                    throw new SecurityException("stored planning artifact working_memory_id does not match its decoded payload");
+                }
+                if (rows.getLong(6) != value.request().workingMemory().version()) {
+                    throw new SecurityException("stored planning artifact working_memory_version does not match its decoded payload");
+                }
+                String reencodedPayload = PostgresJsonArtifactRepository.validJson(codec.encode(value));
+                if (!rows.getString(7).trim().equals(PostgresJsonArtifactRepository.sha256(reencodedPayload))) {
+                    throw new SecurityException("stored planning artifact payload_fingerprint does not match its re-encoded payload");
                 }
                 PlannerSessionCheckpoint checkpoint = sessions.find(value.result().sessionId()).orElse(null);
                 if (checkpoint != null && (checkpoint.plannerId() != value.result().plannerId()
