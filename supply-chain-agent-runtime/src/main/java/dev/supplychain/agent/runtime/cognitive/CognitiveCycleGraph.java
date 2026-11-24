@@ -403,11 +403,14 @@ public final class CognitiveCycleGraph {
                     && !state.text(CognitiveCycleState.APPROVER_ID).equals(result.approverId())) {
                 throw new SecurityException("approval response approver identity does not match the host-supplied identity");
             }
+            // Keep the opaque host-verified response reference in checkpoint state. The authority
+            // must revalidate the same approval binding immediately before dispatch, so clearing
+            // this reference here would make that second check impossible (and fail closed).
+            // The value is an identity reference, not an approval credential or bearer secret.
             return update("approval-resolution:" + result.disposition().name(),
                     CognitiveCycleState.APPROVAL_DECISION, result.disposition().name(),
                     CognitiveCycleState.APPROVER_ID, result.approverId(),
                     CognitiveCycleState.APPROVAL_EVIDENCE_REFERENCE, result.evidenceReference(),
-                    CognitiveCycleState.APPROVAL_RESPONSE_ID, "",
                     CognitiveCycleState.DECISION_STATUS, result.disposition().name(),
                     CognitiveCycleState.LAST_REASON, result.reason());
         };
