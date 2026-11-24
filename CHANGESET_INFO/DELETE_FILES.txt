@@ -10,3 +10,6 @@ supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive
 
 Additional CI-reported root-level duplicate to delete:
 src/main/java/dev/supplychain/agent/app/durable/DurableCognitiveApplicationHost.java
+
+Additional CI-reported root-level test duplicate to delete:
+src/test/java/dev/supplychain/agent/app/durable/DurableCognitiveApplicationHostPostgresIntegrationTest.java
