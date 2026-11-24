@@ -7,3 +7,6 @@ src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLi
 DO NOT DELETE these authoritative Maven module files; this changeset restores them:
 supply-chain-agent-runtime/src/main/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServices.java
 supply-chain-agent-runtime/src/test/java/dev/supplychain/agent/runtime/cognitive/lifecycle/CognitiveCycleLifecycleServicesTest.java
+
+Additional CI-reported root-level duplicate to delete:
+src/main/java/dev/supplychain/agent/app/durable/DurableCognitiveApplicationHost.java
