@@ -35,6 +35,7 @@ import dev.supplychain.agent.evaluation.fixture.ScenarioFixtureFactory;
 import dev.supplychain.agent.evaluation.planner.EvaluationPlannerFactory;
 import dev.supplychain.agent.infrastructure.postgres.runtime.JsonCodec;
 import dev.supplychain.agent.infrastructure.postgres.runtime.ObservationProvenanceResolver;
+import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresJsonArtifactRepository;
 import dev.supplychain.agent.infrastructure.postgres.runtime.PostgresRuntimeCodecs;
 import dev.supplychain.agent.memory.common.EvidenceReference;
 import dev.supplychain.agent.memory.common.MemoryScopeId;
@@ -147,6 +148,7 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
 
     @Test
     void durableHostApprovesDispatchesReconcilesRestartsAndConsumesPriorCycleMemory() throws Exception {
+        assertRegistryCodecIsDeterministic();
         MemoryScopeId scope = new MemoryScopeId("m8-gap08-e2e-" + UUID.randomUUID());
         ScenarioCatalog catalog = ScenarioCatalog.loadDefault();
         ScenarioDefinition authorizedWrite = catalog.require("REQ-09");
@@ -429,11 +431,28 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
                 registryCodec(), registryCodec(), registryCodec(), registryCodec(), r2);
     }
 
+    private static void assertRegistryCodecIsDeterministic() {
+        JsonCodec<String> codec = registryCodec();
+        String firstEncoding = codec.encode("same logical test value");
+        String secondEncoding = codec.encode(new String("same logical test value"));
+        assertEquals(firstEncoding, secondEncoding,
+                "a persistence codec must produce the same payload for the same logical value");
+        assertEquals("same logical test value", codec.decode(firstEncoding));
+    }
+
+    /**
+     * Same-process test codec with deterministic content tokens. Runtime persistence adapters
+     * decode a stored payload and re-encode the value before validating its content fingerprint;
+     * random UUID tokens violate the JsonCodec deterministic-encoding contract and make every
+     * valid read look tampered. This follows the established M7 PostgreSQL integration-test
+     * codec convention while deliberately remaining a test-only, same-process codec.
+     */
     private static <T> JsonCodec<T> registryCodec() {
         Map<String, T> registry = new ConcurrentHashMap<>();
         return new JsonCodec<>() {
             @Override public String encode(T value) {
-                String token = UUID.randomUUID().toString();
+                java.util.Objects.requireNonNull(value, "codec value");
+                String token = PostgresJsonArtifactRepository.sha256(value.getClass().getName() + "|" + value);
                 registry.put(token, value);
                 return "{\"token\":\"" + token + "\"}";
             }
