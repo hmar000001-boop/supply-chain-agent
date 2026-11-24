@@ -91,6 +91,7 @@ import dev.supplychain.agent.runtime.cognitive.ResourceBudgetExecutionGuard;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionPort;
 import dev.supplychain.agent.runtime.cognitive.decision.CognitiveCycleDecisionServices;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.ActionExecutionBatch;
+import dev.supplychain.agent.runtime.cognitive.lifecycle.AuthorizedActionPlan;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleAuthorityPort;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleAuthorityPort.ApprovalBinding;
 import dev.supplychain.agent.runtime.cognitive.lifecycle.CognitiveCycleLifecyclePort.ChildInvestigationPlan;
@@ -149,6 +150,7 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
     @Test
     void durableHostApprovesDispatchesReconcilesRestartsAndConsumesPriorCycleMemory() throws Exception {
         assertRegistryCodecRoundTripIsStable();
+        assertAuthorizedPlanCodecUsesValueEquality();
         MemoryScopeId scope = new MemoryScopeId("m8-gap08-e2e-" + UUID.randomUUID());
         ScenarioCatalog catalog = ScenarioCatalog.loadDefault();
         ScenarioDefinition authorizedWrite = catalog.require("REQ-09");
@@ -381,8 +383,9 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
         for (ResourceUnit unit : ResourceUnit.values()) limits.put(unit, 100_000L);
         ResourceBudget budget = new ResourceBudget(limits, NOW.plus(Duration.ofDays(1)));
 
+        JsonCodec<AuthorizedActionPlan> authorizedActionPlanCodec = valueRegistryCodec();
         PostgresRuntimeCodecs runtimeCodecs = PostgresRuntimeCodecs.withDefaults(
-                registryCodec(), registryCodec(), registryCodec(), registryCodec(),
+                registryCodec(), authorizedActionPlanCodec, registryCodec(), registryCodec(),
                 ignored -> new ObservationProvenanceResolver.ObservationProvenance(
                         "gap08-test-execution", "gap08-test-principal", "simulator", NOW),
                 registryCodec(), registryCodec(), registryCodec(), registryCodec(), registryCodec());
@@ -470,6 +473,50 @@ class DurableCognitiveApplicationHostEndToEndPostgresIntegrationTest {
                         registry.put(token, value);
                     }
                 }
+                return "{\"token\":\"" + token + "\"}";
+            }
+            @Override public T decode(String json) {
+                Matcher matcher = TOKEN.matcher(json);
+                if (!matcher.find()) throw new IllegalArgumentException("GAP-08 test codec token is missing");
+                T value = registry.get(matcher.group(1));
+                if (value == null) throw new IllegalStateException("GAP-08 same-process test codec cannot resolve token");
+                return value;
+            }
+        };
+    }
+
+    private record ValueCodecProbe(String identity, List<String> content) { }
+
+    private static void assertAuthorizedPlanCodecUsesValueEquality() {
+        JsonCodec<ValueCodecProbe> codec = valueRegistryCodec();
+        ValueCodecProbe first = new ValueCodecProbe("authorized-plan", List.of("execution", "candidate", "intent"));
+        ValueCodecProbe equivalent = new ValueCodecProbe("authorized-plan", List.of("execution", "candidate", "intent"));
+        assertNotSame(first, equivalent, "the idempotency contract must cover separately reconstructed values");
+        String firstPayload = codec.encode(first);
+        String equivalentPayload = codec.encode(equivalent);
+        assertEquals(firstPayload, equivalentPayload,
+                "equal immutable artifacts reconstructed on approval/resume must retain one payload fingerprint");
+        assertSame(first, codec.decode(equivalentPayload),
+                "the same-process registry must resolve a value-equivalent artifact to its original immutable value");
+    }
+
+    /**
+     * Value-equality registry codec for immutable records that are deliberately reconstructed
+     * on each authorization boundary. In particular, CognitiveCycleLifecycleServices.actionPlan()
+     * creates a fresh AuthorizedActionPlan in prepareAuthorization, resolveApproval,
+     * revalidatePlan and executeAuthorizedCandidate, while all those saves address the same
+     * immutable (execution, candidate-set, candidate) key. An identity-only codec would assign a
+     * fresh token to each reconstructed record and falsely look like content mutation.
+     */
+    private static <T> JsonCodec<T> valueRegistryCodec() {
+        Map<String, T> registry = new ConcurrentHashMap<>();
+        Map<T, String> tokenByValue = new ConcurrentHashMap<>();
+        return new JsonCodec<>() {
+            @Override public String encode(T value) {
+                java.util.Objects.requireNonNull(value, "codec value");
+                String token = tokenByValue.computeIfAbsent(value,
+                        ignored -> UUID.randomUUID().toString().replace("-", ""));
+                registry.putIfAbsent(token, value);
                 return "{\"token\":\"" + token + "\"}";
             }
             @Override public T decode(String json) {

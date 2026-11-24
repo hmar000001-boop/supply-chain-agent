@@ -60,10 +60,18 @@ public final class PostgresJsonArtifactRepository<T> {
                         """)) {
                     select.setString(1, scopeId); select.setString(2, artifactKind); select.setString(3, id);
                     try (ResultSet row = select.executeQuery()) {
-                        if (!row.next() || !Objects.equals(execution, row.getString(1))
-                                || !Objects.equals(owner, row.getString(2)) || ownerVersion != row.getLong(3)
-                                || !fingerprint.equals(row.getString(4).trim())) {
-                            throw new SecurityException("immutable artifact identity was reused with different ownership or content");
+                        if (!row.next()) {
+                            throw new SecurityException("immutable artifact row disappeared after insert: kind="
+                                    + artifactKind + ", id=" + id);
+                        }
+                        java.util.List<String> mismatches = new java.util.ArrayList<>();
+                        if (!Objects.equals(execution, row.getString(1))) mismatches.add("execution_id");
+                        if (!Objects.equals(owner, row.getString(2))) mismatches.add("owner_id");
+                        if (ownerVersion != row.getLong(3)) mismatches.add("owner_version");
+                        if (!fingerprint.equals(row.getString(4).trim())) mismatches.add("payload_fingerprint");
+                        if (!mismatches.isEmpty()) {
+                            throw new SecurityException("immutable artifact identity conflict: kind=" + artifactKind
+                                    + ", id=" + id + ", mismatched_fields=" + String.join(",", mismatches));
                         }
                     }
                 }
