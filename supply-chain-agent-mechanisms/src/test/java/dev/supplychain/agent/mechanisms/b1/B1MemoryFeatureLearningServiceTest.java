@@ -35,7 +35,7 @@ class B1MemoryFeatureLearningServiceTest {
                 SCOPE, "episode-7", 3)).orElseThrow().revision());
     }
 
-    @Test void verifiedDownstreamUseChangesNextActivationHistoryAndUtilityFeatures() {
+    @Test void verifiedDownstreamOutcomeUpdatesPersistedUseUtilityAndCueStatistics() {
         var reference = new B1MemoryCandidateReference(B1MemoryCandidateKind.EPISODIC, SCOPE, "episode-7", 3);
         var initial = B1MemoryFeatureState.empty(reference, NOW.minusSeconds(1));
         var learned = initial.applyVerifiedOutcome("verified-outcome-7", DownstreamOutcomeSignal.USEFUL,
@@ -55,7 +55,17 @@ class B1MemoryFeatureLearningServiceTest {
                 learned.harmfulOutcomes(), learned.neutralOutcomes(), learned.appliedOutcomeKeys(),
                 learned.appliedAccessEventKeys(), 1, NOW));
         var service = new B1MemoryFeatureLearningService(repository);
-        assertEquals(List.of(NOW), service.enrich(List.of(candidate()), NOW.plusSeconds(1)).getFirst().accessHistory(),
+        var providerCandidate = new B1MemoryCandidate("episodic:episode-7:3", SCOPE,
+                B1MemoryCandidateKind.EPISODIC, "episodic:episode-7@3", List.of(), Map.of(),
+                12.0, 2, Duration.ofMillis(10),
+                new MaintenanceProfile(0.1, 0.1, 0.1, Duration.ofDays(30), NOW));
+        var enriched = service.enrich(List.of(providerCandidate), NOW.plusSeconds(1)).getFirst();
+        assertEquals(List.of(NOW), enriched.accessHistory(),
                 "verified downstream use must affect the next B1 accessibility/activation input");
+        assertEquals(12.0, enriched.expectedDownstreamUtility(),
+                "normalized outcome statistics must not replace provider utility on another scale");
+        assertEquals(0.6, enriched.cueAssociationStrengths().get("inventory.shortage"));
+        assertEquals(1.0, service.find(reference).orElseThrow().expectedDownstreamUtility(),
+                "normalized outcome utility remains persisted separately");
     }
 }

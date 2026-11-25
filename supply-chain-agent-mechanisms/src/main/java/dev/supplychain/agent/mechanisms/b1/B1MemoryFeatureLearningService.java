@@ -11,8 +11,9 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Durable B1 accessibility/cue/utility loop. Only outcome capabilities minted after B3 receipt and
- * verifier revalidation can update future selection features.
+ * Durable B1 access-history and cue-association learning. Only outcome capabilities minted after
+ * B3 receipt and verifier revalidation can update the persisted outcome statistics. The normalized
+ * outcome statistic is not substituted for the task-specific utility supplied by the candidate adapter.
  */
 public final class B1MemoryFeatureLearningService {
     private static final int MAX_CAS_ATTEMPTS = 8;
@@ -22,7 +23,11 @@ public final class B1MemoryFeatureLearningService {
         this.repository = Objects.requireNonNull(repository, "repository");
     }
 
-    /** Applies persisted access history and outcome-learned utility/cue strengths before scoring. */
+    /**
+     * Applies persisted access/verified-use history and cue-association strengths before scoring.
+     * The candidate adapter's task-specific downstream utility is preserved: the persisted outcome
+     * statistic is normalized to [0,1] and is not calibrated to the provider's utility scale.
+     */
     public List<B1MemoryCandidate> enrich(List<B1MemoryCandidate> candidates, Instant at) {
         Objects.requireNonNull(at, "at");
         return Objects.requireNonNull(candidates, "candidates").stream().map(candidate -> {
@@ -36,11 +41,10 @@ public final class B1MemoryFeatureLearningService {
             if (history.size() > 64) history = new ArrayList<>(history.subList(history.size() - 64, history.size()));
             var cues = new TreeMap<>(candidate.cueAssociationStrengths());
             state.cueAssociationStrengths().forEach(cues::put);
-            double utility = state.usefulOutcomes() + state.harmfulOutcomes() + state.neutralOutcomes() == 0
-                    ? candidate.expectedDownstreamUtility() : state.expectedDownstreamUtility();
             return new B1MemoryCandidate(candidate.candidateId(), candidate.scopeId(), candidate.kind(),
-                    candidate.memoryReference(), history, cues, utility, candidate.contextUnits(),
-                    candidate.measuredInfrastructureLatency(), candidate.maintenanceProfile());
+                    candidate.memoryReference(), history, cues, candidate.expectedDownstreamUtility(),
+                    candidate.contextUnits(), candidate.measuredInfrastructureLatency(),
+                    candidate.maintenanceProfile());
         }).toList();
     }
 
