@@ -35,7 +35,32 @@ class B1MemoryFeatureLearningServiceTest {
                 SCOPE, "episode-7", 3)).orElseThrow().revision());
     }
 
-    @Test void verifiedDownstreamUseChangesNextActivationHistoryAndUtilityFeatures() {
+    @Test void verifiedOutcomeStatisticsDoNotReplaceProviderUtilityOnAnotherScale() {
+        var reference = new B1MemoryCandidateReference(B1MemoryCandidateKind.EPISODIC, SCOPE, "episode-7", 3);
+        var learned = B1MemoryFeatureState.empty(reference, NOW.minusSeconds(1))
+                .applyVerifiedOutcome("verified-outcome-scale-7", DownstreamOutcomeSignal.USEFUL,
+                        Set.of("inventory.shortage"), NOW);
+        var repository = new InMemoryB1MemoryFeatureRepository();
+        repository.saveNew(learned);
+        var service = new B1MemoryFeatureLearningService(repository);
+        var providerCandidate = new B1MemoryCandidate("episodic:episode-7:3", SCOPE,
+                B1MemoryCandidateKind.EPISODIC, "episodic:episode-7@3", List.of(), Map.of(),
+                12.0, 2, Duration.ofMillis(10),
+                new MaintenanceProfile(0.1, 0.1, 0.1, Duration.ofDays(30), NOW));
+
+        var enriched = service.enrich(List.of(providerCandidate), NOW.plusSeconds(1)).getFirst();
+
+        assertEquals(12.0, enriched.expectedDownstreamUtility(),
+                "normalized [0,1] outcome statistics must not replace task-scale provider utility");
+        assertEquals(List.of(NOW), enriched.accessHistory(),
+                "verified downstream use remains an accessibility signal");
+        assertEquals(0.6, enriched.cueAssociationStrengths().get("inventory.shortage"),
+                "verified outcomes continue to update cue associations");
+        assertEquals(1.0, service.find(reference).orElseThrow().expectedDownstreamUtility(),
+                "the normalized outcome statistic remains persisted separately");
+    }
+
+    @Test void verifiedDownstreamOutcomeUpdatesPersistedUseUtilityAndCueStatistics() {
         var reference = new B1MemoryCandidateReference(B1MemoryCandidateKind.EPISODIC, SCOPE, "episode-7", 3);
         var initial = B1MemoryFeatureState.empty(reference, NOW.minusSeconds(1));
         var learned = initial.applyVerifiedOutcome("verified-outcome-7", DownstreamOutcomeSignal.USEFUL,
